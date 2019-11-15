@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -18,6 +19,7 @@ public:
   const fs::path &get_fast_tier(void) const;
   const fs::path &get_slow_tier(void) const;
   long get_threshold(void) const;
+  void dump(std::ostream &os) const;
 };
 
 extern Config config;

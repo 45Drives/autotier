@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include "error.hpp"
+#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <boost/filesystem.hpp>
@@ -7,9 +8,6 @@
 Config config;
 
 void Config::load(const fs::path &config_path){
-  std::string line, key, value;
-  std::size_t str_itr;
-  std::stringstream line_stream;
   std::fstream config_file(config_path.string(), std::fstream::in);
   if(!config_file){
     if(!is_directory(config_path.parent_path())) create_directories(config_path.parent_path());
@@ -18,6 +16,9 @@ void Config::load(const fs::path &config_path){
   }
   
   while(config_file){
+    std::size_t str_itr;
+    std::stringstream line_stream;
+    std::string line, key, value;
     getline(config_file, line);
     // discard comments
     if(line.empty() || line.front() == '#') continue;
@@ -42,7 +43,7 @@ void Config::load(const fs::path &config_path){
     } // else ignore
   }
   
-  if(!this->verify()){
+  if(this->verify()){
     error(LOAD_CONF);
     exit(1);
   }
@@ -86,4 +87,10 @@ const fs::path &Config::get_slow_tier() const{
 
 long Config::get_threshold() const{
   return this->threshold;
+}
+
+void Config::dump(std::ostream &os) const{
+  os << "FAST_TIER_DIR=" << this->fast_tier.string() << std::endl;
+  os << "SLOW_TIER_DIR=" << this->slow_tier.string() << std::endl;
+  os << "THRESHOLD=" << this->threshold << std::endl;
 }
