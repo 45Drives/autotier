@@ -3,9 +3,10 @@
 
 std::string errors[NUM_ERRORS] = {
   "Error loading configuration file.",
-  "FAST_TIER does not exist. Please check config.",
-  "SLOW_TIER does not exist. Please check config.",
-  "THRESHOLD error. Must be a positive integer. Please check config."
+  "Tier directory does not exist. Please check config.",
+  "THRESHOLD error. Must be a positive integer. Please check config.",
+  "Error reading tier ID ([Tier <n>]). <n> must be positive integer.",
+  "First tier must be specified with '[<tier name>]' before any other config options."
 };
 
 void error(enum Error error){
