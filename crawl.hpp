@@ -10,7 +10,7 @@ public:
   int id;
   Tier *higher;
   Tier *lower;
-  void crawl(void (*action)(fs::path, Tier *));
+  void crawl(fs::path dir, void (*action)(fs::path, Tier *));
 };
 
 extern Tier *highest_tier;

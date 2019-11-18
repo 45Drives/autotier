@@ -9,17 +9,17 @@ Tier *lowest_tier;
 
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    tptr->crawl(tier_down);
+    tptr->crawl(tptr->dir, tier_down);
   }
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    tptr->crawl(tier_up);
+    tptr->crawl(tptr->dir, tier_up);
   }
 }
 
-void Tier::crawl(void (*action)(fs::path, Tier *)){
+void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
   for(fs::directory_iterator itr{this->dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
-      this->crawl(action);
+      this->crawl(*itr, action);
     }else if(!is_symlink(*itr)){
       action(*itr, this);
     }
