@@ -9,24 +9,24 @@ Tier *lowest_tier;
 
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    crawl(tptr->dir, tier_down, tptr);
+    tptr->crawl(tier_down);
   }
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    crawl(tptr->dir, tier_up, tptr);
+    tptr->crawl(tier_up);
   }
 }
 
-void crawl(const fs::path &src, void (*action)(fs::path, Tier *), Tier *tptr){
-  for(fs::directory_iterator itr{src}; itr != fs::directory_iterator{}; *itr++){
+void Tier::crawl(void (*action)(fs::path, Tier *)){
+  for(fs::directory_iterator itr{this->dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
-      crawl(*itr, action, tptr);
+      this->crawl(action);
     }else if(!is_symlink(*itr)){
-      action(*itr, tptr);
+      action(*itr, this);
     }
   }
 }
 
-void tier_up(fs::path item, Tier *tptr){
+static void tier_up(fs::path item, Tier *tptr){
   time_t mtime = last_write_time(item);
   if((time(NULL) - mtime) >= tptr->higher->expires) return;
   std::cout << "Tiering up" << std::endl;
@@ -44,7 +44,7 @@ void tier_up(fs::path item, Tier *tptr){
   }
 }
 
-void tier_down(fs::path item, Tier *tptr){
+static void tier_down(fs::path item, Tier *tptr){
   time_t mtime = last_write_time(item);
   if((time(NULL) - mtime) < tptr->expires) return;
   std::cout << "Tiering down" << std::endl;
