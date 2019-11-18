@@ -18,8 +18,10 @@ extern Tier *lowest_tier;
 
 void launch_crawlers(void);
 
-static void tier_up(fs::path item, Tier *tptr);
-static void tier_down(fs::path item, Tier *tptr);
+static void tier_up(fs::path from_here, Tier *tptr);
+static void tier_down(fs::path from_here, Tier *tptr);
+
+void copy_ownership_and_perms(fs::path src, fs::path dst);
 
 void print_md5_sum(unsigned char* md);
 

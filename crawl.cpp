@@ -4,6 +4,10 @@
 #include <openssl/md5.h>
 #include <iomanip>
 #include <regex>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 Tier *highest_tier;
 Tier *lowest_tier;
@@ -28,39 +32,53 @@ void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
   }
 }
 
-static void tier_up(fs::path item, Tier *tptr){
-  time_t mtime = last_write_time(item);
+static void tier_up(fs::path from_here, Tier *tptr){
+  time_t mtime = last_write_time(from_here);
   if((time(NULL) - mtime) >= tptr->higher->expires) return;
   std::cout << "Tiering up" << std::endl;
-  fs::path symlink = tptr->higher->dir/relative(item,tptr->dir);
-  if(is_symlink(symlink)){
-    remove(symlink);
+  fs::path to_here = tptr->higher->dir/relative(from_here, tptr->dir);
+  if(is_symlink(to_here)){
+    remove(to_here);
   }
-  copy_file(item,symlink); // move item back to original location
-  last_write_time(symlink, mtime);
-  if(verify_copy(item,symlink)){
+  copy_file(from_here, to_here); // move item back to original location
+  copy_ownership_and_perms(from_here, to_here);
+  last_write_time(to_here, mtime);
+  if(verify_copy(from_here, to_here)){
     std::cout << "Copy succeeded. " << std::endl;
-    remove(item);
+    remove(from_here);
   }else{
     std::cout << "Copy failed. " << std::endl;
   }
 }
 
-static void tier_down(fs::path item, Tier *tptr){
-  time_t mtime = last_write_time(item);
+static void tier_down(fs::path from_here, Tier *tptr){
+  time_t mtime = last_write_time(from_here);
   if((time(NULL) - mtime) < tptr->expires) return;
   std::cout << "Tiering down" << std::endl;
-  fs::path move_to = tptr->lower->dir/relative(item,tptr->dir);
-  if(!is_directory(move_to.parent_path()))
-    create_directories(move_to.parent_path());
-  copy_file(item,move_to); // move item to slow tier
-  last_write_time(move_to, mtime); // keep old mtime
-  if(verify_copy(item, move_to)){
+  fs::path to_here = tptr->lower->dir/relative(from_here, tptr->dir);
+  if(!is_directory(to_here.parent_path()))
+    create_directories(to_here.parent_path());
+  copy_file(from_here, to_here); // move item to slow tier
+  copy_ownership_and_perms(from_here, to_here);
+  last_write_time(to_here, mtime); // keep old mtime
+  if(verify_copy(from_here, to_here)){
     std::cout << "Copy succeeded. " << std::endl;
-    remove(item);
-    create_symlink(move_to,item); // create symlink fast/item -> slow/item
+    remove(from_here);
+    create_symlink(to_here, from_here); // create symlink fast/item -> slow/item
+    copy_ownership_and_perms(to_here, from_here); // copy original ownership to symlink
   }else{
     std::cout << "Copy failed. " << std::endl;
+  }
+}
+
+void copy_ownership_and_perms(fs::path src, fs::path dst){
+  struct stat info;
+  stat(src.c_str(), &info);
+  if(is_symlink(dst)){
+    lchown(dst.c_str(), info.st_uid, info.st_gid);
+  }else{
+    chown(dst.c_str(), info.st_uid, info.st_gid);
+    chmod(dst.c_str(), info.st_mode);
   }
 }
 

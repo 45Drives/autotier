@@ -6,7 +6,7 @@ std::string errors[NUM_ERRORS] = {
   "Tier directory does not exist. Please check config.",
   "THRESHOLD error. Must be a positive integer. Please check config.",
   "Error reading tier ID ([Tier <n>]). <n> must be positive integer.",
-  "First tier must be specified with '[Tier 1]' before any other config options."
+  "First tier must be specified with '[<tier name>]' before any other config options."
 };
 
 void error(enum Error error){

@@ -113,5 +113,6 @@ void Config::dump(std::ostream &os) const{
     os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;
     os << "EXPIRES=" << tptr->expires << std::endl;
+    os << std::endl;
   }
 }
