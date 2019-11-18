@@ -17,7 +17,7 @@ void launch_crawlers(){
 }
 
 void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
-  for(fs::directory_iterator itr{this->dir}; itr != fs::directory_iterator{}; *itr++){
+  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
       this->crawl(*itr, action);
     }else if(!is_symlink(*itr)){
