@@ -13,9 +13,6 @@ private:
   bool verify(void);
 public:
   void load(const fs::path &config_path);
-  const fs::path &get_fast_tier(void) const;
-  const fs::path &get_slow_tier(void) const;
-  long get_threshold(void) const;
   void dump(std::ostream &os) const;
 };
 

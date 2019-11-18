@@ -39,10 +39,7 @@ void Config::load(const fs::path &config_path){
         tptr->higher = tptr->lower = NULL;
         highest_tier = tptr;
       }
-      if(sscanf(line.c_str(),"[Tier %d]\n",&(tptr->id)) == EOF){
-        error(TIER_ID);
-        exit(1);
-      }
+      tptr->id = line.substr(1,line.find(']')-1);
     }else if(tptr){
       line_stream.str(line);
       getline(line_stream, key, '=');
@@ -90,7 +87,7 @@ void Config::generate_config(std::fstream &file){
   "[Tier 2]\n"
   "DIR=\n"
   "EXPIRES=\n"
-  "# ...\n"
+  "# ... (add as many tiers as you like)\n"
   << std::endl;
 }
 
@@ -98,12 +95,12 @@ bool Config::verify(){
   bool errors = false;
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     if(!is_directory(tptr->dir)){
-      std::cerr << "Tier " << tptr->id << ": ";
+      std::cerr << tptr->id << ": ";
       error(TIER_DNE);
       errors = true;
     }
     if(tptr->expires == ERR){
-      std::cerr << "Tier " << tptr->id << ": ";
+      std::cerr << tptr->id << ": ";
       error(THRESHOLD_ERR);
       errors = true;
     }
@@ -113,7 +110,7 @@ bool Config::verify(){
 
 void Config::dump(std::ostream &os) const{
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    os << "[Tier " << tptr->id << "]" << std::endl;
+    os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;
     os << "EXPIRES=" << tptr->expires << std::endl;
   }

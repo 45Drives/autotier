@@ -7,7 +7,7 @@ class Tier{
 public:
   long expires;
   fs::path dir;
-  int id;
+  std::string id;
   Tier *higher;
   Tier *lower;
   void crawl(fs::path dir, void (*action)(fs::path, Tier *));
