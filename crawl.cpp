@@ -4,26 +4,33 @@
 #include <openssl/md5.h>
 #include <iomanip>
 
+Tier *highest_tier;
+Tier *lowest_tier;
+
 void launch_crawlers(){
-  crawl(config.get_fast_tier(), tier_down);
-  crawl(config.get_slow_tier(), tier_up);
+  for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
+    crawl(tptr->dir, tier_down, tptr);
+  }
+  for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
+    crawl(tptr->dir, tier_up, tptr);
+  }
 }
 
-void crawl(const fs::path &src, void (*action)(fs::path)){
+void crawl(const fs::path &src, void (*action)(fs::path, Tier *), Tier *tptr){
   for(fs::directory_iterator itr{src}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
-      crawl(*itr,action);
+      crawl(*itr, action, tptr);
     }else if(!is_symlink(*itr)){
-      action(*itr);
+      action(*itr, tptr);
     }
   }
 }
 
-void tier_up(fs::path item){
+void tier_up(fs::path item, Tier *tptr){
   time_t mtime = last_write_time(item);
-  if((time(NULL) - mtime) >= config.get_threshold()) return;
+  if((time(NULL) - mtime) >= tptr->higher->expires) return;
   std::cout << "Tiering up" << std::endl;
-  fs::path symlink = config.get_fast_tier()/relative(item,config.get_slow_tier());
+  fs::path symlink = tptr->higher->dir/relative(item,tptr->dir);
   if(is_symlink(symlink)){
     remove(symlink);
   }
@@ -37,11 +44,11 @@ void tier_up(fs::path item){
   }
 }
 
-void tier_down(fs::path item){
+void tier_down(fs::path item, Tier *tptr){
   time_t mtime = last_write_time(item);
-  if((time(NULL) - mtime) < config.get_threshold()) return;
+  if((time(NULL) - mtime) < tptr->expires) return;
   std::cout << "Tiering down" << std::endl;
-  fs::path move_to = config.get_slow_tier()/relative(item,config.get_fast_tier());
+  fs::path move_to = tptr->lower->dir/relative(item,tptr->dir);
   if(!is_directory(move_to.parent_path()))
     create_directories(move_to.parent_path());
   copy_file(item,move_to); // move item to slow tier

@@ -9,9 +9,6 @@ namespace fs = boost::filesystem;
 
 class Config{
 private:
-  fs::path fast_tier;
-  fs::path slow_tier;
-  long threshold;
   void generate_config(std::fstream &file);
   bool verify(void);
 public:
@@ -21,5 +18,7 @@ public:
   long get_threshold(void) const;
   void dump(std::ostream &os) const;
 };
+
+void discard_comments(std::string &str);
 
 extern Config config;
