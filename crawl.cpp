@@ -3,6 +3,7 @@
 #include "error.hpp"
 #include <openssl/md5.h>
 #include <iomanip>
+#include <regex>
 
 Tier *highest_tier;
 Tier *lowest_tier;
@@ -20,7 +21,8 @@ void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
   for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
       this->crawl(*itr, action);
-    }else if(!is_symlink(*itr)){
+    }else if(!is_symlink(*itr) &&
+    !regex_match((*itr).path().filename().string(), std::regex("^[\.].*(.swp)$"))){
       action(*itr, this);
     }
   }
