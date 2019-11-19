@@ -27,7 +27,7 @@ void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
     if(is_directory(*itr)){
       this->crawl(*itr, action);
     }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("^\\..*(.swp)$"))){
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$)"))){
       action(*itr, this);
     }
   }
