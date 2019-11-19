@@ -30,3 +30,5 @@ EXPIRES=7200   # two hours
 DIR=/tier_3
 EXPIRES=14400  # four hours
 ```
+## Acknowledgements
+Credits to [Stephan Brumme](https://stephan-brumme.com/) for his single-header implementation of XXHash, which is used after a file is copied to verify that there were no errors.
