@@ -1,13 +1,14 @@
 #include "crawl.hpp"
 #include "config.hpp"
 #include "error.hpp"
-#include <openssl/md5.h>
+#include "xxhash64.h"
 #include <iomanip>
 #include <regex>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 Tier *highest_tier = NULL;
 Tier *lowest_tier = NULL;
@@ -82,36 +83,33 @@ void copy_ownership_and_perms(fs::path src, fs::path dst){
   }
 }
 
-void print_md5_sum(unsigned char* md){
-  for(unsigned i = 0; i < MD5_DIGEST_LENGTH; i++){
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(md[i]);
-  }
-}
-
 bool verify_copy(fs::path src, fs::path dst){
-  int j = 0;
-  unsigned char digest[2][MD5_DIGEST_LENGTH] = {{},{}};
-  for(fs::path i : {src, dst}){
-    std::ifstream file(i.string(), std::ios::binary);
-    MD5_CTX ctx;
-    MD5_Init(&ctx);
-    char file_buffer[4096];
-    while (file.read(file_buffer, sizeof(file_buffer)) || file.gcount()) {
-      MD5_Update(&ctx, file_buffer, file.gcount());
-    }
-    MD5_Final(digest[j++], &ctx);
+  char *src_buffer = new char[4096];
+  char *dst_buffer = new char[4096];
+  
+  int srcf = open(src.c_str(),O_RDONLY);
+  int dstf = open(dst.c_str(),O_RDONLY);
+  
+  XXHash64 src_hash(0);
+  XXHash64 dst_hash(0);
+  
+  while(read(srcf,src_buffer,sizeof(char[4096]))){
+    src_hash.add(src_buffer,sizeof(char[4096]));
+  }
+  while(read(dstf,dst_buffer,sizeof(char[4096]))){
+    dst_hash.add(dst_buffer,sizeof(char[4096]));
   }
   
-  std::cout << "SRC MD5: ";
-  print_md5_sum(digest[0]);
-  std::cout << std::endl;
-  std::cout << "DST MD5: ";
-  print_md5_sum(digest[1]);
-  std::cout << std::endl;
+  close(srcf);
+  close(dstf);
+  delete [] src_buffer;
+  delete [] dst_buffer;
   
-  for(unsigned char i = 0; i < MD5_DIGEST_LENGTH; i++)
-    if(digest[0][i] != digest[1][i])
-      return false;
+  uint64_t src_result = src_hash.hash();
+  uint64_t dst_result = dst_hash.hash();
   
-  return true;
+  std::cout << "SRC HASH: " << std::hex << src_result << std::endl;
+  std::cout << "DST HASH: " << std::hex << dst_result << std::endl;
+  
+  return (src_result == dst_result);
 }
