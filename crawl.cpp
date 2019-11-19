@@ -9,8 +9,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-Tier *highest_tier;
-Tier *lowest_tier;
+Tier *highest_tier = NULL;
+Tier *lowest_tier = NULL;
 
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){

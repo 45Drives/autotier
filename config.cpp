@@ -9,11 +9,13 @@
 Config config;
 
 void Config::load(const fs::path &config_path){
-  std::fstream config_file(config_path.string(), std::fstream::in);
+  std::fstream config_file(config_path.string(), std::ios::in);
   if(!config_file){
     if(!is_directory(config_path.parent_path())) create_directories(config_path.parent_path());
-    config_file.open(config_path.string(), std::fstream::out);
+    config_file.open(config_path.string(), std::ios::out);
     this->generate_config(config_file);
+    config_file.close();
+    config_file.open(config_path.string(), std::ios::in);
   }
   
   Tier *tptr = NULL;
@@ -93,6 +95,13 @@ void Config::generate_config(std::fstream &file){
 
 bool Config::verify(){
   bool errors = false;
+  if(highest_tier == NULL || lowest_tier == NULL){
+    error(NO_TIERS);
+    errors = true;
+  }else if(highest_tier == lowest_tier){
+    error(ONE_TIER);
+    errors = true;
+  }
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     if(!is_directory(tptr->dir)){
       std::cerr << tptr->id << ": ";
