@@ -7,6 +7,8 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -27,15 +29,15 @@ void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
     if(is_directory(*itr)){
       this->crawl(*itr, action);
     }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$)"))){
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
       action(*itr, this);
     }
   }
 }
 
 static void tier_up(fs::path from_here, Tier *tptr){
-  time_t mtime = last_write_time(from_here);
-  if((time(NULL) - mtime) >= tptr->higher->expires) return;
+  struct utimbuf times = last_times(from_here);
+  if((time(NULL) - times.actime) >= tptr->higher->expires) return;
   std::cout << "Tiering up" << std::endl;
   fs::path to_here = tptr->higher->dir/relative(from_here, tptr->dir);
   if(is_symlink(to_here)){
@@ -43,25 +45,24 @@ static void tier_up(fs::path from_here, Tier *tptr){
   }
   copy_file(from_here, to_here); // move item back to original location
   copy_ownership_and_perms(from_here, to_here);
-  last_write_time(to_here, mtime);
   if(verify_copy(from_here, to_here)){
     std::cout << "Copy succeeded. " << std::endl;
     remove(from_here);
   }else{
     std::cout << "Copy failed. " << std::endl;
   }
+  utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
 static void tier_down(fs::path from_here, Tier *tptr){
-  time_t mtime = last_write_time(from_here);
-  if((time(NULL) - mtime) < tptr->expires) return;
+  struct utimbuf times = last_times(from_here);
+  if((time(NULL) - times.actime) < tptr->expires) return;
   std::cout << "Tiering down" << std::endl;
   fs::path to_here = tptr->lower->dir/relative(from_here, tptr->dir);
   if(!is_directory(to_here.parent_path()))
     create_directories(to_here.parent_path());
   copy_file(from_here, to_here); // move item to slow tier
   copy_ownership_and_perms(from_here, to_here);
-  last_write_time(to_here, mtime); // keep old mtime
   if(verify_copy(from_here, to_here)){
     std::cout << "Copy succeeded. " << std::endl;
     remove(from_here);
@@ -70,9 +71,10 @@ static void tier_down(fs::path from_here, Tier *tptr){
   }else{
     std::cout << "Copy failed. " << std::endl;
   }
+  utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
-void copy_ownership_and_perms(fs::path src, fs::path dst){
+void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
   struct stat info;
   stat(src.c_str(), &info);
   if(is_symlink(dst)){
@@ -83,7 +85,7 @@ void copy_ownership_and_perms(fs::path src, fs::path dst){
   }
 }
 
-bool verify_copy(fs::path src, fs::path dst){
+bool verify_copy(const fs::path &src, const fs::path &dst){
   int bytes_read;
   char *src_buffer = new char[4096];
   char *dst_buffer = new char[4096];
@@ -113,4 +115,13 @@ bool verify_copy(fs::path src, fs::path dst){
   std::cout << "DST HASH: " << std::hex << dst_result << std::endl;
   
   return (src_result == dst_result);
+}
+
+struct utimbuf last_times(const fs::path &file){
+  struct stat info;
+  stat(file.c_str(), &info);
+  struct utimbuf times;
+  times.actime = info.st_atime;
+  times.modtime = info.st_mtime;
+  return times;
 }
