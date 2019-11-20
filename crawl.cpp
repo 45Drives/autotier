@@ -84,6 +84,7 @@ void copy_ownership_and_perms(fs::path src, fs::path dst){
 }
 
 bool verify_copy(fs::path src, fs::path dst){
+  int bytes_read;
   char *src_buffer = new char[4096];
   char *dst_buffer = new char[4096];
   
@@ -93,11 +94,11 @@ bool verify_copy(fs::path src, fs::path dst){
   XXHash64 src_hash(0);
   XXHash64 dst_hash(0);
   
-  while(read(srcf,src_buffer,sizeof(char[4096]))){
-    src_hash.add(src_buffer,sizeof(char[4096]));
+  while((bytes_read = read(srcf,src_buffer,sizeof(char[4096]))) > 0){
+    src_hash.add(src_buffer,bytes_read);
   }
-  while(read(dstf,dst_buffer,sizeof(char[4096]))){
-    dst_hash.add(dst_buffer,sizeof(char[4096]));
+  while((bytes_read = read(dstf,dst_buffer,sizeof(char[4096]))) > 0){
+    dst_hash.add(dst_buffer,bytes_read);
   }
   
   close(srcf);
