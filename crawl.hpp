@@ -21,6 +21,8 @@ void launch_crawlers(void);
 static void tier_up(fs::path from_here, Tier *tptr);
 static void tier_down(fs::path from_here, Tier *tptr);
 
-void copy_ownership_and_perms(fs::path src, fs::path dst);
+void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 
-bool verify_copy(fs::path src, fs::path dst);
+bool verify_copy(const fs::path &src, const fs::path &dst);
+
+struct utimbuf last_times(const fs::path &file);
