@@ -8,6 +8,7 @@
 #include <grp.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statvfs.h>
 #include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -17,10 +18,14 @@ Tier *lowest_tier = NULL;
 
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    tptr->crawl(tptr->dir, tier_down);
+    std::cout << "tier usage: " << get_fs_usage(tptr->dir) << std::endl;
+    if(get_fs_usage(tptr->dir) >= tptr->usage_watermark)
+      tptr->crawl(tptr->dir, tier_down);
   }
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    tptr->crawl(tptr->dir, tier_up);
+    std::cout << "tier usage: " << get_fs_usage(tptr->higher->dir) << std::endl;
+    if(get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
+      tptr->crawl(tptr->dir, tier_up);
   }
 }
 
@@ -124,4 +129,11 @@ struct utimbuf last_times(const fs::path &file){
   times.actime = info.st_atime;
   times.modtime = info.st_mtime;
   return times;
+}
+
+int get_fs_usage(const fs::path &dir){
+  struct statvfs fs_stats;
+  if((statvfs(dir.c_str(), &fs_stats) == -1))
+    return -1;
+  return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
 }

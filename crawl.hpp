@@ -5,6 +5,7 @@ namespace fs = boost::filesystem;
 
 class Tier{
 public:
+  int usage_watermark;
   long expires;
   fs::path dir;
   std::string id;
@@ -26,3 +27,6 @@ void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 bool verify_copy(const fs::path &src, const fs::path &dst);
 
 struct utimbuf last_times(const fs::path &file);
+
+int get_fs_usage(const fs::path &dir);
+// returns &usage of fs as integer 0-100

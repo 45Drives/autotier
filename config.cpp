@@ -54,6 +54,12 @@ void Config::load(const fs::path &config_path){
         }catch(std::invalid_argument){
           tptr->expires = ERR;
         }
+      }else if(key == "USAGE_WATERMARK"){
+        try{
+          tptr->usage_watermark = stoi(value);
+        }catch(std::invalid_argument){
+          tptr->usage_watermark = ERR;
+        }
       } // else ignore
     }else{
       error(NO_FIRST_TIER);
@@ -84,11 +90,13 @@ void Config::generate_config(std::fstream &file){
   "[Tier 1]\n"
   "DIR=                # full path to tier storage pool\n"
   "EXPIRES=            # file age in seconds at which to move file to slower tier\n"
+  "USAGE_WATERMARK=    # % usage at which to tier down\n"
   "# file age is calculated as (current time - file mtime), i.e. the amount\n"
   "# of time that has passed since the file was last modified.\n"
   "[Tier 2]\n"
   "DIR=\n"
   "EXPIRES=\n"
+  "USAGE_WATERMARK=\n"
   "# ... (add as many tiers as you like)\n"
   << std::endl;
 }
@@ -113,6 +121,11 @@ bool Config::verify(){
       error(THRESHOLD_ERR);
       errors = true;
     }
+    if(tptr->usage_watermark == ERR || tptr->usage_watermark > 100 || tptr->usage_watermark < 0){
+      std::cerr << tptr->id << ": ";
+      error(WATERMARK_ERR);
+      errors = true;
+    }
   }
   return errors;
 }
@@ -122,6 +135,7 @@ void Config::dump(std::ostream &os) const{
     os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;
     os << "EXPIRES=" << tptr->expires << std::endl;
+    os << "USAGE_WATERMARK=" << tptr->usage_watermark << std::endl;
     os << std::endl;
   }
 }
