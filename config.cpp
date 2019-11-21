@@ -42,6 +42,7 @@ void Config::load(const fs::path &config_path){
         highest_tier = tptr;
       }
       tptr->id = line.substr(1,line.find(']')-1);
+      tptr->usage_watermark = DISABLED; // default to disabled until line is read below
     }else if(tptr){
       line_stream.str(line);
       getline(line_stream, key, '=');
@@ -55,10 +56,14 @@ void Config::load(const fs::path &config_path){
           tptr->expires = ERR;
         }
       }else if(key == "USAGE_WATERMARK"){
-        try{
-          tptr->usage_watermark = stoi(value);
-        }catch(std::invalid_argument){
-          tptr->usage_watermark = ERR;
+        if(value.empty()){
+          tptr->usage_watermark = DISABLED;
+        }else{
+          try{
+            tptr->usage_watermark = stoi(value);
+          }catch(std::invalid_argument){
+            tptr->usage_watermark = ERR;
+          }
         }
       } // else ignore
     }else{
@@ -90,7 +95,7 @@ void Config::generate_config(std::fstream &file){
   "[Tier 1]\n"
   "DIR=                # full path to tier storage pool\n"
   "EXPIRES=            # file age in seconds at which to move file to slower tier\n"
-  "USAGE_WATERMARK=    # % usage at which to tier down\n"
+  "USAGE_WATERMARK=    # % usage at which to tier down, omit to disable\n"
   "# file age is calculated as (current time - file mtime), i.e. the amount\n"
   "# of time that has passed since the file was last modified.\n"
   "[Tier 2]\n"
@@ -121,7 +126,8 @@ bool Config::verify(){
       error(THRESHOLD_ERR);
       errors = true;
     }
-    if(tptr->usage_watermark == ERR || tptr->usage_watermark > 100 || tptr->usage_watermark < 0){
+    if(tptr->usage_watermark != DISABLED &&
+    (tptr->usage_watermark == ERR || tptr->usage_watermark > 100 || tptr->usage_watermark < 0)){
       std::cerr << tptr->id << ": ";
       error(WATERMARK_ERR);
       errors = true;
@@ -135,7 +141,11 @@ void Config::dump(std::ostream &os) const{
     os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;
     os << "EXPIRES=" << tptr->expires << std::endl;
-    os << "USAGE_WATERMARK=" << tptr->usage_watermark << std::endl;
+    os << "USAGE_WATERMARK=";
+    if(tptr->usage_watermark == DISABLED)
+      os << "(DISABLED)" << std::endl;
+    else
+      os << tptr->usage_watermark << std::endl;
     os << std::endl;
   }
 }

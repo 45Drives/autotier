@@ -6,6 +6,7 @@ namespace fs = boost::filesystem;
 
 #define DEFAULT_CONFIG_PATH "/etc/autotier.conf"
 #define ERR -1
+#define DISABLED -999
 
 class Config{
 private:

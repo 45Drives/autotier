@@ -19,12 +19,12 @@ Tier *lowest_tier = NULL;
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
     std::cout << "tier usage: " << get_fs_usage(tptr->dir) << std::endl;
-    if(get_fs_usage(tptr->dir) >= tptr->usage_watermark)
+    if(tptr->usage_watermark == DISABLED || get_fs_usage(tptr->dir) >= tptr->usage_watermark)
       tptr->crawl(tptr->dir, tier_down);
   }
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
     std::cout << "tier usage: " << get_fs_usage(tptr->higher->dir) << std::endl;
-    if(get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
+    if(tptr->higher->usage_watermark == DISABLED || get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
       tptr->crawl(tptr->dir, tier_up);
   }
 }
