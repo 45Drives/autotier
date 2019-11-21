@@ -14,22 +14,26 @@ The layout of a single tier's configuration entry is as follows:
 [<Tier name>]
 DIR=/path/to/storage/tier
 EXPIRES=<number of seconds until file expiry>
+USAGE_WATERMARK=<0-100% of tier usage at which to tier down old files>
 ```
 As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest.  
 Below is an example of a configuration file:
 ```
 # autotier.conf
 [Fastest Tier]
-DIR=/tier_1    # fast tier storage pool
-EXPIRES=3600   # one hour
+DIR=/tier_1         # fast tier storage pool
+EXPIRES=3600        # one hour
+USAGE_WATERMARK=80  # tier down old files if tier is 80% full
 
 [Medium Tier]
 DIR=/tier_2
 EXPIRES=7200   # two hours
+USAGE_WATERMARK=50
 
-[Slowest Tier]
+[Slower Tier]
 DIR=/tier_3
 EXPIRES=14400  # four hours
+USAGE_WATERMARK=50
 
 # ... and so on
 ```
