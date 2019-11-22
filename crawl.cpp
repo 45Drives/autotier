@@ -156,3 +156,13 @@ int get_fs_usage(const fs::path &dir){
     return -1;
   return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
 }
+
+void destroy_tiers(void){
+  if(highest_tier == lowest_tier){
+    delete highest_tier;
+    return;
+  }
+  for(Tier *tptr = highest_tier->lower; tptr != NULL; tptr = tptr->lower)
+    delete tptr->higher;
+  delete lowest_tier;
+}

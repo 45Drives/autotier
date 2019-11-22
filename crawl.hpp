@@ -49,3 +49,5 @@ struct utimbuf last_times(const fs::path &file);
 
 int get_fs_usage(const fs::path &dir);
 // returns &usage of fs as integer 0-100
+
+void destroy_tiers(void);

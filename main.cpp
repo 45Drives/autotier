@@ -30,5 +30,6 @@ int main(int argc, char *argv[]){
   config.load(config_path);
   config.dump(std::cout);
   launch_crawlers();
+  destroy_tiers();
   return 0;
 }
