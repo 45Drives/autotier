@@ -91,7 +91,6 @@ static void tier_down(fs::path from_here, Tier *tptr){
     std::cout << "Copy succeeded. " << std::endl;
     remove(from_here);
     create_symlink(to_here, from_here); // create symlink fast/item -> slow/item
-    copy_ownership_and_perms(to_here, from_here); // copy original ownership to symlink
   }else{
     std::cout << "Copy failed. " << std::endl;
   }
@@ -101,12 +100,8 @@ static void tier_down(fs::path from_here, Tier *tptr){
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
   struct stat info;
   stat(src.c_str(), &info);
-  if(is_symlink(dst)){
-    lchown(dst.c_str(), info.st_uid, info.st_gid);
-  }else{
-    chown(dst.c_str(), info.st_uid, info.st_gid);
-    chmod(dst.c_str(), info.st_mode);
-  }
+  chown(dst.c_str(), info.st_uid, info.st_gid);
+  chmod(dst.c_str(), info.st_mode);
 }
 
 bool verify_copy(const fs::path &src, const fs::path &dst){
