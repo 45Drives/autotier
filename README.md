@@ -16,7 +16,7 @@ DIR=/path/to/storage/tier
 EXPIRES=<number of seconds until file expiry>
 USAGE_WATERMARK=<0-100% of tier usage at which to tier down old files>
 ```
-As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest.  
+As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want, as it is just used for config diagnostics. Usage watermark can be disabled by omitting the option in the configuration file, causing `autotier` to always tier down files older than the defined expiry age.   
 Below is an example of a configuration file:
 ```
 # autotier.conf
@@ -33,7 +33,7 @@ USAGE_WATERMARK=50
 [Slower Tier]
 DIR=/tier_3
 EXPIRES=14400  # four hours
-USAGE_WATERMARK=50
+USAGE_WATERMARK= # always tier down after four hours
 
 # ... and so on
 ```
@@ -42,6 +42,7 @@ Samba must be configured to follow symlinks outside of the storage pool. The fol
 ```
 [global]
 allow insecure wide links = yes
+unix extensions = no
 # ...
 [<Share_Name>]
 follow symlinks = yes
