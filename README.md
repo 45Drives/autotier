@@ -1,5 +1,5 @@
 # autotier
-Moves files with an atime older than the configured threshold to a lower tier of storage, et vice versa if the file is modified.
+If tier usage is higher than watermark **or** if the watermark is disabled, moves files with an atime older than the configured threshold to a lower tier of storage et vice versa if the file is recently accessed.
 
 ## What it does
 If it finds a file in a defined storage tier that hasn't been written to in the specified expiry time, it moves the file to the next lowest storage tier and replaces the original with a symlink to the new location. Conversely, if this file is opened and modified (through the symlink or otherwise), the symlink is removed and the file is moved back to it's original tier. This behaviour cascades across as many storage tiers as you want to define in the configuration file.
