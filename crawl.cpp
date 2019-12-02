@@ -1,3 +1,22 @@
+/*
+    Copyright (C) 2019 Joshua Boudreau
+    
+    This file is part of autotier.
+
+    autotier is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    autotier is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "crawl.hpp"
 #include "config.hpp"
 #include "error.hpp"
@@ -8,6 +27,7 @@
 #include <grp.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statvfs.h>
 #include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -17,10 +37,12 @@ Tier *lowest_tier = NULL;
 
 void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    tptr->crawl(tptr->dir, tier_down);
+    if(tptr->usage_watermark == DISABLED || get_fs_usage(tptr->dir) >= tptr->usage_watermark)
+      tptr->crawl(tptr->dir, tier_down);
   }
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    tptr->crawl(tptr->dir, tier_up);
+    if(tptr->higher->usage_watermark == DISABLED || get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
+      tptr->crawl(tptr->dir, tier_up);
   }
 }
 
@@ -67,7 +89,6 @@ static void tier_down(fs::path from_here, Tier *tptr){
     std::cout << "Copy succeeded. " << std::endl;
     remove(from_here);
     create_symlink(to_here, from_here); // create symlink fast/item -> slow/item
-    copy_ownership_and_perms(to_here, from_here); // copy original ownership to symlink
   }else{
     std::cout << "Copy failed. " << std::endl;
   }
@@ -77,12 +98,8 @@ static void tier_down(fs::path from_here, Tier *tptr){
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
   struct stat info;
   stat(src.c_str(), &info);
-  if(is_symlink(dst)){
-    lchown(dst.c_str(), info.st_uid, info.st_gid);
-  }else{
-    chown(dst.c_str(), info.st_uid, info.st_gid);
-    chmod(dst.c_str(), info.st_mode);
-  }
+  chown(dst.c_str(), info.st_uid, info.st_gid);
+  chmod(dst.c_str(), info.st_mode);
 }
 
 bool verify_copy(const fs::path &src, const fs::path &dst){
@@ -124,4 +141,21 @@ struct utimbuf last_times(const fs::path &file){
   times.actime = info.st_atime;
   times.modtime = info.st_mtime;
   return times;
+}
+
+int get_fs_usage(const fs::path &dir){
+  struct statvfs fs_stats;
+  if((statvfs(dir.c_str(), &fs_stats) == -1))
+    return -1;
+  return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
+}
+
+void destroy_tiers(void){
+  if(highest_tier == lowest_tier){
+    delete highest_tier;
+    return;
+  }
+  for(Tier *tptr = highest_tier->lower; tptr != NULL; tptr = tptr->lower)
+    delete tptr->higher;
+  delete lowest_tier;
 }
