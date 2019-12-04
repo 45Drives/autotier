@@ -19,7 +19,7 @@
 
 #include "crawl.hpp"
 #include "config.hpp"
-#include "error.hpp"
+#include "alert.hpp"
 #include "xxhash64.h"
 #include <iomanip>
 #include <regex>

@@ -32,6 +32,7 @@ private:
   void generate_config(std::fstream &file);
   bool verify(void);
 public:
+  int log_lvl;
   void load(const fs::path &config_path);
   void dump(std::ostream &os) const;
 };

@@ -18,7 +18,7 @@
 */
 
 #include "config.hpp"
-#include "error.hpp"
+#include "alert.hpp"
 #include "crawl.hpp"
 #include <iostream>
 #include <sstream>
