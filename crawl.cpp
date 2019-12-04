@@ -60,7 +60,7 @@ void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
 static void tier_up(fs::path from_here, Tier *tptr){
   struct utimbuf times = last_times(from_here);
   if((time(NULL) - times.actime) >= tptr->higher->expires) return;
-  std::cout << "Tiering up" << std::endl;
+  Log("Tiering up",2);
   fs::path to_here = tptr->higher->dir/relative(from_here, tptr->dir);
   if(is_symlink(to_here)){
     remove(to_here);
@@ -68,10 +68,10 @@ static void tier_up(fs::path from_here, Tier *tptr){
   copy_file(from_here, to_here); // move item back to original location
   copy_ownership_and_perms(from_here, to_here);
   if(verify_copy(from_here, to_here)){
-    std::cout << "Copy succeeded. " << std::endl;
+    Log("Copy succeeded.",2);
     remove(from_here);
   }else{
-    std::cout << "Copy failed. " << std::endl;
+    Log("Copy failed.",0);
   }
   utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
 }
@@ -79,18 +79,18 @@ static void tier_up(fs::path from_here, Tier *tptr){
 static void tier_down(fs::path from_here, Tier *tptr){
   struct utimbuf times = last_times(from_here);
   if((time(NULL) - times.actime) < tptr->expires) return;
-  std::cout << "Tiering down" << std::endl;
+  Log("Tiering down",2);
   fs::path to_here = tptr->lower->dir/relative(from_here, tptr->dir);
   if(!is_directory(to_here.parent_path()))
     create_directories(to_here.parent_path());
   copy_file(from_here, to_here); // move item to slow tier
   copy_ownership_and_perms(from_here, to_here);
   if(verify_copy(from_here, to_here)){
-    std::cout << "Copy succeeded. " << std::endl;
+    Log("Copy succeeded.",2);
     remove(from_here);
     create_symlink(to_here, from_here); // create symlink fast/item -> slow/item
   }else{
-    std::cout << "Copy failed. " << std::endl;
+    Log("Copy failed.",0);
   }
   utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
 }
@@ -128,8 +128,12 @@ bool verify_copy(const fs::path &src, const fs::path &dst){
   uint64_t src_result = src_hash.hash();
   uint64_t dst_result = dst_hash.hash();
   
-  std::cout << "SRC HASH: " << std::hex << src_result << std::endl;
-  std::cout << "DST HASH: " << std::hex << dst_result << std::endl;
+  std::stringstream ss;
+  
+  ss << "SRC HASH: 0x" << std::hex << src_result << std::endl;
+  ss << "DST HASH: 0x" << std::hex << dst_result << std::endl;
+  
+  Log(ss.str(),2);
   
   return (src_result == dst_result);
 }

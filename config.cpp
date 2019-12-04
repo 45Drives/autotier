@@ -24,10 +24,12 @@
 #include <sstream>
 #include <fstream>
 #include <boost/filesystem.hpp>
+#include <regex>
 
 Config config;
 
 void Config::load(const fs::path &config_path){
+  config.log_lvl = 1; // default to 1
   std::fstream config_file(config_path.string(), std::ios::in);
   if(!config_file){
     if(!is_directory(config_path.parent_path())) create_directories(config_path.parent_path());
@@ -50,6 +52,10 @@ void Config::load(const fs::path &config_path){
     discard_comments(line);
     
     if(line.front() == '['){
+      std::string id = line.substr(1,line.find(']')-1);
+      if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
+        if(this->load_global(config_file, id) == EOF) break;
+      }
       if(tptr){
         tptr->lower = new Tier;
         tptr->lower->higher = tptr;
@@ -60,7 +66,7 @@ void Config::load(const fs::path &config_path){
         tptr->higher = tptr->lower = NULL;
         highest_tier = tptr;
       }
-      tptr->id = line.substr(1,line.find(']')-1);
+      tptr->id = id;
       tptr->usage_watermark = DISABLED; // default to disabled until line is read below
     }else if(tptr){
       line_stream.str(line);
@@ -99,6 +105,38 @@ void Config::load(const fs::path &config_path){
   }
 }
 
+int Config::load_global(std::fstream &config_file, std::string &id){
+  while(config_file){
+    std::stringstream line_stream;
+    std::string line, key, value;
+    
+    getline(config_file, line);
+    
+    // discard comments
+    if(line.empty() || line.front() == '#') continue;
+    discard_comments(line);
+    
+    if(line.front() == '['){
+      id = line.substr(1,line.find(']')-1);
+      return 0;
+    }
+    
+    line_stream.str(line);
+    getline(line_stream, key, '=');
+    getline(line_stream, value);
+    
+    if(key == "LOG_LEVEL"){
+      try{
+        this->log_lvl = stoi(value);
+      }catch(std::invalid_argument){
+        this->log_lvl = ERR;
+      }
+    } // else if ...
+  }
+  // if here, EOF reached
+  return EOF;
+}
+
 void discard_comments(std::string &str){
   std::size_t str_itr;
   if((str_itr = str.find('#')) != std::string::npos){
@@ -111,6 +149,9 @@ void discard_comments(std::string &str){
 void Config::generate_config(std::fstream &file){
   file <<
   "# autotier config\n"
+  "[Global]            # global settings\n"
+  "LOG_LEVEL=1         # 0 = none, 1 = normal, 2 = debug\n"
+  "\n"
   "[Tier 1]\n"
   "DIR=                # full path to tier storage pool\n"
   "EXPIRES=            # file age in seconds at which to move file to slower tier\n"
@@ -156,6 +197,9 @@ bool Config::verify(){
 }
 
 void Config::dump(std::ostream &os) const{
+  os << "[Global]" << std::endl;
+  os << "LOG_LEVEL=" << this->log_lvl << std::endl;
+  os << std::endl;
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;

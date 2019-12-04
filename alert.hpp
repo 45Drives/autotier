@@ -19,9 +19,11 @@
 
 #pragma once
 
+#include <string>
+
 #define NUM_ERRORS 7
 enum Error{LOAD_CONF, TIER_DNE, THRESHOLD_ERR, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR};
 
 void error(enum Error error);
 
-void log(std::string msg, int lvl);
+void Log(std::string msg, int lvl);

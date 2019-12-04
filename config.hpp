@@ -34,6 +34,7 @@ private:
 public:
   int log_lvl;
   void load(const fs::path &config_path);
+  int load_global(std::fstream &config_file, std::string &id);
   void dump(std::ostream &os) const;
 };
 
