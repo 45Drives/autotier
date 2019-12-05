@@ -9,6 +9,14 @@ Create a [crontab](https://linux.die.net/man/5/crontab) entry to periodically ru
 
 ## Configuration
 ### Autotier Config
+#### Global Config
+For global configuration of `autotier`, options are placed below the `[Global]` header. Currently the only global option is log level, which can be set to either 0 (no logging), 1 (basic logging), or 2 (debug logging), and defaults to 1. Example:
+```
+[Global]
+LOG_LEVEL=2
+```
+The global config section can be placed before, after, or between tier definitions.
+#### Tier Config
 The layout of a single tier's configuration entry is as follows:
 ```
 [<Tier name>]
@@ -16,10 +24,13 @@ DIR=/path/to/storage/tier
 EXPIRES=<number of seconds until file expiry>
 USAGE_WATERMARK=<0-100% of tier usage at which to tier down old files>
 ```
-As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want, as it is just used for config diagnostics. Usage watermark can be disabled by omitting the option in the configuration file, causing `autotier` to always tier down files older than the defined expiry age.   
-Below is an example of a configuration file:
+As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want but it cannot be `global` or `Global`. Tier names are only used for config diagnostics. Usage watermark can be disabled by omitting the option in the configuration file, causing `autotier` to always tier down files older than the defined expiry age.   
+Below is a complete example of a configuration file:
 ```
 # autotier.conf
+[Global]
+LOG_LEVEL=0
+
 [Fastest Tier]
 DIR=/tier_1         # fast tier storage pool
 EXPIRES=3600        # one hour
