@@ -20,22 +20,43 @@
 #pragma once
 
 #include <boost/filesystem.hpp>
+#include <utime.h>
+#include <sys/stat.h>
 namespace fs = boost::filesystem;
 
-struct File{
+class File{
+public:
   long age; // seconds since last access
+  struct utimbuf times;
   fs::path path;
+  File(fs::path path_){
+    path = path_;
+    struct stat info;
+    stat(path.c_str(), &info);
+    times.actime = info.st_atime;
+    times.modtime = info.st_mtime;
+    age = time(NULL) - times.actime;
+  }
+  File(const File &rhs) {
+    age = rhs.age;
+    times.modtime = rhs.times.modtime;
+    times.actime = rhs.times.actime;
+    path = rhs.path;
+  }
 };
 
-struct Tier{
+class Tier{
+public:
   int usage_watermark;
   long expires;
   Tier *higher;
   Tier *lower;
   fs::path dir;
   std::string id;
+  std::list<File> files; // freshest to stalest
   void crawl(fs::path dir);
-  std::list<File> files;
+  void tier_down(File &file);
+  void tier_up(std::list<File>::iterator fitr);
 };
 
 extern Tier *highest_tier;
@@ -43,14 +64,9 @@ extern Tier *lowest_tier;
 
 void launch_crawlers(void);
 
-static void tier_up(fs::path from_here, Tier *tptr);
-static void tier_down(fs::path from_here, Tier *tptr);
-
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 
 bool verify_copy(const fs::path &src, const fs::path &dst);
-
-struct utimbuf last_times(const fs::path &file);
 
 int get_fs_usage(const fs::path &dir);
 // returns &usage of fs as integer 0-100
