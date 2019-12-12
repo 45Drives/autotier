@@ -65,10 +65,12 @@ void launch_crawlers(){
   }
   // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    std::list<File>::iterator itr = tptr->files.begin();
-    while(itr != tptr->files.end() && get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark){
-      tptr->tier_up(itr);
-      itr++;
+    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark){
+      tptr->tier_up(tptr->files.front());
+      // move File to lower tier list
+      std::list<File>::iterator insert_itr = tptr->higher->files.begin();
+      while(insert_itr != tptr->higher->files.end() && (*insert_itr).age < tptr->files.front().age) insert_itr++;
+      tptr->higher->files.insert(insert_itr, tptr->files.front());
       tptr->files.pop_front();
     }
   }
@@ -92,12 +94,12 @@ void Tier::crawl(fs::path dir){
     !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
       this->files.push_back(File{*itr});
     }
-    this->files.sort([](const File &a, const File &b){return a.age < b.age;});
   }
+  this->files.sort([](const File &a, const File &b){return a.age < b.age;});
 }
 
 void Tier::tier_down(File &file){
-  if(file.age < this->expires) return;
+  //if(file.age < this->expires) return;
   fs::path to_here = this->lower->dir/relative(file.path, this->dir);
   if(!is_directory(to_here.parent_path()))
     create_directories(to_here.parent_path());
@@ -115,9 +117,8 @@ void Tier::tier_down(File &file){
   file.path = to_here; // update metadata
 }
 
-void Tier::tier_up(std::list<File>::iterator fitr){
-  File file = *fitr;
-  if(file.age >= this->higher->expires) return;
+void Tier::tier_up(File &file){
+  //if(file.age >= this->higher->expires) return;
   Log("Tiering up",2);
   fs::path to_here = this->higher->dir/relative(file.path, this->dir);
   if(is_symlink(to_here)){
@@ -132,10 +133,7 @@ void Tier::tier_up(std::list<File>::iterator fitr){
     Log("Copy failed.",0);
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
-  // move File to higher tier list
-  std::list<File>::iterator itr = this->higher->files.begin();
-  while(itr != this->higher->files.end() && (*itr).age < file.age) itr++;
-  this->higher->files.insert(itr, file);
+  file.path = to_here; // update metadata
 }
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){

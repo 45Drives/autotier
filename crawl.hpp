@@ -56,7 +56,7 @@ public:
   std::list<File> files; // freshest to stalest
   void crawl(fs::path dir);
   void tier_down(File &file);
-  void tier_up(std::list<File>::iterator fitr);
+  void tier_up(File &file);
 };
 
 extern Tier *highest_tier;
