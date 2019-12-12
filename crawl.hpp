@@ -22,15 +22,20 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-class Tier{
-public:
+struct File{
+  long age; // seconds since last access
+  fs::path path;
+};
+
+struct Tier{
   int usage_watermark;
   long expires;
-  fs::path dir;
-  std::string id;
   Tier *higher;
   Tier *lower;
-  void crawl(fs::path dir, void (*action)(fs::path, Tier *));
+  fs::path dir;
+  std::string id;
+  void crawl(fs::path dir);
+  std::list<File> files;
 };
 
 extern Tier *highest_tier;

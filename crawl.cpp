@@ -31,29 +31,49 @@
 #include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <list>
 
 Tier *highest_tier = NULL;
 Tier *lowest_tier = NULL;
 
 void launch_crawlers(){
+  // get ordered list of files in each tier
+  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
+      tptr->crawl(tptr->dir);
+  }
+  
+  std::cout << "Files from freshest to stalest: " << std::endl;
+  
+  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
+    std::cout << tptr->id << std::endl;
+    for(File f : tptr->files){
+      std::cout << "Age: " << f.age << " Location: " << f.path << std::endl;
+    }
+    std::cout << std::endl;
+  }
+  
+  /*
+  // tier down
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
     if(tptr->usage_watermark == DISABLED || get_fs_usage(tptr->dir) >= tptr->usage_watermark)
-      tptr->crawl(tptr->dir, tier_down);
+      std::list<File>::reverse_iterator itr = tptr->files.rbegin();
   }
+  // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
     if(tptr->higher->usage_watermark == DISABLED || get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
-      tptr->crawl(tptr->dir, tier_up);
-  }
+      
+  }//*/
 }
 
-void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
+void Tier::crawl(fs::path dir){
   for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
-      this->crawl(*itr, action);
+      this->crawl(*itr);
     }else if(!is_symlink(*itr) &&
     !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      action(*itr, this);
+      this->files.push_back(File{(time(NULL) - last_times(*itr).actime),*itr});
     }
+    this->files.sort([](const File &a, const File &b){return a.age < b.age;});
   }
 }
 
