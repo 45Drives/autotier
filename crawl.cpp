@@ -56,22 +56,12 @@ void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
     while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->usage_watermark){
       tptr->tier_down(tptr->files.back());
-      // move File to lower tier list
-      std::list<File>::iterator insert_itr = tptr->lower->files.begin();
-      while(insert_itr != tptr->lower->files.end() && (*insert_itr).age < tptr->files.back().age) insert_itr++;
-      tptr->lower->files.insert(insert_itr, tptr->files.back());
-      tptr->files.pop_back();
     }
   }
   // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
     while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark){
       tptr->tier_up(tptr->files.front());
-      // move File to lower tier list
-      std::list<File>::iterator insert_itr = tptr->higher->files.begin();
-      while(insert_itr != tptr->higher->files.end() && (*insert_itr).age < tptr->files.front().age) insert_itr++;
-      tptr->higher->files.insert(insert_itr, tptr->files.front());
-      tptr->files.pop_front();
     }
   }
   
@@ -115,6 +105,11 @@ void Tier::tier_down(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
+  // move File to lower tier list
+  std::list<File>::iterator insert_itr = this->lower->files.begin();
+  while(insert_itr != this->lower->files.end() && (*insert_itr).age < file.age) insert_itr++;
+  this->lower->files.insert(insert_itr, file);
+  this->files.pop_back();
 }
 
 void Tier::tier_up(File &file){
@@ -134,6 +129,11 @@ void Tier::tier_up(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
+  // move File to lower tier list
+  std::list<File>::iterator insert_itr = this->higher->files.begin();
+  while(insert_itr != this->higher->files.end() && (*insert_itr).age < file.age) insert_itr++;
+  this->higher->files.insert(insert_itr, file);
+  this->files.pop_front();
 }
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
