@@ -54,13 +54,13 @@ void launch_crawlers(){
   
   // tier down
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->usage_watermark){
+    while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->max_watermark){
       tptr->tier_down(tptr->files.back());
     }
   }
   // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark){
+    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->min_watermark){
       tptr->tier_up(tptr->files.front());
     }
   }

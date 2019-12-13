@@ -47,7 +47,8 @@ public:
 
 class Tier{
 public:
-  int usage_watermark;
+  int max_watermark;
+  int min_watermark;
   long expires;
   Tier *higher;
   Tier *lower;
