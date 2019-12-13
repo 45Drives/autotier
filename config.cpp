@@ -67,19 +67,12 @@ void Config::load(const fs::path &config_path){
         highest_tier = tptr;
       }
       tptr->id = id;
-      tptr->expires = DISABLED; // default to disabled until line is read below
     }else if(tptr){
       line_stream.str(line);
       getline(line_stream, key, '=');
       getline(line_stream, value);
       if(key == "DIR"){
         tptr->dir = value;
-      }else if(key == "EXPIRES"){
-        try{
-          tptr->expires = stol(value);
-        }catch(std::invalid_argument){
-          tptr->expires = ERR;
-        }
       }else if(key == "MAX_WATERMARK"){
         try{
           tptr->max_watermark = stoi(value);
@@ -181,11 +174,6 @@ bool Config::verify(){
     if(!is_directory(tptr->dir)){
       std::cerr << tptr->id << ": ";
       error(TIER_DNE);
-      errors = true;
-    }
-    if(tptr->expires == ERR){
-      std::cerr << tptr->id << ": ";
-      error(THRESHOLD_ERR);
       errors = true;
     }
     if(tptr->max_watermark == ERR || tptr->max_watermark > 100 || tptr->max_watermark < 0){

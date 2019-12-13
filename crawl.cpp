@@ -89,7 +89,6 @@ void Tier::crawl(fs::path dir){
 }
 
 void Tier::tier_down(File &file){
-  //if(file.age < this->expires) return;
   fs::path to_here = this->lower->dir/relative(file.path, this->dir);
   if(!is_directory(to_here.parent_path()))
     create_directories(to_here.parent_path());
@@ -113,7 +112,6 @@ void Tier::tier_down(File &file){
 }
 
 void Tier::tier_up(File &file){
-  //if(file.age >= this->higher->expires) return;
   Log("Tiering up",2);
   fs::path to_here = this->higher->dir/relative(file.path, this->dir);
   if(is_symlink(to_here)){

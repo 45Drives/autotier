@@ -21,8 +21,8 @@
 
 #include <string>
 
-#define NUM_ERRORS 7
-enum Error{LOAD_CONF, TIER_DNE, THRESHOLD_ERR, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR};
+#define NUM_ERRORS 6
+enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR};
 
 void error(enum Error error);
 

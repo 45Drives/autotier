@@ -49,7 +49,6 @@ class Tier{
 public:
   int max_watermark;
   int min_watermark;
-  long expires;
   Tier *higher;
   Tier *lower;
   fs::path dir;
