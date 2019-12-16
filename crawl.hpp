@@ -40,13 +40,19 @@ public:
   long last_age;
   struct utimbuf times;
   fs::path path;
+  fs::path pinned_to;
   File(fs::path path_){
+    char strbuff[BUFF_SZ];
+    ssize_t attr_len;
     path = path_;
     struct stat info;
     stat(path.c_str(), &info);
     times.actime = info.st_atime;
     times.modtime = info.st_mtime;
     age = time(NULL) - times.actime;
+    if((attr_len = getxattr(path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+      pinned_to = fs::path(strbuff);
+    }
     if(getxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age)) <= 0){
       last_age = age;
       std::cout << "setting xattr: " << last_age << std::endl;
@@ -68,11 +74,14 @@ public:
     times.modtime = rhs.times.modtime;
     times.actime = rhs.times.actime;
     path = rhs.path;
+    pinned_to = rhs.pinned_to;
   }
   void write_xattrs(){
     if(setxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age),0)==ERR)
       error(SETX);
     if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
+      error(SETX);
+    if(setxattr(path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str())+1,0)==ERR)
       error(SETX);
   }
 };
