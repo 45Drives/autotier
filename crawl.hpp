@@ -19,14 +19,25 @@
 
 #pragma once
 
+#include <iostream>
+
 #include <boost/filesystem.hpp>
 #include <utime.h>
+#include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
 namespace fs = boost::filesystem;
+
+#include "alert.hpp"
+
+#define BUFF_SZ 4096
 
 class File{
 public:
   long age; // seconds since last access
+  long priority;
+  long last_age;
   struct utimbuf times;
   fs::path path;
   File(fs::path path_){
@@ -36,12 +47,33 @@ public:
     times.actime = info.st_atime;
     times.modtime = info.st_mtime;
     age = time(NULL) - times.actime;
+    if(getxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age)) <= 0){
+      last_age = age;
+      std::cout << "setting xattr: " << last_age << std::endl;
+      if(setxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age),0)==ERR)
+        error(SETX);
+    }else{
+      std::cout << "got xattr: " << last_age << std::endl;
+    }
+    if(getxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
+      priority = 0;
+      if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
+        error(SETX);
+    }
   }
   File(const File &rhs) {
     age = rhs.age;
+    priority = rhs.priority;
+    last_age = rhs.last_age;
     times.modtime = rhs.times.modtime;
     times.actime = rhs.times.actime;
     path = rhs.path;
+  }
+  void write_xattrs(){
+    if(setxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age),0)==ERR)
+      error(SETX);
+    if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
+      error(SETX);
   }
 };
 

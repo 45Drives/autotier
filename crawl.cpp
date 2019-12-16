@@ -104,6 +104,7 @@ void Tier::tier_down(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
+  file.write_xattrs();
   // move File to lower tier list
   std::list<File>::iterator insert_itr = this->lower->files.begin();
   while(insert_itr != this->lower->files.end() && (*insert_itr).age < file.age) insert_itr++;
@@ -127,6 +128,7 @@ void Tier::tier_up(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
+  file.write_xattrs();
   // move File to lower tier list
   std::list<File>::iterator insert_itr = this->higher->files.begin();
   while(insert_itr != this->higher->files.end() && (*insert_itr).age < file.age) insert_itr++;
