@@ -67,28 +67,23 @@ void Config::load(const fs::path &config_path){
         highest_tier = tptr;
       }
       tptr->id = id;
-      tptr->usage_watermark = DISABLED; // default to disabled until line is read below
     }else if(tptr){
       line_stream.str(line);
       getline(line_stream, key, '=');
       getline(line_stream, value);
       if(key == "DIR"){
         tptr->dir = value;
-      }else if(key == "EXPIRES"){
+      }else if(key == "MAX_WATERMARK"){
         try{
-          tptr->expires = stol(value);
+          tptr->max_watermark = stoi(value);
         }catch(std::invalid_argument){
-          tptr->expires = ERR;
+          tptr->max_watermark = ERR;
         }
-      }else if(key == "USAGE_WATERMARK"){
-        if(value.empty()){
-          tptr->usage_watermark = DISABLED;
-        }else{
-          try{
-            tptr->usage_watermark = stoi(value);
-          }catch(std::invalid_argument){
-            tptr->usage_watermark = ERR;
-          }
+      }else if(key == "MIN_WATERMARK"){
+        try{
+          tptr->min_watermark = stoi(value);
+        }catch(std::invalid_argument){
+          tptr->min_watermark = ERR;
         }
       } // else ignore
     }else{
@@ -154,14 +149,14 @@ void Config::generate_config(std::fstream &file){
   "\n"
   "[Tier 1]\n"
   "DIR=                # full path to tier storage pool\n"
-  "EXPIRES=            # file age in seconds at which to move file to slower tier\n"
-  "USAGE_WATERMARK=    # % usage at which to tier down, omit to disable\n"
+  "MAX_WATERMARK=      # % usage at which to tier down from tier\n"
+  "MIN_WATERMARK=      # % usage at which to tier up into tier\n"
   "# file age is calculated as (current time - file mtime), i.e. the amount\n"
   "# of time that has passed since the file was last modified.\n"
   "[Tier 2]\n"
   "DIR=\n"
-  "EXPIRES=\n"
-  "USAGE_WATERMARK=\n"
+  "MAX_WATERMARK=\n"
+  "MIN_WATERMARK=\n"
   "# ... (add as many tiers as you like)\n"
   << std::endl;
 }
@@ -181,13 +176,7 @@ bool Config::verify(){
       error(TIER_DNE);
       errors = true;
     }
-    if(tptr->expires == ERR){
-      std::cerr << tptr->id << ": ";
-      error(THRESHOLD_ERR);
-      errors = true;
-    }
-    if(tptr->usage_watermark != DISABLED &&
-    (tptr->usage_watermark == ERR || tptr->usage_watermark > 100 || tptr->usage_watermark < 0)){
+    if(tptr->max_watermark == ERR || tptr->max_watermark > 100 || tptr->max_watermark < 0){
       std::cerr << tptr->id << ": ";
       error(WATERMARK_ERR);
       errors = true;
@@ -203,12 +192,8 @@ void Config::dump(std::ostream &os) const{
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     os << "[" << tptr->id << "]" << std::endl;
     os << "DIR=" << tptr->dir.string() << std::endl;
-    os << "EXPIRES=" << tptr->expires << std::endl;
-    os << "USAGE_WATERMARK=";
-    if(tptr->usage_watermark == DISABLED)
-      os << "(DISABLED)" << std::endl;
-    else
-      os << tptr->usage_watermark << std::endl;
+    os << "MAX_WATERMARK=" << tptr->max_watermark << std::endl;
+    os << "MIN_WATERMARK=" << tptr->min_watermark << std::endl;
     os << std::endl;
   }
 }

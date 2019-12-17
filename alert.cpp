@@ -24,11 +24,11 @@
 std::string errors[NUM_ERRORS] = {
   "Error loading configuration file.",
   "Tier directory does not exist. Please check config.",
-  "THRESHOLD error. Must be a positive integer. Please check config.",
   "First tier must be specified with '[<tier name>]' before any other config options.",
   "No tiers defined in config file.",
   "Only one tier defined in config file, two or more are needed.",
-  "USAGE_WATERMARK must be positive integer between 0 and 100."
+  "MIN_WATERMARK and MAX_WATERMARK must be positive integers between 0 and 100.",
+  "Error setting extended attribute."
 };
 
 void error(enum Error error){

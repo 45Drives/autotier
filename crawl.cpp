@@ -31,68 +31,123 @@
 #include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <list>
 
 Tier *highest_tier = NULL;
 Tier *lowest_tier = NULL;
 
 void launch_crawlers(){
+  // get ordered list of files in each tier
+  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
+      tptr->crawl(tptr->dir);
+  }
+  
+  std::cout << "Files from freshest to stalest: " << std::endl;
+  
+  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
+    std::cout << tptr->id << std::endl;
+    for(std::list<File>::iterator itr = tptr->files.begin(); itr != tptr->files.end(); itr++){
+      unsigned long tmp = (*itr).priority;
+      std::cout << "Prio: " << (*itr).priority << " (";
+      for(int i = sizeof(unsigned long) * 8 - 1; i >= 0; i--){
+        std::cout << (bool)((*itr).priority & ((unsigned long)0x01 << i));
+      }
+      std::cout << ") Age: " << (*itr).age << " Location: " << (*itr).path << std::endl;
+    }
+    std::cout << std::endl;
+  }
+  
+  // tier down
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    if(tptr->usage_watermark == DISABLED || get_fs_usage(tptr->dir) >= tptr->usage_watermark)
-      tptr->crawl(tptr->dir, tier_down);
+    while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->max_watermark){
+      if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir){
+        tptr->tier_down(tptr->files.back());
+      }else{
+        tptr->files.back().write_xattrs();
+        tptr->files.pop_back(); // skip pinned files
+      }
+    }
   }
+  // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    if(tptr->higher->usage_watermark == DISABLED || get_fs_usage(tptr->higher->dir) < tptr->higher->usage_watermark)
-      tptr->crawl(tptr->dir, tier_up);
+    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir, &(tptr->files.front())) < tptr->higher->min_watermark){
+      if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
+        tptr->tier_up(tptr->files.front());
+      }else{
+        tptr->files.front().write_xattrs();
+        tptr->files.pop_front(); // skip pinned files
+      }
+    }
   }
-}
-
-void Tier::crawl(fs::path dir, void (*action)(fs::path, Tier *)){
-  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-    if(is_directory(*itr)){
-      this->crawl(*itr, action);
-    }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      action(*itr, this);
+  
+  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
+    std::cout << tptr->id << std::endl;
+    for(File f : tptr->files){
+      f.write_xattrs();
     }
   }
 }
 
-static void tier_up(fs::path from_here, Tier *tptr){
-  struct utimbuf times = last_times(from_here);
-  if((time(NULL) - times.actime) >= tptr->higher->expires) return;
+void Tier::crawl(fs::path dir){
+  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
+    if(is_directory(*itr)){
+      this->crawl(*itr);
+    }else if(!is_symlink(*itr) &&
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
+      this->files.push_back(File{*itr});
+    }
+  }
+  this->files.sort(
+    [](const File &a, const File &b){
+      return (a.priority == b.priority)? a.age < b.age : a.priority > b.priority;
+    }
+  );
+}
+
+void Tier::tier_down(File &file){
+  fs::path to_here = this->lower->dir/relative(file.path, this->dir);
+  if(!is_directory(to_here.parent_path()))
+    create_directories(to_here.parent_path());
+  std::cout << "Copying " << file.path.string() << " to " << to_here.string() << std::endl;
+  copy_file(file.path, to_here); // move item to slow tier
+  copy_ownership_and_perms(file.path, to_here);
+  if(verify_copy(file.path, to_here)){
+    Log("Copy succeeded.",2);
+    remove(file.path);
+    create_symlink(to_here, file.path); // create symlink fast/item -> slow/item
+  }else{
+    Log("Copy failed.",0);
+  }
+  utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
+  file.path = to_here; // update metadata
+  // move File to lower tier list
+  std::list<File>::iterator insert_itr = this->lower->files.begin();
+  while(insert_itr != this->lower->files.end() && (*insert_itr).age < file.age) insert_itr++;
+  this->lower->files.insert(insert_itr, file);
+  this->files.pop_back();
+}
+
+void Tier::tier_up(File &file){
   Log("Tiering up",2);
-  fs::path to_here = tptr->higher->dir/relative(from_here, tptr->dir);
+  fs::path to_here = this->higher->dir/relative(file.path, this->dir);
   if(is_symlink(to_here)){
     remove(to_here);
   }
-  copy_file(from_here, to_here); // move item back to original location
-  copy_ownership_and_perms(from_here, to_here);
-  if(verify_copy(from_here, to_here)){
+  copy_file(file.path, to_here); // move item back to original location
+  copy_ownership_and_perms(file.path, to_here);
+  if(verify_copy(file.path, to_here)){
     Log("Copy succeeded.",2);
-    remove(from_here);
+    remove(file.path);
   }else{
     Log("Copy failed.",0);
   }
-  utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
-}
-
-static void tier_down(fs::path from_here, Tier *tptr){
-  struct utimbuf times = last_times(from_here);
-  if((time(NULL) - times.actime) < tptr->expires) return;
-  Log("Tiering down",2);
-  fs::path to_here = tptr->lower->dir/relative(from_here, tptr->dir);
-  if(!is_directory(to_here.parent_path()))
-    create_directories(to_here.parent_path());
-  copy_file(from_here, to_here); // move item to slow tier
-  copy_ownership_and_perms(from_here, to_here);
-  if(verify_copy(from_here, to_here)){
-    Log("Copy succeeded.",2);
-    remove(from_here);
-    create_symlink(to_here, from_here); // create symlink fast/item -> slow/item
-  }else{
-    Log("Copy failed.",0);
-  }
-  utime(to_here.c_str(), &times); // overwrite mtime and atime with previous times
+  utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
+  file.path = to_here; // update metadata
+  // move File to lower tier list
+  std::list<File>::iterator insert_itr = this->higher->files.begin();
+  while(insert_itr != this->higher->files.end() && (*insert_itr).age < file.age) insert_itr++;
+  this->higher->files.insert(insert_itr, file);
+  this->files.pop_front();
 }
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
@@ -147,10 +202,16 @@ struct utimbuf last_times(const fs::path &file){
   return times;
 }
 
-int get_fs_usage(const fs::path &dir){
+int get_fs_usage(const fs::path &dir, File *file){
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
+  if(file){
+    struct stat st;
+    stat(file->path.c_str(), &st);
+    size_t file_blocks = st.st_size / fs_stats.f_bsize;
+    fs_stats.f_bfree -= file_blocks;
+  }
   return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
 }
 
