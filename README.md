@@ -1,5 +1,5 @@
 # autotier
-Intelligently moves files between storage tiers based on frequency of use and tier fullness.
+Intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.
 
 ## What it does
 `autotier` crawls through each tier's directory and queues up files, sorted by a combination of frequency of use and age. It moves the oldest/least used files to the next lowest storage tier and replaces the original with a symlink to the new location until the tier usage is below the defined upper watermark. Conversely, it also moves the newest/most frequently used files up to higher tiers until the higher tier usage is above the lower watermark, given that the file to be moved won't overshoot the max watermark. This behaviour cascades across as many storage tiers as you want to define in the configuration file.
