@@ -28,7 +28,7 @@ inline bool config_passed(int argc, char *argv[]){
 int main(int argc, char *argv[]){
   fs::path config_path = (config_passed(argc, argv))? argv[2] : DEFAULT_CONFIG_PATH;
   config.load(config_path);
-  config.dump(std::cout);
+  if(config.log_lvl >= 2) config.dump(std::cout);
   launch_crawlers();
   destroy_tiers();
   return 0;
