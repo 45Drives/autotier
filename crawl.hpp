@@ -84,6 +84,9 @@ public:
     if(setxattr(path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
       error(SETX);
   }
+  ~File(){
+    write_xattrs();
+  }
 };
 
 class Tier{

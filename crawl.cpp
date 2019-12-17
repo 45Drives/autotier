@@ -63,7 +63,6 @@ void launch_crawlers(){
       if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir){
         tptr->tier_down(tptr->files.back());
       }else{
-        tptr->files.back().write_xattrs();
         tptr->files.pop_back(); // skip pinned files
       }
     }
@@ -74,16 +73,8 @@ void launch_crawlers(){
       if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
         tptr->tier_up(tptr->files.front());
       }else{
-        tptr->files.front().write_xattrs();
         tptr->files.pop_front(); // skip pinned files
       }
-    }
-  }
-  
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    std::cout << tptr->id << std::endl;
-    for(File f : tptr->files){
-      f.write_xattrs();
     }
   }
 }
