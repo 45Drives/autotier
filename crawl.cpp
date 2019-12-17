@@ -47,7 +47,12 @@ void launch_crawlers(){
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     std::cout << tptr->id << std::endl;
     for(std::list<File>::iterator itr = tptr->files.begin(); itr != tptr->files.end(); itr++){
-      std::cout << "Age: " << (*itr).age << " Location: " << (*itr).path << std::endl;
+      unsigned long tmp = (*itr).priority;
+      std::cout << "Prio: " << (*itr).priority << " (";
+      for(int i = sizeof(unsigned long) * 8 - 1; i >= 0; i--){
+        std::cout << (bool)((*itr).priority & ((unsigned long)0x01 << i));
+      }
+      std::cout << ") Age: " << (*itr).age << " Location: " << (*itr).path << std::endl;
     }
     std::cout << std::endl;
   }
@@ -55,30 +60,31 @@ void launch_crawlers(){
   // tier down
   for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
     while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->max_watermark){
-      if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir)
+      if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir){
         tptr->tier_down(tptr->files.back());
-      else
+      }else{
+        tptr->files.back().write_xattrs();
         tptr->files.pop_back(); // skip pinned files
+      }
     }
   }
   // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
     while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->min_watermark){
-      if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir)
+      if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
         tptr->tier_up(tptr->files.front());
-      else
+      }else{
+        tptr->files.front().write_xattrs();
         tptr->files.pop_front(); // skip pinned files
+      }
     }
   }
-  
-  std::cout << "File locations after tiering: " << std::endl;
   
   for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
     std::cout << tptr->id << std::endl;
     for(File f : tptr->files){
-      std::cout << "Age: " << f.age << " Location: " << f.path << std::endl;
+      f.write_xattrs();
     }
-    std::cout << std::endl;
   }
 }
 
@@ -110,7 +116,6 @@ void Tier::tier_down(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
-  file.write_xattrs();
   // move File to lower tier list
   std::list<File>::iterator insert_itr = this->lower->files.begin();
   while(insert_itr != this->lower->files.end() && (*insert_itr).age < file.age) insert_itr++;
@@ -134,7 +139,6 @@ void Tier::tier_up(File &file){
   }
   utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
   file.path = to_here; // update metadata
-  file.write_xattrs();
   // move File to lower tier list
   std::list<File>::iterator insert_itr = this->higher->files.begin();
   while(insert_itr != this->higher->files.end() && (*insert_itr).age < file.age) insert_itr++;

@@ -36,7 +36,7 @@ namespace fs = boost::filesystem;
 class File{
 public:
   long age; // seconds since last access
-  long priority;
+  unsigned long priority;
   long last_age;
   struct utimbuf times;
   fs::path path;
@@ -51,21 +51,21 @@ public:
     times.modtime = info.st_mtime;
     age = time(NULL) - times.actime;
     if((attr_len = getxattr(path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+      strbuff[attr_len] = '\0'; // c-string
       pinned_to = fs::path(strbuff);
     }
     if(getxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age)) <= 0){
       last_age = age;
-      std::cout << "setting xattr: " << last_age << std::endl;
-      if(setxattr(path.c_str(),"user.autotier_last_age",&last_age,sizeof(last_age),0)==ERR)
-        error(SETX);
-    }else{
-      std::cout << "got xattr: " << last_age << std::endl;
     }
     if(getxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
       priority = 0;
-      if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
-        error(SETX);
     }
+    // age
+    priority = priority >> 1;
+    if(age < last_age){
+      priority |= ((unsigned long)0x01 << (sizeof(unsigned long)*8 - 1));
+    }
+    last_age = age;
   }
   File(const File &rhs) {
     age = rhs.age;
@@ -81,7 +81,7 @@ public:
       error(SETX);
     if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
       error(SETX);
-    if(setxattr(path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str())+1,0)==ERR)
+    if(setxattr(path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
       error(SETX);
   }
 };
