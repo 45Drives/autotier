@@ -4,8 +4,13 @@ Intelligently moves files between storage tiers based on frequency of use, file 
 ## What it does
 `autotier` crawls through each tier's directory and queues up files, sorted by a combination of frequency of use and age. It moves the oldest/least used files to the next lowest storage tier and replaces the original with a symlink to the new location until the tier usage is below the defined upper watermark. Conversely, it also moves the newest/most frequently used files up to higher tiers until the higher tier usage is above the lower watermark, given that the file to be moved won't overshoot the max watermark. This behaviour cascades across as many storage tiers as you want to define in the configuration file.
 
+## Installation
+```
+yum install https://github.com/45Drives/autotier/releases/download/v0.4-beta/autotier-0.4-1.el7.x86_64.rpm
+```
+
 ## Usage
-Create a [crontab](https://linux.die.net/man/5/crontab) entry to periodically run `autotier`. The default configuration file is `/etc/autotier.conf`, but this can be changed by passing the `-c`/`--config` flag followed by the path to the alternate configuration file. The first defined tier should be the working tier that is exported. So far, `samba` is the only sharing tool that seems to work with this software. `nfs` is too literal, and has no capability of following wide symlinks.
+The RPM install package includes a systemd unit and timer file. Configure `autotier` as described below and enable the daemon with `systemctl enable autotier.timer` The default configuration file is `/etc/autotier.conf`, but this can be changed by passing the `-c`/`--config` flag followed by the path to the alternate configuration file. The first defined tier should be the working tier that is exported. So far, `samba` is the only sharing tool that seems to work with this software. `nfs` is too literal, and has no capability of following wide symlinks.
 
 ## Configuration
 ### Autotier Config
@@ -61,5 +66,7 @@ wide links = yes
 path = /path/to/fastest/tier
 # ...
 ```
+### Systemd Config
+Edit `/etc/systemd/system/autotier.timer` to set the period at which to run `autotier`. The default period is every 30 minutes. Run `systemctl daemon-reload` after editing this file.
 ## Acknowledgements
 Credits to [Stephan Brumme](https://stephan-brumme.com/) for his single-header implementation of XXHash, which is used after a file is copied to verify that there were no errors.
