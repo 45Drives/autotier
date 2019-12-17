@@ -70,7 +70,7 @@ void launch_crawlers(){
   }
   // tier up
   for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir) < tptr->higher->min_watermark){
+    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir, &(tptr->files.front())) < tptr->higher->min_watermark){
       if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
         tptr->tier_up(tptr->files.front());
       }else{
@@ -202,10 +202,16 @@ struct utimbuf last_times(const fs::path &file){
   return times;
 }
 
-int get_fs_usage(const fs::path &dir){
+int get_fs_usage(const fs::path &dir, File *file){
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
+  if(file){
+    struct stat st;
+    stat(file->path.c_str(), &st);
+    size_t file_blocks = st.st_size / fs_stats.f_bsize;
+    fs_stats.f_bfree -= file_blocks;
+  }
   return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
 }
 

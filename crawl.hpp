@@ -109,7 +109,7 @@ void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 
 bool verify_copy(const fs::path &src, const fs::path &dst);
 
-int get_fs_usage(const fs::path &dir);
+int get_fs_usage(const fs::path &dir, File *file = NULL);
 // returns %usage of fs as integer 0-100
 
 void destroy_tiers(void);
