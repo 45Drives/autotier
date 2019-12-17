@@ -97,7 +97,11 @@ void Tier::crawl(fs::path dir){
       this->files.push_back(File{*itr});
     }
   }
-  this->files.sort([](const File &a, const File &b){return a.age < b.age;});
+  this->files.sort(
+    [](const File &a, const File &b){
+      return (a.priority == b.priority)? a.age < b.age : a.priority > b.priority;
+    }
+  );
 }
 
 void Tier::tier_down(File &file){
