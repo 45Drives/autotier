@@ -26,7 +26,7 @@
 #include <boost/filesystem.hpp>
 #include <regex>
 
-void Config::load(const fs::path &config_path, std::list<Tier> &tiers){
+void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
   log_lvl = 1; // default to 1
   std::fstream config_file(config_path.string(), std::ios::in);
   if(!config_file){
@@ -52,25 +52,18 @@ void Config::load(const fs::path &config_path, std::list<Tier> &tiers){
       if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
         if(this->load_global(config_file, id) == EOF) break;
       }
-      tiers.push_back(Tier());
-      tiers.back().id = id;
+      tiers.emplace_back(id);
     }else if(!tiers.empty()){
       line_stream.str(line);
       getline(line_stream, key, '=');
       getline(line_stream, value);
       if(key == "DIR"){
         tiers.back().dir = value;
-      }else if(key == "MAX_WATERMARK"){
+      }else if(key == "WATERMARK"){
         try{
-          tiers.back().max_watermark = stoi(value);
+          tiers.back().watermark = stoi(value);
         }catch(std::invalid_argument){
-          tiers.back().max_watermark = ERR;
-        }
-      }else if(key == "MIN_WATERMARK"){
-        try{
-          tiers.back().min_watermark = stoi(value);
-        }catch(std::invalid_argument){
-          tiers.back().min_watermark = ERR;
+          tiers.back().watermark = ERR;
         }
       } // else ignore
     }else{
@@ -148,7 +141,7 @@ void Config::generate_config(std::fstream &file){
   << std::endl;
 }
 
-bool Config::verify(const std::list<Tier> &tiers){
+bool Config::verify(const std::vector<Tier> &tiers){
   bool errors = false;
   if(tiers.empty()){
     error(NO_TIERS);
@@ -163,7 +156,7 @@ bool Config::verify(const std::list<Tier> &tiers){
       error(TIER_DNE);
       errors = true;
     }
-    if(t.max_watermark == ERR || t.max_watermark > 100 || t.max_watermark < 0){
+    if(t.watermark == ERR || t.watermark > 100 || t.watermark < 0){
       std::cerr << t.id << ": ";
       error(WATERMARK_ERR);
       errors = true;
@@ -172,15 +165,14 @@ bool Config::verify(const std::list<Tier> &tiers){
   return errors;
 }
 
-void Config::dump(std::ostream &os, const std::list<Tier> &tiers) const{
+void Config::dump(std::ostream &os, const std::vector<Tier> &tiers) const{
   os << "[Global]" << std::endl;
   os << "LOG_LEVEL=" << this->log_lvl << std::endl;
   os << std::endl;
   for(Tier t : tiers){
     os << "[" << t.id << "]" << std::endl;
     os << "DIR=" << t.dir.string() << std::endl;
-    os << "MAX_WATERMARK=" << t.max_watermark << std::endl;
-    os << "MIN_WATERMARK=" << t.min_watermark << std::endl;
+    os << "WATERMARK=" << t.watermark << std::endl;
     os << std::endl;
   }
 }

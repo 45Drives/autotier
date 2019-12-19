@@ -33,32 +33,48 @@
 #include <fcntl.h>
 #include <list>
 
-void TierEngine::launch_crawlers(){
+void TierEngine::begin(){
   Log("autotier started.\n",1);
+  launch_crawlers();
+  sort();
+  tier();
+  
+  Log("Tiering complete.\n",1);
+}
+
+void TierEngine::launch_crawlers(){
+  Log("Gathering files.",2);
   // get ordered list of files in each tier
   for(Tier t : tiers){
-      crawl(t.dir);
+    crawl(t.dir);
   }
-  
-  Log("Sorting files.\n",2);
+}
+
+void TierEngine::sort(){
+  Log("Sorting files.",2);
   files.sort(
     [](const File &a, const File &b){
       return (a.priority == b.priority)? a.times.actime > b.times.actime : a.priority > b.priority;
     }
   );
-  
-  Log("Tiering complete.\n",1);
 }
 
 void TierEngine::crawl(fs::path dir){
-  Log("Gathering file list.",2);
   for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
       crawl(*itr);
     }else if(!is_symlink(*itr) &&
     !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      files.push_back(File{*itr});
+      files.emplace_back(*itr);
     }
+  }
+}
+
+void TierEngine::tier(){
+  Log("Moving files.",2);
+  std::vector<Tier>::iterator titr = tiers.begin();
+  for(std::list<File>::iterator fitr = files.begin(); fitr != files.end(); fitr++){
+    fitr->new_path = fitr->old_path;
   }
 }
 
@@ -168,7 +184,7 @@ int get_fs_usage(const fs::path &dir, File *file){
     return -1;
   if(file){
     struct stat st;
-    stat(file->path.c_str(), &st);
+    stat(file->old_path.c_str(), &st);
     size_t file_blocks = st.st_size / fs_stats.f_bsize;
     fs_stats.f_bfree -= file_blocks;
   }

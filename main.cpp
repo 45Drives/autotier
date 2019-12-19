@@ -28,6 +28,6 @@ inline bool config_passed(int argc, char *argv[]){
 int main(int argc, char *argv[]){
   fs::path config_path = (config_passed(argc, argv))? argv[2] : DEFAULT_CONFIG_PATH;
   TierEngine autotier(config_path);
-  autotier.launch_crawlers();
+  autotier.begin();
   return 0;
 }

@@ -42,24 +42,33 @@ public:
   long last_atime;
   struct utimbuf times;
   fs::path symlink_path;
-  fs::path path;
+  fs::path old_path;
+  fs::path new_path;
   fs::path pinned_to;
+  void write_xattrs(){
+    if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
+      error(SETX);
+    if(setxattr(new_path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
+      error(SETX);
+    if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
+      error(SETX);
+  }
   File(fs::path path_){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
-    path = path_;
+    old_path = path_;
     struct stat info;
-    stat(path.c_str(), &info);
+    stat(old_path.c_str(), &info);
     times.actime = info.st_atime;
     times.modtime = info.st_mtime;
-    if((attr_len = getxattr(path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+    if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
       strbuff[attr_len] = '\0'; // c-string
       pinned_to = fs::path(strbuff);
     }
-    if(getxattr(path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime)) <= 0){
+    if(getxattr(old_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime)) <= 0){
       last_atime = times.actime;
     }
-    if(getxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
+    if(getxattr(old_path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
       priority = 0;
     }
     // age
@@ -74,44 +83,50 @@ public:
     last_atime = rhs.last_atime;
     times.modtime = rhs.times.modtime;
     times.actime = rhs.times.actime;
-    path = rhs.path;
+    symlink_path = rhs.symlink_path;
+    old_path = rhs.old_path;
+    new_path = rhs.new_path;
     pinned_to = rhs.pinned_to;
   }
-  void write_xattrs(){
-    if(setxattr(path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
-      error(SETX);
-    if(setxattr(path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
-      error(SETX);
-    if(setxattr(path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
-      error(SETX);
-  }
   ~File(){
+    Log("Destroying file.",2);
     write_xattrs();
+  }
+  File &operator=(const File &rhs){
+    priority = rhs.priority;
+    last_atime = rhs.last_atime;
+    times.modtime = rhs.times.modtime;
+    times.actime = rhs.times.actime;
+    symlink_path = rhs.symlink_path;
+    old_path = rhs.old_path;
+    new_path = rhs.new_path;
+    pinned_to = rhs.pinned_to;
+    return *this;
   }
 };
 
 class Tier{
 public:
-  int max_watermark;
-  int min_watermark;
+  int watermark;
   fs::path dir;
   std::string id;
-  std::list<File> files; // freshest to stalest
-  void tier_down(File &file);
-  void tier_up(File &file);
+  Tier(std::string id_){ id = id_; }
 };
 
 class TierEngine{
 private:
-  std::list<Tier> tiers;
+  std::vector<Tier> tiers;
   std::list<File> files;
   Config config;
 public:
   TierEngine(const fs::path &config_path){
     config.load(config_path, tiers);
   }
+  void begin(void);
   void launch_crawlers(void);
   void crawl(fs::path dir);
+  void sort(void);
+  void tier(void);
   //void dump_tiers(void);
 };
 
