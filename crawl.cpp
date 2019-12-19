@@ -37,8 +37,8 @@ void TierEngine::begin(){
   Log("autotier started.\n",1);
   launch_crawlers();
   sort();
-  tier();
-  
+  simulate_tier();
+  move_files();
   Log("Tiering complete.\n",1);
 }
 
@@ -70,11 +70,30 @@ void TierEngine::crawl(fs::path dir){
   }
 }
 
-void TierEngine::tier(){
+void TierEngine::simulate_tier(){
+  Log("Finding files' tiers.",2);
+  long tier_use = 0;
+  std::list<File>::iterator fptr = files.begin();
+  std::vector<Tier>::iterator tptr = tiers.begin();
+  while(fptr != files.end()){
+    if(tier_use + fptr->size >= tptr->watermark_bytes){
+      tier_use = 0;
+      if(++tptr == tiers.end()) break;
+    }
+    tier_use += fptr->size;
+    tptr->incoming_files.push_back(&(*fptr));
+    fptr++;
+  }
+}
+
+void TierEngine::move_files(){
   Log("Moving files.",2);
-  std::vector<Tier>::iterator titr = tiers.begin();
-  for(std::list<File>::iterator fitr = files.begin(); fitr != files.end(); fitr++){
-    fitr->new_path = fitr->old_path;
+  for(std::vector<Tier>::iterator titr = tiers.begin(); titr != tiers.end(); titr++){
+    std::cout << titr->id << std::endl;
+    for(File * fptr : titr->incoming_files){
+      fptr->new_path = fptr->old_path;
+      std::cout << fptr->old_path << std::endl;
+    }
   }
 }
 
@@ -178,17 +197,17 @@ struct utimbuf last_times(const fs::path &file){
   return times;
 }
 
-int get_fs_usage(const fs::path &dir, File *file){
+long Tier::get_fs_usage(File *file){
   struct statvfs fs_stats;
+  off_t file_blocks = 0;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
   if(file){
     struct stat st;
     stat(file->old_path.c_str(), &st);
-    size_t file_blocks = st.st_size / fs_stats.f_bsize;
-    fs_stats.f_bfree -= file_blocks;
+    off_t file_blocks = st.st_size;
   }
-  return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
+  return (long)(fs_stats.f_blocks * fs_stats.f_frsize - file_blocks);
 }
 
 /*void TierEngine::dump_tiers(){
@@ -207,3 +226,10 @@ int get_fs_usage(const fs::path &dir, File *file){
     std::cout << std::endl;
   }
 }*/
+
+long Tier::set_capacity(){
+  struct statvfs fs_stats;
+  if((statvfs(dir.c_str(), &fs_stats) == -1))
+    return -1;
+  return (fs_stats.f_blocks * fs_stats.f_bsize * watermark) / 100;
+}

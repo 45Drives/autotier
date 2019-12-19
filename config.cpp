@@ -66,6 +66,7 @@ void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
           tiers.back().watermark = ERR;
         }
       } // else ignore
+      tiers.back().set_capacity();
     }else{
       error(NO_FIRST_TIER);
       exit(1);

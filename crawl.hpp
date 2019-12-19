@@ -40,6 +40,7 @@ class File{
 public:
   unsigned long priority;
   long last_atime;
+  long size;
   struct utimbuf times;
   fs::path symlink_path;
   fs::path old_path;
@@ -59,6 +60,7 @@ public:
     old_path = path_;
     struct stat info;
     stat(old_path.c_str(), &info);
+    size = (long)info.st_size;
     times.actime = info.st_atime;
     times.modtime = info.st_mtime;
     if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
@@ -81,6 +83,7 @@ public:
   File(const File &rhs) {
     priority = rhs.priority;
     last_atime = rhs.last_atime;
+    size = rhs.size;
     times.modtime = rhs.times.modtime;
     times.actime = rhs.times.actime;
     symlink_path = rhs.symlink_path;
@@ -95,6 +98,7 @@ public:
   File &operator=(const File &rhs){
     priority = rhs.priority;
     last_atime = rhs.last_atime;
+    size = rhs.size;
     times.modtime = rhs.times.modtime;
     times.actime = rhs.times.actime;
     symlink_path = rhs.symlink_path;
@@ -107,10 +111,16 @@ public:
 
 class Tier{
 public:
+  long watermark_bytes;
   int watermark;
   fs::path dir;
   std::string id;
-  Tier(std::string id_){ id = id_; }
+  std::list<File *> incoming_files;
+  Tier(std::string id_){
+    id = id_;
+  }
+  long get_fs_usage(File *file = NULL);
+  long set_capacity();
 };
 
 class TierEngine{
@@ -126,16 +136,14 @@ public:
   void launch_crawlers(void);
   void crawl(fs::path dir);
   void sort(void);
-  void tier(void);
+  void simulate_tier(void);
+  void move_files(void);
   //void dump_tiers(void);
 };
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 
 bool verify_copy(const fs::path &src, const fs::path &dst);
-
-int get_fs_usage(const fs::path &dir, File *file = NULL);
-// returns %usage of fs as integer 0-100
 
 void destroy_tiers(void);
 
