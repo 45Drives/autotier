@@ -26,10 +26,8 @@
 #include <boost/filesystem.hpp>
 #include <regex>
 
-Config config;
-
-void Config::load(const fs::path &config_path){
-  config.log_lvl = 1; // default to 1
+void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
+  log_lvl = 1; // default to 1
   std::fstream config_file(config_path.string(), std::ios::in);
   if(!config_file){
     if(!is_directory(config_path.parent_path())) create_directories(config_path.parent_path());
@@ -38,8 +36,6 @@ void Config::load(const fs::path &config_path){
     config_file.close();
     config_file.open(config_path.string(), std::ios::in);
   }
-  
-  Tier *tptr = NULL;
   
   while(config_file){
     std::stringstream line_stream;
@@ -56,34 +52,18 @@ void Config::load(const fs::path &config_path){
       if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
         if(this->load_global(config_file, id) == EOF) break;
       }
-      if(tptr){
-        tptr->lower = new Tier;
-        tptr->lower->higher = tptr;
-        tptr->lower->lower = NULL;
-        tptr = tptr->lower;
-      }else{
-        tptr = new Tier;
-        tptr->higher = tptr->lower = NULL;
-        highest_tier = tptr;
-      }
-      tptr->id = id;
-    }else if(tptr){
+      tiers.emplace_back(id);
+    }else if(!tiers.empty()){
       line_stream.str(line);
       getline(line_stream, key, '=');
       getline(line_stream, value);
       if(key == "DIR"){
-        tptr->dir = value;
-      }else if(key == "MAX_WATERMARK"){
+        tiers.back().dir = value;
+      }else if(key == "WATERMARK"){
         try{
-          tptr->max_watermark = stoi(value);
+          tiers.back().watermark = stoi(value);
         }catch(std::invalid_argument){
-          tptr->max_watermark = ERR;
-        }
-      }else if(key == "MIN_WATERMARK"){
-        try{
-          tptr->min_watermark = stoi(value);
-        }catch(std::invalid_argument){
-          tptr->min_watermark = ERR;
+          tiers.back().watermark = ERR;
         }
       } // else ignore
     }else{
@@ -91,13 +71,13 @@ void Config::load(const fs::path &config_path){
       exit(1);
     }
   }
-  
-  lowest_tier = tptr;
     
-  if(this->verify()){
+  if(verify(tiers)){
     error(LOAD_CONF);
     exit(1);
   }
+  
+  if(log_lvl >= 2) dump(std::cout, tiers);
 }
 
 int Config::load_global(std::fstream &config_file, std::string &id){
@@ -161,23 +141,23 @@ void Config::generate_config(std::fstream &file){
   << std::endl;
 }
 
-bool Config::verify(){
+bool Config::verify(const std::vector<Tier> &tiers){
   bool errors = false;
-  if(highest_tier == NULL || lowest_tier == NULL){
+  if(tiers.empty()){
     error(NO_TIERS);
     errors = true;
-  }else if(highest_tier == lowest_tier){
+  }else if(tiers.size() == 1){
     error(ONE_TIER);
     errors = true;
   }
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    if(!is_directory(tptr->dir)){
-      std::cerr << tptr->id << ": ";
+  for(Tier t : tiers){
+    if(!is_directory(t.dir)){
+      std::cerr << t.id << ": ";
       error(TIER_DNE);
       errors = true;
     }
-    if(tptr->max_watermark == ERR || tptr->max_watermark > 100 || tptr->max_watermark < 0){
-      std::cerr << tptr->id << ": ";
+    if(t.watermark == ERR || t.watermark > 100 || t.watermark < 0){
+      std::cerr << t.id << ": ";
       error(WATERMARK_ERR);
       errors = true;
     }
@@ -185,15 +165,14 @@ bool Config::verify(){
   return errors;
 }
 
-void Config::dump(std::ostream &os) const{
+void Config::dump(std::ostream &os, const std::vector<Tier> &tiers) const{
   os << "[Global]" << std::endl;
   os << "LOG_LEVEL=" << this->log_lvl << std::endl;
   os << std::endl;
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    os << "[" << tptr->id << "]" << std::endl;
-    os << "DIR=" << tptr->dir.string() << std::endl;
-    os << "MAX_WATERMARK=" << tptr->max_watermark << std::endl;
-    os << "MIN_WATERMARK=" << tptr->min_watermark << std::endl;
+  for(Tier t : tiers){
+    os << "[" << t.id << "]" << std::endl;
+    os << "DIR=" << t.dir.string() << std::endl;
+    os << "WATERMARK=" << t.watermark << std::endl;
     os << std::endl;
   }
 }

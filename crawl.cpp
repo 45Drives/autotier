@@ -33,105 +33,93 @@
 #include <fcntl.h>
 #include <list>
 
-Tier *highest_tier = NULL;
-Tier *lowest_tier = NULL;
-
-void launch_crawlers(){
+void TierEngine::begin(){
   Log("autotier started.\n",1);
-  // get ordered list of files in each tier
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-      tptr->crawl(tptr->dir);
-  }
-  
-  if(config.log_lvl >= 2) dump_tiers();
-  
-  // tier down
-  for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->max_watermark){
-      if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir){
-        tptr->tier_down(tptr->files.back());
-      }else{
-        tptr->files.pop_back(); // skip pinned files
-      }
-    }
-  }
-  // tier up
-  for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir, &(tptr->files.front())) < tptr->higher->min_watermark){
-      if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
-        tptr->tier_up(tptr->files.front());
-      }else{
-        tptr->files.pop_front(); // skip pinned files
-      }
-    }
-  }
+  launch_crawlers();
+  sort();
+  simulate_tier();
+  move_files();
   Log("Tiering complete.\n",1);
 }
 
-void Tier::crawl(fs::path dir){
-  Log("Gathering file list.",2);
-  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-    if(is_directory(*itr)){
-      this->crawl(*itr);
-    }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      this->files.push_back(File{*itr});
-    }
+void TierEngine::launch_crawlers(){
+  Log("Gathering files.",2);
+  // get ordered list of files in each tier
+  for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    crawl(t->dir, &(*t));
   }
-  Log("Sorting files.\n",2);
-  this->files.sort(
+}
+
+void TierEngine::sort(){
+  Log("Sorting files.",2);
+  files.sort(
     [](const File &a, const File &b){
       return (a.priority == b.priority)? a.times.actime > b.times.actime : a.priority > b.priority;
     }
   );
 }
 
-void Tier::tier_down(File &file){
-  Log("Tiering down.",2);
-  fs::path to_here = this->lower->dir/relative(file.path, this->dir);
-  if(!is_directory(to_here.parent_path()))
-    create_directories(to_here.parent_path());
-  Log("Copying " + file.path.string() + " to " + to_here.string(),2);
-  copy_file(file.path, to_here); // move item to slow tier
-  copy_ownership_and_perms(file.path, to_here);
-  if(verify_copy(file.path, to_here)){
-    Log("Copy succeeded.",2);
-    remove(file.path);
-    create_symlink(to_here, file.path); // create symlink fast/item -> slow/item
-  }else{
-    Log("Copy failed!",0);
+void TierEngine::crawl(fs::path dir, Tier *tptr){
+  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
+    if(is_directory(*itr)){
+      crawl(*itr, tptr);
+    }else if(!is_symlink(*itr) &&
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
+      files.emplace_back(*itr, tptr);
+    }
   }
-  utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
-  file.path = to_here; // update metadata
-  // move File to lower tier list
-  std::list<File>::iterator insert_itr = this->lower->files.begin();
-  while(insert_itr != this->lower->files.end() && (*insert_itr).priority > file.priority) insert_itr++;
-  this->lower->files.insert(insert_itr, file);
-  this->files.pop_back();
 }
 
-void Tier::tier_up(File &file){
-  Log("Tiering up.",2);
-  fs::path to_here = this->higher->dir/relative(file.path, this->dir);
-  if(is_symlink(to_here)){
-    remove(to_here);
+void TierEngine::simulate_tier(){
+  Log("Finding files' tiers.",2);
+  long tier_use = 0;
+  std::list<File>::iterator fptr = files.begin();
+  std::vector<Tier>::iterator tptr = tiers.begin();
+  tptr->watermark_bytes = tptr->set_capacity();
+  while(fptr != files.end()){
+    if(tier_use + fptr->size >= tptr->watermark_bytes){
+      tier_use = 0;
+      if(++tptr == tiers.end()) break;
+      tptr->watermark_bytes = tptr->set_capacity();
+    }
+    tier_use += fptr->size;
+    tptr->incoming_files.emplace_back(&(*fptr));
+    fptr++;
   }
-  Log("Copying " + file.path.string() + " to " + to_here.string(),2);
-  copy_file(file.path, to_here); // move item back to original location
-  copy_ownership_and_perms(file.path, to_here);
-  if(verify_copy(file.path, to_here)){
+}
+
+void TierEngine::move_files(){
+  Log("Moving files.",2);
+  for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
+    for(File * fptr : titr->incoming_files){
+      fptr->new_path = titr->dir/relative(fptr->old_path, fptr->old_tier->dir);
+      fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      if(fptr->new_path != fptr->symlink_path){
+        fptr->move();
+        if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
+        create_symlink(fptr->new_path, fptr->symlink_path);
+      }else{
+        if(is_symlink(fptr->new_path)) remove(fptr->new_path);
+        fptr->move();
+      }
+    }
+  }
+}
+
+void File::move(){
+  if(old_path == new_path) return;
+  if(!is_directory(new_path.parent_path()))
+    create_directories(new_path.parent_path());
+  Log("Copying " + old_path.string() + " to " + new_path.string(),2);
+  copy_file(old_path, new_path); // move item to slow tier
+  copy_ownership_and_perms(old_path, new_path);
+  if(verify_copy(old_path, new_path)){
     Log("Copy succeeded.",2);
-    remove(file.path);
+    remove(old_path);
   }else{
     Log("Copy failed!",0);
   }
-  utime(to_here.c_str(), &file.times); // overwrite mtime and atime with previous times
-  file.path = to_here; // update metadata
-  // move File to lower tier list
-  std::list<File>::iterator insert_itr = this->higher->files.begin();
-  while(insert_itr != this->higher->files.end() && (*insert_itr).priority > file.priority) insert_itr++;
-  this->higher->files.insert(insert_itr, file);
-  this->files.pop_front();
+  utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
@@ -186,42 +174,9 @@ struct utimbuf last_times(const fs::path &file){
   return times;
 }
 
-int get_fs_usage(const fs::path &dir, File *file){
+long Tier::set_capacity(){
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
-  if(file){
-    struct stat st;
-    stat(file->path.c_str(), &st);
-    size_t file_blocks = st.st_size / fs_stats.f_bsize;
-    fs_stats.f_bfree -= file_blocks;
-  }
-  return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
-}
-
-void destroy_tiers(){
-  if(highest_tier == lowest_tier){
-    delete highest_tier;
-    return;
-  }
-  for(Tier *tptr = highest_tier->lower; tptr != NULL; tptr = tptr->lower)
-    delete tptr->higher;
-  delete lowest_tier;
-}
-
-void dump_tiers(){
-  std::cout << "Files from freshest to stalest: " << std::endl;
-  
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    std::cout << tptr->id << std::endl;
-    for(std::list<File>::iterator itr = tptr->files.begin(); itr != tptr->files.end(); itr++){
-      unsigned long tmp = (*itr).priority;
-      std::cout << "Prio: " << (*itr).priority << " (";
-      for(int i = sizeof(unsigned long) * 8 - 1; i >= 0; i--){
-        std::cout << (bool)((*itr).priority & ((unsigned long)0x01 << i));
-      }
-      std::cout << ") atime: " << (*itr).times.actime << " Location: " << (*itr).path << std::endl;
-    }
-    std::cout << std::endl;
-  }
+  return (fs_stats.f_blocks * fs_stats.f_bsize * watermark) / 100;
 }
