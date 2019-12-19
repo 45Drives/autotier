@@ -74,12 +74,13 @@ public:
       last_atime = times.actime;
     }
     if(getxattr(old_path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
-      priority = 0;
-    }
-    // age
-    priority = priority >> 1;
-    if(times.actime > last_atime){
-      priority |= ((unsigned long)0x01 << (sizeof(unsigned long)*8 - 1));
+      priority = (unsigned long)0x01 << (sizeof(unsigned long)*8 - 1);
+    }else{
+      // age
+      priority = priority >> 1;
+      if(times.actime > last_atime){
+        priority |= ((unsigned long)0x01 << (sizeof(unsigned long)*8 - 1));
+      }
     }
     last_atime = times.actime;
   }
@@ -95,7 +96,6 @@ public:
     pinned_to = rhs.pinned_to;
   }
   ~File(){
-    Log("Destroying file.",2);
     write_xattrs();
   }
   File &operator=(const File &rhs){
@@ -122,7 +122,6 @@ public:
   Tier(std::string id_){
     id = id_;
   }
-  long get_fs_usage(File *file = NULL);
   long set_capacity();
 };
 
