@@ -36,6 +36,6 @@ void error(enum Error error){
 }
 
 void Log(std::string msg, int lvl){
-  if(config.log_lvl < lvl) return;
+  //if(config.log_lvl < lvl) return;
   std::cout << msg << std::endl;
 }

@@ -30,14 +30,18 @@
 namespace fs = boost::filesystem;
 
 #include "alert.hpp"
+#include "config.hpp"
 
 #define BUFF_SZ 4096
+
+class Config; // forward declaration
 
 class File{
 public:
   unsigned long priority;
   long last_atime;
   struct utimbuf times;
+  fs::path symlink_path;
   fs::path path;
   fs::path pinned_to;
   File(fs::path path_){
@@ -90,20 +94,26 @@ class Tier{
 public:
   int max_watermark;
   int min_watermark;
-  Tier *higher;
-  Tier *lower;
   fs::path dir;
   std::string id;
   std::list<File> files; // freshest to stalest
-  void crawl(fs::path dir);
   void tier_down(File &file);
   void tier_up(File &file);
 };
 
-extern Tier *highest_tier;
-extern Tier *lowest_tier;
-
-void launch_crawlers(void);
+class TierEngine{
+private:
+  std::list<Tier> tiers;
+  std::list<File> files;
+  Config config;
+public:
+  TierEngine(const fs::path &config_path){
+    config.load(config_path, tiers);
+  }
+  void launch_crawlers(void);
+  void crawl(fs::path dir);
+  //void dump_tiers(void);
+};
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 

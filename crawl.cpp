@@ -33,60 +33,36 @@
 #include <fcntl.h>
 #include <list>
 
-Tier *highest_tier = NULL;
-Tier *lowest_tier = NULL;
-
-void launch_crawlers(){
+void TierEngine::launch_crawlers(){
   Log("autotier started.\n",1);
   // get ordered list of files in each tier
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-      tptr->crawl(tptr->dir);
+  for(Tier t : tiers){
+      crawl(t.dir);
   }
   
-  if(config.log_lvl >= 2) dump_tiers();
-  
-  // tier down
-  for(Tier *tptr = highest_tier; tptr->lower != NULL; tptr=tptr->lower){
-    while(!tptr->files.empty() && get_fs_usage(tptr->dir) >= tptr->max_watermark){
-      if(tptr->files.back().pinned_to.empty() || tptr->files.back().pinned_to != tptr->dir){
-        tptr->tier_down(tptr->files.back());
-      }else{
-        tptr->files.pop_back(); // skip pinned files
-      }
-    }
-  }
-  // tier up
-  for(Tier *tptr = lowest_tier; tptr->higher != NULL; tptr=tptr->higher){
-    while(!tptr->files.empty() && get_fs_usage(tptr->higher->dir, &(tptr->files.front())) < tptr->higher->min_watermark){
-      if(tptr->files.front().pinned_to.empty() || tptr->files.front().pinned_to != tptr->dir){
-        tptr->tier_up(tptr->files.front());
-      }else{
-        tptr->files.pop_front(); // skip pinned files
-      }
-    }
-  }
-  Log("Tiering complete.\n",1);
-}
-
-void Tier::crawl(fs::path dir){
-  Log("Gathering file list.",2);
-  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-    if(is_directory(*itr)){
-      this->crawl(*itr);
-    }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      this->files.push_back(File{*itr});
-    }
-  }
   Log("Sorting files.\n",2);
-  this->files.sort(
+  files.sort(
     [](const File &a, const File &b){
       return (a.priority == b.priority)? a.times.actime > b.times.actime : a.priority > b.priority;
     }
   );
+  
+  Log("Tiering complete.\n",1);
 }
 
-void Tier::tier_down(File &file){
+void TierEngine::crawl(fs::path dir){
+  Log("Gathering file list.",2);
+  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
+    if(is_directory(*itr)){
+      crawl(*itr);
+    }else if(!is_symlink(*itr) &&
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
+      files.push_back(File{*itr});
+    }
+  }
+}
+
+/*void Tier::tier_down(File &file){
   Log("Tiering down.",2);
   fs::path to_here = this->lower->dir/relative(file.path, this->dir);
   if(!is_directory(to_here.parent_path()))
@@ -132,7 +108,7 @@ void Tier::tier_up(File &file){
   while(insert_itr != this->higher->files.end() && (*insert_itr).priority > file.priority) insert_itr++;
   this->higher->files.insert(insert_itr, file);
   this->files.pop_front();
-}
+}*/
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
   struct stat info;
@@ -199,21 +175,11 @@ int get_fs_usage(const fs::path &dir, File *file){
   return (int)((fs_stats.f_blocks - fs_stats.f_bfree) * (fsblkcnt_t)100 / fs_stats.f_blocks); 
 }
 
-void destroy_tiers(){
-  if(highest_tier == lowest_tier){
-    delete highest_tier;
-    return;
-  }
-  for(Tier *tptr = highest_tier->lower; tptr != NULL; tptr = tptr->lower)
-    delete tptr->higher;
-  delete lowest_tier;
-}
-
-void dump_tiers(){
+/*void TierEngine::dump_tiers(){
   std::cout << "Files from freshest to stalest: " << std::endl;
   
-  for(Tier *tptr = highest_tier; tptr != NULL; tptr=tptr->lower){
-    std::cout << tptr->id << std::endl;
+  for(Tier t : tiers){
+    std::cout << t.id << std::endl;
     for(std::list<File>::iterator itr = tptr->files.begin(); itr != tptr->files.end(); itr++){
       unsigned long tmp = (*itr).priority;
       std::cout << "Prio: " << (*itr).priority << " (";
@@ -224,4 +190,4 @@ void dump_tiers(){
     }
     std::cout << std::endl;
   }
-}
+}*/

@@ -27,17 +27,17 @@ namespace fs = boost::filesystem;
 #define ERR -1
 #define DISABLED -999
 
+class Tier; // forward declaration
+
 class Config{
 private:
   void generate_config(std::fstream &file);
-  bool verify(void);
+  bool verify(const std::list<Tier> &tiers);
 public:
   int log_lvl;
-  void load(const fs::path &config_path);
+  void load(const fs::path &config_path, std::list<Tier> &tiers);
   int load_global(std::fstream &config_file, std::string &id);
-  void dump(std::ostream &os) const;
+  void dump(std::ostream &os, const std::list<Tier> &tiers) const;
 };
 
 void discard_comments(std::string &str);
-
-extern Config config;
