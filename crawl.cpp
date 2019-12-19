@@ -91,12 +91,9 @@ void TierEngine::simulate_tier(){
 void TierEngine::move_files(){
   Log("Moving files.",2);
   for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
-    std::cout << titr->id << std::endl;
     for(File * fptr : titr->incoming_files){
-      std::cout << fptr->old_path << std::endl;
       fptr->new_path = titr->dir/relative(fptr->old_path, fptr->old_tier->dir);
       fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
-      std::cout << fptr->new_path << std::endl;
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
