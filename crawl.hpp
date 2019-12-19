@@ -41,6 +41,7 @@ public:
   unsigned long priority;
   long last_atime;
   long size;
+  Tier *old_tier;
   struct utimbuf times;
   fs::path symlink_path;
   fs::path old_path;
@@ -54,10 +55,12 @@ public:
     if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
       error(SETX);
   }
-  File(fs::path path_){
+  void move(void);
+  File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
     old_path = path_;
+    old_tier = tptr;
     struct stat info;
     stat(old_path.c_str(), &info);
     size = (long)info.st_size;
@@ -134,7 +137,7 @@ public:
   }
   void begin(void);
   void launch_crawlers(void);
-  void crawl(fs::path dir);
+  void crawl(fs::path dir, Tier *tptr);
   void sort(void);
   void simulate_tier(void);
   void move_files(void);

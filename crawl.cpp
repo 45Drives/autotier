@@ -45,8 +45,8 @@ void TierEngine::begin(){
 void TierEngine::launch_crawlers(){
   Log("Gathering files.",2);
   // get ordered list of files in each tier
-  for(Tier t : tiers){
-    crawl(t.dir);
+  for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    crawl(t->dir, &(*t));
   }
 }
 
@@ -59,13 +59,13 @@ void TierEngine::sort(){
   );
 }
 
-void TierEngine::crawl(fs::path dir){
+void TierEngine::crawl(fs::path dir, Tier *tptr){
   for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
-      crawl(*itr);
+      crawl(*itr, tptr);
     }else if(!is_symlink(*itr) &&
     !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      files.emplace_back(*itr);
+      files.emplace_back(*itr, tptr);
     }
   }
 }
@@ -75,26 +75,54 @@ void TierEngine::simulate_tier(){
   long tier_use = 0;
   std::list<File>::iterator fptr = files.begin();
   std::vector<Tier>::iterator tptr = tiers.begin();
+  tptr->watermark_bytes = tptr->set_capacity();
   while(fptr != files.end()){
     if(tier_use + fptr->size >= tptr->watermark_bytes){
       tier_use = 0;
       if(++tptr == tiers.end()) break;
+      tptr->watermark_bytes = tptr->set_capacity();
     }
     tier_use += fptr->size;
-    tptr->incoming_files.push_back(&(*fptr));
+    tptr->incoming_files.emplace_back(&(*fptr));
     fptr++;
   }
 }
 
 void TierEngine::move_files(){
   Log("Moving files.",2);
-  for(std::vector<Tier>::iterator titr = tiers.begin(); titr != tiers.end(); titr++){
+  for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
     std::cout << titr->id << std::endl;
     for(File * fptr : titr->incoming_files){
-      fptr->new_path = fptr->old_path;
       std::cout << fptr->old_path << std::endl;
+      fptr->new_path = titr->dir/relative(fptr->old_path, fptr->old_tier->dir);
+      fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      std::cout << fptr->new_path << std::endl;
+      if(fptr->new_path != fptr->symlink_path){
+        fptr->move();
+        if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
+        create_symlink(fptr->new_path, fptr->symlink_path);
+      }else{
+        if(is_symlink(fptr->new_path)) remove(fptr->new_path);
+        fptr->move();
+      }
     }
   }
+}
+
+void File::move(){
+  if(old_path == new_path) return;
+  if(!is_directory(new_path.parent_path()))
+    create_directories(new_path.parent_path());
+  Log("Copying " + old_path.string() + " to " + new_path.string(),2);
+  copy_file(old_path, new_path); // move item to slow tier
+  copy_ownership_and_perms(old_path, new_path);
+  if(verify_copy(old_path, new_path)){
+    Log("Copy succeeded.",2);
+    remove(old_path);
+  }else{
+    Log("Copy failed!",0);
+  }
+  utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
 /*void Tier::tier_down(File &file){
