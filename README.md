@@ -66,3 +66,14 @@ path = /path/to/fastest/tier
 Edit `/etc/systemd/system/autotier.timer` to set the period at which to run `autotier`. The default period is every 30 minutes. Run `systemctl daemon-reload` after editing this file.
 ## Acknowledgements
 Credits to [Stephan Brumme](https://stephan-brumme.com/) for his single-header implementation of XXHash, which is used after a file is copied to verify that there were no errors.
+```
+    🕯️
+  ╒════╕
+  │ 45 │
+ ╒╧════╧╕
+ │DRIVES│
+╒╧══════╧╕
+│AUTOTIER│
+╘════════╛
+```
+[![45Drives Logo](https://www.45drives.com/img/45-drives-brand.png)](https://www.45drives.com)
