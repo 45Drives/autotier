@@ -2,7 +2,7 @@
 Intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.
 
 ## What it does
-`autotier` crawls through each tier's directory and queues up files, sorted by a combination of frequency of use and age. It moves the oldest/least used files to the next lowest storage tier and replaces the original with a symlink to the new location until the tier usage is below the defined upper watermark. Conversely, it also moves the newest/most frequently used files up to higher tiers until the higher tier usage is above the lower watermark, given that the file to be moved won't overshoot the max watermark. This behaviour cascades across as many storage tiers as you want to define in the configuration file.
+`autotier` crawls through each tier's directory and queues up files, sorted by a combination of frequency of use and age. It fills the defined tiers to their watermarked capacity, starting at the fastest tier with the highest priority files, working its way down until no files are left. If you do a lot of writing, set a lower watermark for the highest tier to allow for more room. If you do mostly reading, set a higher watermark to allow for as much use as possible out of your available top tier storage.
 
 ## Installation
 ```
@@ -26,30 +26,26 @@ The layout of a single tier's configuration entry is as follows:
 ```
 [<Tier name>]
 DIR=/path/to/storage/tier
-MAX_WATERMARK=<0-100% of tier usage at which to tier down old files to lower tier>
-MIN_WATERMARK=<0-100% of tier usage at which to tier up new files from lower tier>
+WATERMARK=<0-100% of tier usage at which to stop filling tier>
 ```
-As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want but it cannot be `global` or `Global`. Tier names are only used for config diagnostics. Usage watermark can be disabled by omitting the option in the configuration file, causing `autotier` to always tier down files older than the defined expiry age.   
+As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want but it cannot be `global` or `Global`. Tier names are only used for config diagnostics.  
 Below is a complete example of a configuration file:
 ```
 # autotier.conf
 [Global]
-LOG_LEVEL=0
+LOG_LEVEL=2
 
 [Fastest Tier]
 DIR=/tier_1         # fast tier storage pool
-MAX_WATERMARK=80    # tier down old files if tier is 80% full
-MIN_WATERMARK=60    # try to keep tier at least 60% full
+WATERMARK=70        # keep tier usage just below 70%
 
 [Medium Tier]
 DIR=/tier_2
-MAX_WATERMARK=90
-MIN_WATERMARK=80
+WATERMARK=90
 
 [Slower Tier]
 DIR=/tier_3
-MAX_WATERMARK=50
-MIN_WATERMARK=0
+WATERMARK=100
 
 # ... and so on
 ```
