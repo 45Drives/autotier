@@ -131,6 +131,7 @@ private:
 public:
   TierEngine(const fs::path &config_path){
     config.load(config_path, tiers);
+    log_lvl = config.log_lvl;
   }
   void begin(void);
   void launch_crawlers(void);

@@ -21,6 +21,8 @@
 #include "config.hpp"
 #include <iostream>
 
+int log_lvl;
+
 std::string errors[NUM_ERRORS] = {
   "Error loading configuration file.",
   "Tier directory does not exist. Please check config.",
@@ -36,6 +38,6 @@ void error(enum Error error){
 }
 
 void Log(std::string msg, int lvl){
-  //if(config.log_lvl < lvl) return;
+  if(log_lvl < lvl) return;
   std::cout << msg << std::endl;
 }

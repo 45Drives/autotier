@@ -83,22 +83,34 @@ void TierEngine::simulate_tier(){
       tptr->watermark_bytes = tptr->set_capacity();
     }
     tier_use += fptr->size;
+    /*
+     * TODO: only place file in incoming queue if destination tier != current tier
+     */
     tptr->incoming_files.emplace_back(&(*fptr));
     fptr++;
   }
 }
 
 void TierEngine::move_files(){
+  /*
+   * Currently, this starts at the lowest tier, assuming it has the most free space, and
+   * moves all incoming files from their current tiers before moving on to the next lowest
+   * tier. There should be a better way to shuffle all the files around to avoid over-filling
+   * a tier by doing them one at a time.
+   */
   Log("Moving files.",2);
   for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
     for(File * fptr : titr->incoming_files){
       fptr->new_path = titr->dir/relative(fptr->old_path, fptr->old_tier->dir);
       fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      /*
+       * TODO: handle cases where file already exists at destination (should not happen but could)
+       */
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
         create_symlink(fptr->new_path, fptr->symlink_path);
-      }else{
+      }else{ // moving to top tier
         if(is_symlink(fptr->new_path)) remove(fptr->new_path);
         fptr->move();
       }
@@ -118,6 +130,9 @@ void File::move(){
     remove(old_path);
   }else{
     Log("Copy failed!",0);
+    /*
+     * TODO: put in place protocol for what to do when this happens
+     */
   }
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
@@ -130,6 +145,10 @@ void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
 }
 
 bool verify_copy(const fs::path &src, const fs::path &dst){
+  /*
+   * TODO: more efficient error checking than this? Also make
+   * optional in global configuration?
+   */
   int bytes_read;
   char *src_buffer = new char[4096];
   char *dst_buffer = new char[4096];
@@ -175,6 +194,10 @@ struct utimbuf last_times(const fs::path &file){
 }
 
 long Tier::set_capacity(){
+  /*
+   * Returns maximum number of bytes to
+   * place in a tier (Total size * watermark%)
+   */
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
