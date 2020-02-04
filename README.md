@@ -9,6 +9,24 @@ Intelligently moves files between storage tiers based on frequency of use, file 
 yum install https://github.com/45Drives/autotier/releases/download/v0.4-beta/autotier-0.4-1.el7.x86_64.rpm
 ```
 
+For apt-get based systems, or building from source:
+
+```
+#Change to home directory
+cd ~
+#Clone autotier github to ~/autotier
+git clone https://github.com/45Drives/autotier.git
+#Change directory into ~/autotier
+cd autotier
+#Install requirements
+sudo apt-get install libboost-all-dev -y
+#Compile
+make
+```
+
+You will need to create the `/etc/autotier.conf` config file, and setup a crontab entry to run autotier.
+
+
 ## Usage
 The RPM install package includes a systemd unit and timer file. Configure `autotier` as described below and enable the daemon with `systemctl enable autotier.timer` The default configuration file is `/etc/autotier.conf`, but this can be changed by passing the `-c`/`--config` flag followed by the path to the alternate configuration file. The first defined tier should be the working tier that is exported. So far, `samba` is the only sharing tool that seems to work with this software. `nfs` is too literal, and has no capability of following wide symlinks.
 
