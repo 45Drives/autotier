@@ -106,6 +106,7 @@ void TierEngine::move_files(){
       /*
        * TODO: handle cases where file already exists at destination (should not happen but could)
        */
+      fptr->output();
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
@@ -116,6 +117,14 @@ void TierEngine::move_files(){
       }
     }
   }
+}
+
+void File::output(){
+  Log("OldPath: " + old_path.string(),2);
+  Log("NewPath: " + new_path.string(),2);
+  Log("SymLink: " + symlink_path.string(),2);
+  Log("UserPin: " + pinned_to.string(),2);
+  Log("",2);
 }
 
 void File::move(){
