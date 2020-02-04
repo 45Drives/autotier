@@ -105,6 +105,11 @@ void TierEngine::move_files(){
       fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
       /*
        * TODO: handle cases where file already exists at destination (should not happen but could)
+       * 1 - Check if new_path exists.
+       * 2 - Hash both old_path and new_path to check if they are the same file.
+       * 2a- If old_hash == new_hash, remove old_path and create symlink if needed.
+       * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
+       *     Be sure to check if new name doesnt exist before moving the file.
        */
       fptr->output();
       if(fptr->new_path != fptr->symlink_path){
