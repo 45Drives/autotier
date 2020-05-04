@@ -33,7 +33,8 @@ std::regex command_list[NUM_COMMANDS] = {
   std::regex("^[Pp]in|PIN$"),
   std::regex("^[Cc]onfig|CONFIG$"),
   std::regex("^[Hh]elp|HELP$"),
-  std::regex("^[Uu]npin|UNPIN$")
+  std::regex("^[Uu]npin|UNPIN$"),
+  std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$")
 };
 
 int get_command_index(int argc, char *argv[]){
@@ -99,15 +100,16 @@ void usage(){
   "commands:\n"
   "  run          - execute tiering of files\n"
   "  list         - list defined tiers\n"
-  "  pin [-r|--recursive] <\"/path/to/file\"> {<\"tier name\">|<\"path/to/pinned/tier\">}\n"
-  "               - pin file to tier using tier name in config file or full path to *tier root*\n"
+  "  pin <\"tier name\"> <\"/path/to/file\">...\n"
+  "               - pin file(s) to tier using tier name in config file or full path to *tier root*\n"
   "               - if a path to a directory is passed, all top-level files will be pinned\n"
-  "  config       - display current configuration\n"
+  "  unpin </path/to/file>...\n"
+  "               - remove pin from file(s)\n"
+  "  config       - display current configuration file\n"
+  "  list-pins    - show all pinned files\n"
   "  help         - display this message\n"
   "flags:\n"
   "  -c --config <path/to/config>\n"
   "               - override configuration file path (default /etc/autotier.conf)\n"
-  "  -r --recursive\n"
-  "               - only for pin command: pass directory path and all contained files will be pinned\n"
   << std::endl;
 }

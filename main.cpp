@@ -47,6 +47,9 @@ int main(int argc, char *argv[]){
   case UNPIN:
     unpin(argc, argv);
     break;
+  case LPIN:
+    autotier.list_pins();
+    break;
   case HELP:
   default:
     usage();

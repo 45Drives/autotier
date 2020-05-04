@@ -32,6 +32,8 @@ namespace fs = boost::filesystem;
 
 #define BUFF_SZ 4096
 
+enum CRAWL_FUNC {NORMAL, ONLY_PRINT_PIN};
+
 class Config; // forward declaration
 
 class File{
@@ -136,13 +138,14 @@ public:
   }
   void begin(void);
   void launch_crawlers(void);
-  void crawl(fs::path dir, Tier *tptr);
+  void crawl(fs::path dir, Tier *tptr, enum CRAWL_FUNC option = NORMAL);
   void sort(void);
   void simulate_tier(void);
   void move_files(void);
   void print_tiers(void);
   void print_config(void);
-  void pin_files(std::string tier_name, std::vector<fs::path> &files);
+  void pin_files(std::string tier_name, std::vector<fs::path> &files_);
+  void list_pins(void);
 };
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);

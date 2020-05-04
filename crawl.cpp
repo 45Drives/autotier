@@ -60,13 +60,37 @@ void TierEngine::sort(){
   );
 }
 
-void TierEngine::crawl(fs::path dir, Tier *tptr){
+void TierEngine::crawl(fs::path dir, Tier *tptr, enum CRAWL_FUNC option){
   for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
     if(is_directory(*itr)){
       crawl(*itr, tptr);
     }else if(!is_symlink(*itr) &&
     !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      files.emplace_back(*itr, tptr);
+      if(option == ONLY_PRINT_PIN){
+        int attr_len;
+        char strbuff[BUFF_SZ];
+        if((attr_len = getxattr((*itr).path().c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+          if(attr_len == 0)
+            continue;
+          strbuff[attr_len] = '\0'; // c-string
+          std::cout << (*itr).path().string() << std::endl;
+          std::cout << "pinned to" << std::endl;
+          std::vector<Tier>::iterator tptr_;
+          for(tptr_ = tiers.begin(); tptr_ != tiers.end(); ++tptr_){
+            if(std::string(strbuff) == tptr_->dir.string())
+              break;
+          }
+          if(tptr_ == tiers.end()){
+            Log("Tier does not exist.",0);
+          }else{
+            std::cout << tptr_->id << std::endl;
+          }
+          std::cout << "(" << strbuff << ")" << std::endl;
+          std::cout << std::endl;
+        }
+      }else{
+        files.emplace_back(*itr, tptr);
+      }
     }
   }
 }
@@ -138,6 +162,7 @@ void TierEngine::print_tiers(void){
     "Tier " << i++ << ":" << std::endl <<
     "tier name: \"" << tptr->id << "\"" << std::endl <<
     "tier path: " << tptr->dir.string() << std::endl <<
+    "watermark: " << tptr->watermark << "% (" << tptr->set_capacity() << " bytes)" << std::endl <<
     std::endl;
   }
 }
@@ -146,7 +171,7 @@ void TierEngine::print_config(void){
   config.dump(std::cout, tiers);
 }
 
-void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files){
+void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
   std::vector<Tier>::iterator tptr;
   for(tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
     if(tier_name == tptr->id)
@@ -156,13 +181,21 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files){
     Log("Tier does not exist.",0);
     exit(1);
   }
-  for(std::vector<fs::path>::iterator fptr = files.begin(); fptr != files.end(); ++fptr){
+  for(std::vector<fs::path>::iterator fptr = files_.begin(); fptr != files_.end(); ++fptr){
     if(!exists(*fptr)){
       Log("File does not exist! "+fptr->string(),0);
       continue;
     }
     if(setxattr(fptr->c_str(),"user.autotier_pin",tptr->dir.c_str(),strlen(tptr->dir.c_str()),0)==ERR)
       error(SETX);
+  }
+}
+
+void TierEngine::list_pins(void){
+  std::cout << "Pinned files:" << std::endl;
+  std::cout << std::endl;
+  for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    crawl(t->dir, &(*t), ONLY_PRINT_PIN);
   }
 }
 
