@@ -101,8 +101,12 @@ void TierEngine::move_files(){
   Log("Moving files.",2);
   for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
     for(File * fptr : titr->incoming_files){
-      fptr->new_path = titr->dir/relative(fptr->old_path, fptr->old_tier->dir);
       fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      if(!fptr->pinned_to.empty())
+        fptr->new_path = fptr->pinned_to;
+      else
+        fptr->new_path = titr->dir;
+      fptr->new_path /= relative(fptr->old_path, fptr->old_tier->dir);
       /*
        * TODO: handle cases where file already exists at destination (should not happen but could)
        * 1 - Check if new_path exists.
