@@ -129,14 +129,12 @@ void Config::generate_config(std::fstream &file){
   "\n"
   "[Tier 1]\n"
   "DIR=                # full path to tier storage pool\n"
-  "MAX_WATERMARK=      # % usage at which to tier down from tier\n"
-  "MIN_WATERMARK=      # % usage at which to tier up into tier\n"
+  "WATERMARK=      # % usage at which to tier down from tier\n"
   "# file age is calculated as (current time - file mtime), i.e. the amount\n"
   "# of time that has passed since the file was last modified.\n"
   "[Tier 2]\n"
   "DIR=\n"
-  "MAX_WATERMARK=\n"
-  "MIN_WATERMARK=\n"
+  "WATERMARK=\n"
   "# ... (add as many tiers as you like)\n"
   << std::endl;
 }

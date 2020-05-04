@@ -53,6 +53,7 @@ public:
     if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
       error(SETX);
   }
+  void output(void);
   void move(void);
   File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
