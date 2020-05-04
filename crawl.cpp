@@ -111,7 +111,7 @@ void TierEngine::move_files(){
        * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
        *     Be sure to check if new name doesnt exist before moving the file.
        */
-      fptr->output();
+      fptr->log_movement();
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
@@ -124,7 +124,7 @@ void TierEngine::move_files(){
   }
 }
 
-void File::output(){
+void File::log_movement(){
   Log("OldPath: " + old_path.string(),2);
   Log("NewPath: " + new_path.string(),2);
   Log("SymLink: " + symlink_path.string(),2);
