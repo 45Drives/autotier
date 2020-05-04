@@ -21,6 +21,7 @@
 #include "config.hpp"
 #include "alert.hpp"
 #include "xxhash64.h"
+#include <iostream>
 #include <iomanip>
 #include <regex>
 #include <pwd.h>
@@ -125,6 +126,43 @@ void TierEngine::move_files(){
         fptr->move();
       }
     }
+  }
+}
+
+void TierEngine::print_tiers(void){
+  int i = 1;
+  std::cout << "Tiers from fastest to slowest:" << std::endl;
+  std::cout << std::endl;
+  for(std::vector<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+    std::cout <<
+    "Tier " << i++ << ":" << std::endl <<
+    "tier name: \"" << tptr->id << "\"" << std::endl <<
+    "tier path: " << tptr->dir.string() << std::endl <<
+    std::endl;
+  }
+}
+
+void TierEngine::print_config(void){
+  config.dump(std::cout, tiers);
+}
+
+void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files){
+  std::vector<Tier>::iterator tptr;
+  for(tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+    if(tier_name == tptr->id)
+      break;
+  }
+  if(tptr == tiers.end()){
+    Log("Tier does not exist.",0);
+    exit(1);
+  }
+  for(std::vector<fs::path>::iterator fptr = files.begin(); fptr != files.end(); ++fptr){
+    if(!exists(*fptr)){
+      Log("File does not exist! "+fptr->string(),0);
+      continue;
+    }
+    if(setxattr(fptr->c_str(),"user.autotier_pin",tptr->dir.c_str(),strlen(tptr->dir.c_str()),0)==ERR)
+      error(SETX);
   }
 }
 

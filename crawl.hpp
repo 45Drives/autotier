@@ -140,7 +140,9 @@ public:
   void sort(void);
   void simulate_tier(void);
   void move_files(void);
-  //void dump_tiers(void);
+  void print_tiers(void);
+  void print_config(void);
+  void pin_files(std::string tier_name, std::vector<fs::path> &files);
 };
 
 void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
@@ -148,5 +150,3 @@ void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
 bool verify_copy(const fs::path &src, const fs::path &dst);
 
 void destroy_tiers(void);
-
-void dump_tiers(void);
