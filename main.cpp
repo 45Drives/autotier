@@ -57,8 +57,6 @@ int main(int argc, char *argv[]){
     exit(1);
     break;
   }
-  // daemon mode:
-  //autotier.begin();
   return 0;
 }
 

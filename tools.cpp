@@ -39,14 +39,14 @@ std::regex command_list[NUM_COMMANDS] = {
 
 int get_command_index(int argc, char *argv[]){
   if(argc < 2){ // no command
-    return -1;
+    return ERR;
   }
   std::string command = argv[1];
   for(int itr = 0; itr < NUM_COMMANDS; itr++){
     if(regex_match(command,command_list[itr]))
       return itr;
   }
-  return -1;
+  return ERR;
 }
 
 void parse_flags(int argc, char *argv[], fs::path &config_path){
