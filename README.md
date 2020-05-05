@@ -30,6 +30,43 @@ You will need to create the `/etc/autotier.conf` config file, and setup a cronta
 ## Usage
 The RPM install package includes a systemd unit and timer file. Configure `autotier` as described below and enable the daemon with `systemctl enable autotier.timer` The default configuration file is `/etc/autotier.conf`, but this can be changed by passing the `-c`/`--config` flag followed by the path to the alternate configuration file. The first defined tier should be the working tier that is exported. So far, `samba` is the only sharing tool that seems to work with this software. `nfs` is too literal, and has no capability of following wide symlinks.
 
+### Command Line Tools
+```
+autotier usage:
+  autotier <command> <flags> [{-c|--config} </path/to/config>]
+commands:
+  run          - execute tiering of files
+  status       - list info about defined tiers
+  pin <"tier name"> <"/path/to/file">...
+               - pin file(s) to tier using tier name in config file or full path to *tier root*
+               - if a path to a directory is passed, all top-level files will be pinned
+  unpin </path/to/file>...
+               - remove pin from file(s)
+  config       - display current configuration file
+  list-pins    - show all pinned files
+  help         - display this message
+flags:
+  -c --config <path/to/config>
+               - override configuration file path (default /etc/autotier.conf)
+```
+Examples:  
+Run tiering of files:  
+(This is a oneshot execution - you need the systemd timer or a crontab entry to do this regularly)  
+`autotier run`  
+Show status of configured tiers:  
+`autotier status`  
+Pin a file to a tier with \<Tier Name\>:  
+`autotier pin "<Tier Name>" /path/to/file`  
+Pin multiple files:  
+`autotier pin "<Tier Name>" /path/to/file1 /path/to/dir/* /bash/expansion/**/*`  
+`find /path -type f -print | xargs autotier pin "<Tier Name>"`  
+Remove pins:  
+`autotier unpin /path/to/file`  
+`find /path -type f -print | xargs autotier unpin`  
+List pinned files:  
+`autotier list-pins`
+
+
 ## Configuration
 ### Autotier Config
 #### Global Config
