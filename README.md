@@ -6,7 +6,7 @@ Intelligently moves files between storage tiers based on frequency of use, file 
 
 ## Installation
 ```
-yum install https://github.com/45Drives/autotier/releases/download/v0.4-beta/autotier-0.4-1.el7.x86_64.rpm
+yum install https://github.com/45Drives/autotier/releases/download/v0.6.0-beta/autotier-0.6.0-1.el7.x86_64.rpm
 ```
 
 For apt-get based systems, or building from source:
