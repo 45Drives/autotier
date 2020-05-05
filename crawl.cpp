@@ -21,6 +21,7 @@
 #include "config.hpp"
 #include "alert.hpp"
 #include "xxhash64.h"
+#include <iostream>
 #include <iomanip>
 #include <regex>
 #include <pwd.h>
@@ -34,19 +35,58 @@
 #include <list>
 
 void TierEngine::begin(){
-  Log("autotier started.\n",1);
-  launch_crawlers();
+  Log("autotier started.",1);
+  launch_crawlers(&TierEngine::emplace_file);
   sort();
   simulate_tier();
   move_files();
-  Log("Tiering complete.\n",1);
+  Log("Tiering complete.",1);
 }
 
-void TierEngine::launch_crawlers(){
+void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
   Log("Gathering files.",2);
   // get ordered list of files in each tier
   for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
-    crawl(t->dir, &(*t));
+    crawl(t->dir, &(*t), function);
+  }
+}
+
+void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
+  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
+    if(is_directory(*itr)){
+      crawl(*itr, tptr, function);
+    }else if(!is_symlink(*itr) &&
+    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
+      (this->*function)(*itr, tptr);
+    }
+  }
+}
+
+void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
+  files.emplace_back(file, tptr);
+}
+
+void TierEngine::print_file_pin(fs::directory_entry &file, Tier *tptr){
+  int attr_len;
+  char strbuff[BUFF_SZ];
+  if((attr_len = getxattr(file.path().c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+    if(attr_len == 0)
+      return;
+    strbuff[attr_len] = '\0'; // c-string
+    std::cout << file.path().string() << std::endl;
+    std::cout << "pinned to" << std::endl;
+    std::vector<Tier>::iterator tptr_;
+    for(tptr_ = tiers.begin(); tptr_ != tiers.end(); ++tptr_){
+      if(std::string(strbuff) == tptr_->dir.string())
+        break;
+    }
+    if(tptr_ == tiers.end()){
+      Log("Tier does not exist.",0);
+    }else{
+      std::cout << tptr_->id << std::endl;
+    }
+    std::cout << "(" << strbuff << ")" << std::endl;
+    std::cout << std::endl;
   }
 }
 
@@ -59,28 +99,18 @@ void TierEngine::sort(){
   );
 }
 
-void TierEngine::crawl(fs::path dir, Tier *tptr){
-  for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-    if(is_directory(*itr)){
-      crawl(*itr, tptr);
-    }else if(!is_symlink(*itr) &&
-    !regex_match((*itr).path().filename().string(), std::regex("(^\\..*(\\.swp)$|^(\\.~lock\\.).*#$|^(~\\$))"))){
-      files.emplace_back(*itr, tptr);
-    }
-  }
-}
-
 void TierEngine::simulate_tier(){
   Log("Finding files' tiers.",2);
   long tier_use = 0;
   std::list<File>::iterator fptr = files.begin();
   std::vector<Tier>::iterator tptr = tiers.begin();
-  tptr->watermark_bytes = tptr->set_capacity();
+  tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
   while(fptr != files.end()){
     if(tier_use + fptr->size >= tptr->watermark_bytes){
+      // move to next tier
       tier_use = 0;
       if(++tptr == tiers.end()) break;
-      tptr->watermark_bytes = tptr->set_capacity();
+      tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
     }
     tier_use += fptr->size;
     /*
@@ -128,12 +158,47 @@ void TierEngine::move_files(){
   }
 }
 
+void TierEngine::print_tier_info(void){
+  int i = 1;
+  std::cout << "Tiers from fastest to slowest:" << std::endl;
+  std::cout << std::endl;
+  for(std::vector<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+    std::cout <<
+    "Tier " << i++ << ":" << std::endl <<
+    "tier name: \"" << tptr->id << "\"" << std::endl <<
+    "tier path: " << tptr->dir.string() << std::endl <<
+    "current usage: " << tptr->get_usage() * 100 / tptr->get_capacity() << "% (" << tptr->get_usage() << " bytes)" << std::endl <<
+    "watermark: " << tptr->watermark << "% (" << tptr->get_capacity() * tptr->watermark / 100 << " bytes)" << std::endl <<
+    std::endl;
+  }
+}
+
+void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
+  std::vector<Tier>::iterator tptr;
+  for(tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+    if(tier_name == tptr->id)
+      break;
+  }
+  if(tptr == tiers.end()){
+    Log("Tier does not exist.",0);
+    exit(1);
+  }
+  for(std::vector<fs::path>::iterator fptr = files_.begin(); fptr != files_.end(); ++fptr){
+    if(!exists(*fptr)){
+      Log("File does not exist! "+fptr->string(),0);
+      continue;
+    }
+    if(setxattr(fptr->c_str(),"user.autotier_pin",tptr->dir.c_str(),strlen(tptr->dir.c_str()),0)==ERR)
+      error(SETX);
+  }
+}
+
 void File::log_movement(){
-  Log("OldPath: " + old_path.string(),2);
-  Log("NewPath: " + new_path.string(),2);
-  Log("SymLink: " + symlink_path.string(),2);
-  Log("UserPin: " + pinned_to.string(),2);
-  Log("",2);
+  Log("OldPath: " + old_path.string(),3);
+  Log("NewPath: " + new_path.string(),3);
+  Log("SymLink: " + symlink_path.string(),3);
+  Log("UserPin: " + pinned_to.string(),3);
+  Log("",3);
 }
 
 void File::move(){
@@ -142,12 +207,12 @@ void File::move(){
     create_directories(new_path.parent_path());
   Log("Copying " + old_path.string() + " to " + new_path.string(),2);
   copy_file(old_path, new_path); // move item to slow tier
-  copy_ownership_and_perms(old_path, new_path);
-  if(verify_copy(old_path, new_path)){
-    Log("Copy succeeded.",2);
+  copy_ownership_and_perms();
+  if(verify_copy()){
+    Log("Copy succeeded.\n",2);
     remove(old_path);
   }else{
-    Log("Copy failed!",0);
+    Log("Copy failed!\n",0);
     /*
      * TODO: put in place protocol for what to do when this happens
      */
@@ -155,14 +220,14 @@ void File::move(){
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
-void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
+void File::copy_ownership_and_perms(){
   struct stat info;
-  stat(src.c_str(), &info);
-  chown(dst.c_str(), info.st_uid, info.st_gid);
-  chmod(dst.c_str(), info.st_mode);
+  stat(old_path.c_str(), &info);
+  chown(new_path.c_str(), info.st_uid, info.st_gid);
+  chmod(new_path.c_str(), info.st_mode);
 }
 
-bool verify_copy(const fs::path &src, const fs::path &dst){
+bool File::verify_copy(){
   /*
    * TODO: more efficient error checking than this? Also make
    * optional in global configuration?
@@ -171,8 +236,8 @@ bool verify_copy(const fs::path &src, const fs::path &dst){
   char *src_buffer = new char[4096];
   char *dst_buffer = new char[4096];
   
-  int srcf = open(src.c_str(),O_RDONLY);
-  int dstf = open(dst.c_str(),O_RDONLY);
+  int srcf = open(old_path.c_str(),O_RDONLY);
+  int dstf = open(new_path.c_str(),O_RDONLY);
   
   XXHash64 src_hash(0);
   XXHash64 dst_hash(0);
@@ -195,29 +260,30 @@ bool verify_copy(const fs::path &src, const fs::path &dst){
   std::stringstream ss;
   
   ss << "SRC HASH: 0x" << std::hex << src_result << std::endl;
-  ss << "DST HASH: 0x" << std::hex << dst_result << std::endl;
+  ss << "DST HASH: 0x" << std::hex << dst_result;
   
   Log(ss.str(),2);
   
   return (src_result == dst_result);
 }
 
-struct utimbuf last_times(const fs::path &file){
-  struct stat info;
-  stat(file.c_str(), &info);
-  struct utimbuf times;
-  times.actime = info.st_atime;
-  times.modtime = info.st_mtime;
-  return times;
-}
-
-long Tier::set_capacity(){
+unsigned long Tier::get_capacity(){
   /*
-   * Returns maximum number of bytes to
-   * place in a tier (Total size * watermark%)
+   * Returns maximum number of bytes
+   * available in a tier
    */
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
-  return (fs_stats.f_blocks * fs_stats.f_bsize * watermark) / 100;
+  return (fs_stats.f_blocks * fs_stats.f_bsize);
+}
+
+unsigned long Tier::get_usage(){
+  /*
+   * Returns number of free bytes in a tier
+   */
+  struct statvfs fs_stats;
+  if((statvfs(dir.c_str(), &fs_stats) == -1))
+    return -1;
+  return (fs_stats.f_blocks - fs_stats.f_bfree) * fs_stats.f_bsize;
 }

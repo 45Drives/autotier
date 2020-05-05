@@ -55,6 +55,8 @@ public:
   }
   void log_movement(void);
   void move(void);
+  void copy_ownership_and_perms(void);
+  bool verify_copy(void);
   File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
@@ -73,6 +75,7 @@ public:
       last_atime = times.actime;
     }
     if(getxattr(old_path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
+      // initialize
       priority = (unsigned long)0x01 << (sizeof(unsigned long)*8 - 1);
     }else{
       // age
@@ -113,7 +116,7 @@ public:
 
 class Tier{
 public:
-  long watermark_bytes;
+  unsigned long watermark_bytes;
   int watermark;
   fs::path dir;
   std::string id;
@@ -121,7 +124,8 @@ public:
   Tier(std::string id_){
     id = id_;
   }
-  long set_capacity();
+  unsigned long get_capacity();
+  unsigned long get_usage();
 };
 
 class TierEngine{
@@ -135,18 +139,13 @@ public:
     log_lvl = config.log_lvl;
   }
   void begin(void);
-  void launch_crawlers(void);
-  void crawl(fs::path dir, Tier *tptr);
+  void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
+  void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
+  void emplace_file(fs::directory_entry &file, Tier *tptr);
+  void print_file_pin(fs::directory_entry &file, Tier *tptr);
   void sort(void);
   void simulate_tier(void);
   void move_files(void);
-  //void dump_tiers(void);
+  void print_tier_info(void);
+  void pin_files(std::string tier_name, std::vector<fs::path> &files_);
 };
-
-void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
-
-bool verify_copy(const fs::path &src, const fs::path &dst);
-
-void destroy_tiers(void);
-
-void dump_tiers(void);

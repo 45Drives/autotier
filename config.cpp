@@ -77,7 +77,7 @@ void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
     exit(1);
   }
   
-  if(log_lvl >= 2) dump(std::cout, tiers);
+  //if(log_lvl >= 2) dump(std::cout, tiers);
 }
 
 int Config::load_global(std::fstream &config_file, std::string &id){
