@@ -34,8 +34,8 @@ int main(int argc, char *argv[]){
   case RUN:
     autotier.begin();
     break;
-  case LIST:
-    autotier.print_tiers();
+  case STATUS:
+    autotier.print_tier_info();
     break;
   case PIN:
     pin(argc, argv, autotier);

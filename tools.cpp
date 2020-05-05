@@ -29,7 +29,7 @@ bool recursive_flag_set = false;
 
 std::regex command_list[NUM_COMMANDS] = {
   std::regex("^[Rr]un|RUN$"),
-  std::regex("^[Ll]ist|LIST$"),
+  std::regex("^[Ss]tatus|STATUS$"),
   std::regex("^[Pp]in|PIN$"),
   std::regex("^[Cc]onfig|CONFIG$"),
   std::regex("^[Hh]elp|HELP$"),
@@ -99,7 +99,7 @@ void usage(){
   "  autotier <command> <flags> [{-c|--config} </path/to/config>]\n"
   "commands:\n"
   "  run          - execute tiering of files\n"
-  "  list         - list defined tiers\n"
+  "  status       - list info about defined tiers\n"
   "  pin <\"tier name\"> <\"/path/to/file\">...\n"
   "               - pin file(s) to tier using tier name in config file or full path to *tier root*\n"
   "               - if a path to a directory is passed, all top-level files will be pinned\n"

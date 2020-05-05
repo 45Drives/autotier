@@ -25,7 +25,7 @@
 namespace fs = boost::filesystem;
 
 #define NUM_COMMANDS 7
-enum command_enum {RUN, LIST, PIN, CONFIG, HELP, UNPIN, LPIN};
+enum command_enum {RUN, STATUS, PIN, CONFIG, HELP, UNPIN, LPIN};
 
 extern std::regex command_list[NUM_COMMANDS];
 

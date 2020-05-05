@@ -100,12 +100,13 @@ void TierEngine::simulate_tier(){
   long tier_use = 0;
   std::list<File>::iterator fptr = files.begin();
   std::vector<Tier>::iterator tptr = tiers.begin();
-  tptr->watermark_bytes = tptr->set_capacity();
+  tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
   while(fptr != files.end()){
     if(tier_use + fptr->size >= tptr->watermark_bytes){
+      // move to next tier
       tier_use = 0;
       if(++tptr == tiers.end()) break;
-      tptr->watermark_bytes = tptr->set_capacity();
+      tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
     }
     tier_use += fptr->size;
     /*
@@ -153,7 +154,7 @@ void TierEngine::move_files(){
   }
 }
 
-void TierEngine::print_tiers(void){
+void TierEngine::print_tier_info(void){
   int i = 1;
   std::cout << "Tiers from fastest to slowest:" << std::endl;
   std::cout << std::endl;
@@ -162,7 +163,8 @@ void TierEngine::print_tiers(void){
     "Tier " << i++ << ":" << std::endl <<
     "tier name: \"" << tptr->id << "\"" << std::endl <<
     "tier path: " << tptr->dir.string() << std::endl <<
-    "watermark: " << tptr->watermark << "% (" << tptr->set_capacity() << " bytes)" << std::endl <<
+    "current usage: " << tptr->get_usage() * 100 / tptr->get_capacity() << "% (" << tptr->get_usage() << " bytes)" << std::endl <<
+    "watermark: " << tptr->watermark << "% (" << tptr->get_capacity() * tptr->watermark / 100 << " bytes)" << std::endl <<
     std::endl;
   }
 }
@@ -282,13 +284,23 @@ struct utimbuf last_times(const fs::path &file){
   return times;
 }
 
-long Tier::set_capacity(){
+unsigned long Tier::get_capacity(){
   /*
-   * Returns maximum number of bytes to
-   * place in a tier (Total size * watermark%)
+   * Returns maximum number of bytes
+   * available in a tier
    */
   struct statvfs fs_stats;
   if((statvfs(dir.c_str(), &fs_stats) == -1))
     return -1;
-  return (fs_stats.f_blocks * fs_stats.f_bsize * watermark) / 100;
+  return (fs_stats.f_blocks * fs_stats.f_bsize);
+}
+
+unsigned long Tier::get_usage(){
+  /*
+   * Returns number of free bytes in a tier
+   */
+  struct statvfs fs_stats;
+  if((statvfs(dir.c_str(), &fs_stats) == -1))
+    return -1;
+  return (fs_stats.f_blocks - fs_stats.f_bfree) * fs_stats.f_bsize;
 }

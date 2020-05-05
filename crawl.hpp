@@ -115,7 +115,7 @@ public:
 
 class Tier{
 public:
-  long watermark_bytes;
+  unsigned long watermark_bytes;
   int watermark;
   fs::path dir;
   std::string id;
@@ -123,7 +123,8 @@ public:
   Tier(std::string id_){
     id = id_;
   }
-  long set_capacity();
+  unsigned long get_capacity();
+  unsigned long get_usage();
 };
 
 class TierEngine{
@@ -142,7 +143,7 @@ public:
   void sort(void);
   void simulate_tier(void);
   void move_files(void);
-  void print_tiers(void);
+  void print_tier_info(void);
   void print_config(void);
   void pin_files(std::string tier_name, std::vector<fs::path> &files_);
   void list_pins(void);
