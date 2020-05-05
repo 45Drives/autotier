@@ -32,8 +32,6 @@ namespace fs = boost::filesystem;
 
 #define BUFF_SZ 4096
 
-enum CRAWL_FUNC {NORMAL, ONLY_PRINT_PIN};
-
 class Config; // forward declaration
 
 class File{
@@ -57,6 +55,8 @@ public:
   }
   void log_movement(void);
   void move(void);
+  void copy_ownership_and_perms(void);
+  bool verify_copy(void);
   File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
@@ -75,6 +75,7 @@ public:
       last_atime = times.actime;
     }
     if(getxattr(old_path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
+      // initialize
       priority = (unsigned long)0x01 << (sizeof(unsigned long)*8 - 1);
     }else{
       // age
@@ -148,9 +149,3 @@ public:
   void print_tier_info(void);
   void pin_files(std::string tier_name, std::vector<fs::path> &files_);
 };
-
-void copy_ownership_and_perms(const fs::path &src, const fs::path &dst);
-
-bool verify_copy(const fs::path &src, const fs::path &dst);
-
-void destroy_tiers(void);

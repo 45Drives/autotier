@@ -35,12 +35,12 @@
 #include <list>
 
 void TierEngine::begin(){
-  Log("autotier started.\n",1);
+  Log("autotier started.",1);
   launch_crawlers(&TierEngine::emplace_file);
   sort();
   simulate_tier();
   move_files();
-  Log("Tiering complete.\n",1);
+  Log("Tiering complete.",1);
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -194,11 +194,11 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 }
 
 void File::log_movement(){
-  Log("OldPath: " + old_path.string(),2);
-  Log("NewPath: " + new_path.string(),2);
-  Log("SymLink: " + symlink_path.string(),2);
-  Log("UserPin: " + pinned_to.string(),2);
-  Log("",2);
+  Log("OldPath: " + old_path.string(),3);
+  Log("NewPath: " + new_path.string(),3);
+  Log("SymLink: " + symlink_path.string(),3);
+  Log("UserPin: " + pinned_to.string(),3);
+  Log("",3);
 }
 
 void File::move(){
@@ -207,12 +207,12 @@ void File::move(){
     create_directories(new_path.parent_path());
   Log("Copying " + old_path.string() + " to " + new_path.string(),2);
   copy_file(old_path, new_path); // move item to slow tier
-  copy_ownership_and_perms(old_path, new_path);
-  if(verify_copy(old_path, new_path)){
-    Log("Copy succeeded.",2);
+  copy_ownership_and_perms();
+  if(verify_copy()){
+    Log("Copy succeeded.\n",2);
     remove(old_path);
   }else{
-    Log("Copy failed!",0);
+    Log("Copy failed!\n",0);
     /*
      * TODO: put in place protocol for what to do when this happens
      */
@@ -220,14 +220,14 @@ void File::move(){
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
-void copy_ownership_and_perms(const fs::path &src, const fs::path &dst){
+void File::copy_ownership_and_perms(){
   struct stat info;
-  stat(src.c_str(), &info);
-  chown(dst.c_str(), info.st_uid, info.st_gid);
-  chmod(dst.c_str(), info.st_mode);
+  stat(old_path.c_str(), &info);
+  chown(new_path.c_str(), info.st_uid, info.st_gid);
+  chmod(new_path.c_str(), info.st_mode);
 }
 
-bool verify_copy(const fs::path &src, const fs::path &dst){
+bool File::verify_copy(){
   /*
    * TODO: more efficient error checking than this? Also make
    * optional in global configuration?
@@ -236,8 +236,8 @@ bool verify_copy(const fs::path &src, const fs::path &dst){
   char *src_buffer = new char[4096];
   char *dst_buffer = new char[4096];
   
-  int srcf = open(src.c_str(),O_RDONLY);
-  int dstf = open(dst.c_str(),O_RDONLY);
+  int srcf = open(old_path.c_str(),O_RDONLY);
+  int dstf = open(new_path.c_str(),O_RDONLY);
   
   XXHash64 src_hash(0);
   XXHash64 dst_hash(0);
@@ -260,20 +260,11 @@ bool verify_copy(const fs::path &src, const fs::path &dst){
   std::stringstream ss;
   
   ss << "SRC HASH: 0x" << std::hex << src_result << std::endl;
-  ss << "DST HASH: 0x" << std::hex << dst_result << std::endl;
+  ss << "DST HASH: 0x" << std::hex << dst_result;
   
   Log(ss.str(),2);
   
   return (src_result == dst_result);
-}
-
-struct utimbuf last_times(const fs::path &file){
-  struct stat info;
-  stat(file.c_str(), &info);
-  struct utimbuf times;
-  times.actime = info.st_atime;
-  times.modtime = info.st_mtime;
-  return times;
 }
 
 unsigned long Tier::get_capacity(){
