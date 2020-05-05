@@ -48,7 +48,8 @@ int main(int argc, char *argv[]){
     unpin(argc, argv);
     break;
   case LPIN:
-    autotier.list_pins();
+    std::cout << "Pinned files:" << std::endl;
+    autotier.launch_crawlers(&TierEngine::print_file_pin);
     break;
   case HELP:
   default:
