@@ -19,12 +19,26 @@
 
 #pragma once
 
+#define AUDIT_LOG_PATH "/var/log/audit/audit.log"
+
+// popularity variables
+// y' = (1/DAMPING)*y*(1-(TIME_DIFF/NORMALIZER)*y)
+// DAMPING is how slowly popularity changes
+// TIME_DIFF is time since last file access
+// NORMALIZER is TIME_DIFF at which popularity = 1.0
+// FLOOR ensures y stays above zero for stability
+#define DAMPING 10.0
+#define NORMALIZER 1000.0
+#define FLOOR 0.1
+
 #include <boost/filesystem.hpp>
 #include <utime.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
+#include <time.h>
+#include <fstream>
 namespace fs = boost::filesystem;
 
 #include "alert.hpp"
@@ -36,7 +50,8 @@ class Config; // forward declaration
 
 class File{
 public:
-  unsigned long priority;
+  //unsigned long priority;
+  double popularity;   // calculated from number of accesses
   long last_atime;
   long size;
   Tier *old_tier;
@@ -48,7 +63,7 @@ public:
   void write_xattrs(){
     if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
       error(SETX);
-    if(setxattr(new_path.c_str(),"user.autotier_priority",&priority,sizeof(priority),0)==ERR)
+    if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)
       error(SETX);
     if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
       error(SETX);
@@ -60,7 +75,7 @@ public:
   File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
-    old_path = path_;
+    new_path = old_path = path_;
     old_tier = tptr;
     struct stat info;
     stat(old_path.c_str(), &info);
@@ -74,20 +89,33 @@ public:
     if(getxattr(old_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime)) <= 0){
       last_atime = times.actime;
     }
-    if(getxattr(old_path.c_str(),"user.autotier_priority",&priority,sizeof(priority)) <= 0){
+    if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
       // initialize
-      priority = (unsigned long)0x01 << (sizeof(unsigned long)*8 - 1);
+      popularity = 1.0;
     }else{
       // age
-      priority = priority >> 1;
+      double diff;
       if(times.actime > last_atime){
-        priority |= ((unsigned long)0x01 << (sizeof(unsigned long)*8 - 1));
+        // increase popularity
+        diff = times.actime - last_atime;
+      }else{
+        // decrease popularity
+        diff = time(NULL) - last_atime;
       }
+      if(diff < 1) diff = 1;
+      double delta = (popularity / DAMPING) * (1.0 - (diff / NORMALIZER) * popularity);
+      double delta_cap = -1.0*popularity/2.0; // limit change to half of current val
+      if(delta < delta_cap)
+        delta = delta_cap;
+      popularity += delta;
+      if(popularity < FLOOR) // ensure val is positive else unstable (-inf)
+        popularity = FLOOR;
     }
     last_atime = times.actime;
   }
   File(const File &rhs) {
-    priority = rhs.priority;
+    //priority = rhs.priority;
+    popularity = rhs.popularity;
     last_atime = rhs.last_atime;
     size = rhs.size;
     times.modtime = rhs.times.modtime;
@@ -101,7 +129,8 @@ public:
     write_xattrs();
   }
   File &operator=(const File &rhs){
-    priority = rhs.priority;
+    //priority = rhs.priority;
+    popularity = rhs.popularity;
     last_atime = rhs.last_atime;
     size = rhs.size;
     times.modtime = rhs.times.modtime;
@@ -138,11 +167,12 @@ public:
     config.load(config_path, tiers);
     log_lvl = config.log_lvl;
   }
-  void begin(void);
+  void begin(bool daemon_mode);
   void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
   void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
   void emplace_file(fs::directory_entry &file, Tier *tptr);
   void print_file_pin(fs::directory_entry &file, Tier *tptr);
+  void print_file_popularity(void);
   void sort(void);
   void simulate_tier(void);
   void move_files(void);

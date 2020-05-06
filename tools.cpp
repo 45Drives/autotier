@@ -29,12 +29,14 @@ bool recursive_flag_set = false;
 
 std::regex command_list[NUM_COMMANDS] = {
   std::regex("^[Rr]un|RUN$"),
+  std::regex("^[Oo]neshot|ONESHOT$"),
   std::regex("^[Ss]tatus|STATUS$"),
   std::regex("^[Pp]in|PIN$"),
   std::regex("^[Cc]onfig|CONFIG$"),
   std::regex("^[Hh]elp|HELP$"),
   std::regex("^[Uu]npin|UNPIN$"),
-  std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$")
+  std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
+  std::regex("^[Ll]ist-[Pp]opularity|LIST_POPULARITY$")
 };
 
 int get_command_index(int argc, char *argv[]){

@@ -33,13 +33,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <list>
+#include <fstream>
 
-void TierEngine::begin(){
+void TierEngine::begin(bool daemon_mode){
   Log("autotier started.",1);
-  launch_crawlers(&TierEngine::emplace_file);
-  sort();
-  simulate_tier();
-  move_files();
+  do{
+    launch_crawlers(&TierEngine::emplace_file);
+    sort();
+    simulate_tier();
+    move_files();
+  }while(daemon_mode);
   Log("Tiering complete.",1);
 }
 
@@ -90,11 +93,17 @@ void TierEngine::print_file_pin(fs::directory_entry &file, Tier *tptr){
   }
 }
 
+void TierEngine::print_file_popularity(){
+  for(File f : files){
+    std::cout << f.old_path.string() << " popularity: " << f.popularity << std::endl;
+  }
+}
+
 void TierEngine::sort(){
   Log("Sorting files.",2);
   files.sort(
     [](const File &a, const File &b){
-      return (a.priority == b.priority)? a.times.actime > b.times.actime : a.priority > b.priority;
+      return (a.popularity == b.popularity)? a.times.actime > b.times.actime : a.popularity > b.popularity;
     }
   );
 }
