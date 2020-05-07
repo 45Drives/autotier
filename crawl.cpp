@@ -33,14 +33,37 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <list>
+#include <fstream>
 
-void TierEngine::begin(){
+#include <chrono>
+#include <thread>
+
+void TierEngine::begin(bool daemon_mode){
   Log("autotier started.",1);
-  launch_crawlers(&TierEngine::emplace_file);
-  sort();
-  simulate_tier();
-  move_files();
-  Log("Tiering complete.",1);
+  unsigned int timer = 0;
+  do{
+    auto start = std::chrono::system_clock::now();
+    launch_crawlers(&TierEngine::emplace_file);
+    // one popularity calculation per loop
+    calc_popularity();
+    if(timer == 0){
+      // one tier execution per tier period
+      sort();
+      simulate_tier();
+      move_files();
+      Log("Tiering complete.",1);
+    }
+    files.erase(files.begin(), files.end());
+    for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+      t->cleanup();
+    }
+    auto end = std::chrono::system_clock::now();
+    auto duration = end - start;
+    // don't wait for oneshot execution
+    if(daemon_mode && duration < std::chrono::seconds(CALC_PERIOD))
+      std::this_thread::sleep_for(std::chrono::seconds(CALC_PERIOD)-duration);
+    timer = (++timer) % (config.period / CALC_PERIOD);
+  }while(daemon_mode);
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -90,11 +113,17 @@ void TierEngine::print_file_pin(fs::directory_entry &file, Tier *tptr){
   }
 }
 
+void TierEngine::print_file_popularity(){
+  for(File f : files){
+    std::cout << f.old_path.string() << " popularity: " << f.popularity << std::endl;
+  }
+}
+
 void TierEngine::sort(){
   Log("Sorting files.",2);
   files.sort(
     [](const File &a, const File &b){
-      return (a.priority == b.priority)? a.times.actime > b.times.actime : a.priority > b.priority;
+      return (a.popularity == b.popularity)? a.times.actime > b.times.actime : a.popularity > b.popularity;
     }
   );
 }
@@ -145,7 +174,7 @@ void TierEngine::move_files(){
        * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
        *     Be sure to check if new name doesnt exist before moving the file.
        */
-      fptr->log_movement();
+      //fptr->log_movement();
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
@@ -190,6 +219,13 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
     }
     if(setxattr(fptr->c_str(),"user.autotier_pin",tptr->dir.c_str(),strlen(tptr->dir.c_str()),0)==ERR)
       error(SETX);
+  }
+}
+
+void TierEngine::calc_popularity(){
+  Log("Calculating file popularity.",2);
+  for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
+    f->calc_popularity();
   }
 }
 
@@ -265,6 +301,34 @@ bool File::verify_copy(){
   Log(ss.str(),2);
   
   return (src_result == dst_result);
+}
+
+void File::calc_popularity(){
+  double diff;
+  if(times.actime > last_atime){
+    // increase popularity
+    diff = times.actime - last_atime;
+  }else{
+    // decrease popularity
+    diff = time(NULL) - last_atime;
+  }
+  if(diff < 1) diff = 1;
+  double delta = (popularity / DAMPING) * (1.0 - (diff / NORMALIZER) * popularity);
+  double delta_cap = -1.0*popularity/2.0; // limit change to half of current val
+  if(delta < delta_cap)
+    delta = delta_cap;
+  popularity += delta;
+  if(popularity < FLOOR) // ensure val is positive else unstable (-inf)
+    popularity = FLOOR;
+}
+
+void File::write_xattrs(){
+  if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
+    error(SETX);
+  if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)
+    error(SETX);
+  if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
+    error(SETX);
 }
 
 unsigned long Tier::get_capacity(){

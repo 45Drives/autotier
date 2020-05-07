@@ -30,7 +30,9 @@ std::string errors[NUM_ERRORS] = {
   "No tiers defined in config file.",
   "Only one tier defined in config file, two or more are needed.",
   "WATERMARK must be a positive integer between 0 and 100.",
-  "Error setting extended attribute."
+  "Error setting extended attribute.",
+  "Error reading log level.",
+  "Error reading tier period."
 };
 
 void error(enum Error error){

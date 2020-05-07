@@ -26,13 +26,16 @@ inline bool config_passed(int argc, char *argv[]){
 }
 
 int main(int argc, char *argv[]){
+  bool daemon_mode = false;
   fs::path config_path = DEFAULT_CONFIG_PATH;
   parse_flags(argc, argv, config_path);
   TierEngine autotier(config_path);
   
   switch(get_command_index(argc, argv)){
   case RUN:
-    autotier.begin();
+    daemon_mode = true;
+  case ONESHOT:
+    autotier.begin(daemon_mode);
     break;
   case STATUS:
     autotier.print_tier_info();
@@ -50,6 +53,11 @@ int main(int argc, char *argv[]){
   case LPIN:
     std::cout << "Pinned files:" << std::endl;
     autotier.launch_crawlers(&TierEngine::print_file_pin);
+    break;
+  case LPOP:
+    autotier.launch_crawlers(&TierEngine::emplace_file);
+    autotier.sort();
+    autotier.print_file_popularity();
     break;
   case HELP:
   default:
