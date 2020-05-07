@@ -27,7 +27,7 @@
 // TIME_DIFF is time since last file access
 // NORMALIZER is TIME_DIFF at which popularity -> 1.0
 // FLOOR ensures y stays above zero for stability
-#define DAMPING 10.0
+#define DAMPING 50.0
 #define NORMALIZER 1000.0
 #define FLOOR 0.1
 #define CALC_PERIOD 1
