@@ -36,7 +36,7 @@ std::regex command_list[NUM_COMMANDS] = {
   std::regex("^[Hh]elp|HELP$"),
   std::regex("^[Uu]npin|UNPIN$"),
   std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
-  std::regex("^[Ll]ist-[Pp]opularity|LIST_POPULARITY$")
+  std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
 };
 
 int get_command_index(int argc, char *argv[]){
@@ -100,7 +100,8 @@ void usage(){
   "autotier usage:\n"
   "  autotier <command> <flags> [{-c|--config} </path/to/config>]\n"
   "commands:\n"
-  "  run          - execute tiering of files\n"
+  "  oneshot      - execute tiering only once\n"
+  "  run          - start tiering of files as daemon\n"
   "  status       - list info about defined tiers\n"
   "  pin <\"tier name\"> <\"/path/to/file\">...\n"
   "               - pin file(s) to tier using tier name in config file or full path to *tier root*\n"
@@ -109,6 +110,8 @@ void usage(){
   "               - remove pin from file(s)\n"
   "  config       - display current configuration file\n"
   "  list-pins    - show all pinned files\n"
+  "  list-popularity\n"
+  "               - print list of all tier files sorted by frequency of use\n"
   "  help         - display this message\n"
   "flags:\n"
   "  -c --config <path/to/config>\n"
