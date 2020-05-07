@@ -93,7 +93,8 @@ Below is a complete example of a configuration file:
 ```
 # autotier.conf
 [Global]
-LOG_LEVEL=2
+LOG_LEVEL=1
+TIER_PERIOD=1000    # number of seconds between file move batches
 
 [Fastest Tier]
 DIR=/tier_1         # fast tier storage pool
