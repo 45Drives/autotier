@@ -78,7 +78,7 @@ For global configuration of `autotier`, options are placed below the `[Global]` 
 ```
 [Global]
 LOG_LEVEL=2
-TIER_PERIOD=1000    # number of seconds between file move batch
+TIER_PERIOD=1000    # number of seconds between file move batches
 ```
 The global config section can be placed before, after, or between tier definitions.
 #### Tier Config
