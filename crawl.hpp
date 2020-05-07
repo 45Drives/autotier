@@ -25,11 +25,12 @@
 // y' = (1/DAMPING)*y*(1-(TIME_DIFF/NORMALIZER)*y)
 // DAMPING is how slowly popularity changes
 // TIME_DIFF is time since last file access
-// NORMALIZER is TIME_DIFF at which popularity = 1.0
+// NORMALIZER is TIME_DIFF at which popularity -> 1.0
 // FLOOR ensures y stays above zero for stability
 #define DAMPING 10.0
 #define NORMALIZER 1000.0
 #define FLOOR 0.1
+#define CALC_PERIOD 1
 
 #include <boost/filesystem.hpp>
 #include <utime.h>
@@ -131,6 +132,9 @@ public:
   }
   unsigned long get_capacity();
   unsigned long get_usage();
+  void cleanup(void){
+    incoming_files.erase(incoming_files.begin(), incoming_files.end());
+  }
 };
 
 class TierEngine{

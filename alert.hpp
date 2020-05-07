@@ -25,8 +25,8 @@
 
 extern int log_lvl;
 
-#define NUM_ERRORS 7
-enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX};
+#define NUM_ERRORS 9
+enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX, LOG_LVL, PERIOD};
 
 void error(enum Error error);
 

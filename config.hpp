@@ -34,7 +34,8 @@ private:
   void generate_config(std::fstream &file);
   bool verify(const std::vector<Tier> &tiers);
 public:
-  int log_lvl;
+  int log_lvl = ERR;
+  unsigned long period = ERR;
   void load(const fs::path &config_path, std::vector<Tier> &tiers);
   int load_global(std::fstream &config_file, std::string &id);
   void dump(std::ostream &os, const std::vector<Tier> &tiers) const;

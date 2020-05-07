@@ -35,20 +35,35 @@
 #include <list>
 #include <fstream>
 
+#include <chrono>
+#include <thread>
+
 void TierEngine::begin(bool daemon_mode){
   Log("autotier started.",1);
   unsigned int timer = 0;
   do{
+    auto start = std::chrono::system_clock::now();
     launch_crawlers(&TierEngine::emplace_file);
+    // one popularity calculation per loop
     calc_popularity();
-    if((timer = (++timer) % config.period) == 0){
+    if(timer == 0){
+      // one tier execution per tier period
       sort();
       simulate_tier();
       move_files();
+      Log("Tiering complete.",1);
     }
     files.erase(files.begin(), files.end());
+    for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+      t->cleanup();
+    }
+    auto end = std::chrono::system_clock::now();
+    auto duration = end - start;
+    // don't wait for oneshot execution
+    if(daemon_mode && duration < std::chrono::seconds(CALC_PERIOD))
+      std::this_thread::sleep_for(std::chrono::seconds(CALC_PERIOD)-duration);
+    timer = (++timer) % (config.period / CALC_PERIOD);
   }while(daemon_mode);
-  Log("Tiering complete.",1);
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -159,7 +174,7 @@ void TierEngine::move_files(){
        * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
        *     Be sure to check if new name doesnt exist before moving the file.
        */
-      fptr->log_movement();
+      //fptr->log_movement();
       if(fptr->new_path != fptr->symlink_path){
         fptr->move();
         if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
@@ -208,6 +223,7 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 }
 
 void TierEngine::calc_popularity(){
+  Log("Calculating file popularity.",2);
   for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
     f->calc_popularity();
   }
