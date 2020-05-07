@@ -60,18 +60,12 @@ public:
   fs::path old_path;
   fs::path new_path;
   fs::path pinned_to;
-  void write_xattrs(){
-    if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
-      error(SETX);
-    if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)
-      error(SETX);
-    if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
-      error(SETX);
-  }
+  void write_xattrs(void);
   void log_movement(void);
   void move(void);
   void copy_ownership_and_perms(void);
   bool verify_copy(void);
+  void calc_popularity(void);
   File(fs::path path_, Tier *tptr){
     char strbuff[BUFF_SZ];
     ssize_t attr_len;
@@ -92,24 +86,6 @@ public:
     if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
       // initialize
       popularity = 1.0;
-    }else{
-      // age
-      double diff;
-      if(times.actime > last_atime){
-        // increase popularity
-        diff = times.actime - last_atime;
-      }else{
-        // decrease popularity
-        diff = time(NULL) - last_atime;
-      }
-      if(diff < 1) diff = 1;
-      double delta = (popularity / DAMPING) * (1.0 - (diff / NORMALIZER) * popularity);
-      double delta_cap = -1.0*popularity/2.0; // limit change to half of current val
-      if(delta < delta_cap)
-        delta = delta_cap;
-      popularity += delta;
-      if(popularity < FLOOR) // ensure val is positive else unstable (-inf)
-        popularity = FLOOR;
     }
     last_atime = times.actime;
   }
@@ -178,4 +154,5 @@ public:
   void move_files(void);
   void print_tier_info(void);
   void pin_files(std::string tier_name, std::vector<fs::path> &files_);
+  void calc_popularity(void);
 };

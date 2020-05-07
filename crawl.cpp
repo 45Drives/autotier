@@ -37,11 +37,16 @@
 
 void TierEngine::begin(bool daemon_mode){
   Log("autotier started.",1);
+  unsigned int timer = 0;
   do{
     launch_crawlers(&TierEngine::emplace_file);
-    sort();
-    simulate_tier();
-    move_files();
+    calc_popularity();
+    if((timer = (++timer) % config.period) == 0){
+      sort();
+      simulate_tier();
+      move_files();
+    }
+    files.erase(files.begin(), files.end());
   }while(daemon_mode);
   Log("Tiering complete.",1);
 }
@@ -202,6 +207,12 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
   }
 }
 
+void TierEngine::calc_popularity(){
+  for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
+    f->calc_popularity();
+  }
+}
+
 void File::log_movement(){
   Log("OldPath: " + old_path.string(),3);
   Log("NewPath: " + new_path.string(),3);
@@ -274,6 +285,34 @@ bool File::verify_copy(){
   Log(ss.str(),2);
   
   return (src_result == dst_result);
+}
+
+void File::calc_popularity(){
+  double diff;
+  if(times.actime > last_atime){
+    // increase popularity
+    diff = times.actime - last_atime;
+  }else{
+    // decrease popularity
+    diff = time(NULL) - last_atime;
+  }
+  if(diff < 1) diff = 1;
+  double delta = (popularity / DAMPING) * (1.0 - (diff / NORMALIZER) * popularity);
+  double delta_cap = -1.0*popularity/2.0; // limit change to half of current val
+  if(delta < delta_cap)
+    delta = delta_cap;
+  popularity += delta;
+  if(popularity < FLOOR) // ensure val is positive else unstable (-inf)
+    popularity = FLOOR;
+}
+
+void File::write_xattrs(){
+  if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
+    error(SETX);
+  if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)
+    error(SETX);
+  if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
+    error(SETX);
 }
 
 unsigned long Tier::get_capacity(){
