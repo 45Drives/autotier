@@ -26,6 +26,7 @@
 #include <thread>
 #include <regex>
 #include <fcntl.h>
+#include <sys/xattr.h>
 
 fs::path TierEngine::get_mutex_name(const fs::path &config_path){
   return fs::path(std::to_string(std::hash<std::string>{}(config_path.string())) + ".autotier.lock");
