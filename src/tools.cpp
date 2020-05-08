@@ -18,8 +18,12 @@
 */
 
 #include "tools.hpp"
-#include "crawl.hpp"
+#include "tierEngine.hpp"
+#include "tier.hpp"
+#include "file.hpp"
 #include "config.hpp"
+
+#include <sys/xattr.h>
 #include <iostream>
 #include <regex>
 #include <vector>

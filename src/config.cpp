@@ -19,7 +19,8 @@
 
 #include "config.hpp"
 #include "alert.hpp"
-#include "crawl.hpp"
+#include "tierEngine.hpp"
+#include "tier.hpp"
 #include <iostream>
 #include <sstream>
 #include <fstream>

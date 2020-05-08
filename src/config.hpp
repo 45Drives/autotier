@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "tier.hpp"
+
 #include <iostream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -26,8 +28,6 @@ namespace fs = boost::filesystem;
 #define DEFAULT_CONFIG_PATH "/etc/autotier.conf"
 #define ERR -1
 #define DISABLED -999
-
-class Tier; // forward declaration
 
 class Config{
 private:

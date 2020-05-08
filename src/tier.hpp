@@ -19,22 +19,26 @@
 
 #pragma once
 
-#include "crawl.hpp"
-#include <regex>
+#include "file.hpp"
+
+class File;
+
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-#define NUM_COMMANDS 9
-enum command_enum {RUN, ONESHOT, STATUS, PIN, CONFIG, HELP, UNPIN, LPIN, LPOP};
-
-extern std::regex command_list[NUM_COMMANDS];
-
-int get_command_index(int argc, char *argv[]);
-
-void parse_flags(int argc, char *argv[], fs::path &config_path);
-
-void pin(int argc, char *argv[], TierEngine &autotier);
-
-void unpin(int argc, char *argv[]);
-
-void usage(void);
+class Tier{
+public:
+  unsigned long watermark_bytes;
+  int watermark;
+  fs::path dir;
+  std::string id;
+  std::list<File *> incoming_files;
+  Tier(std::string id_){
+    id = id_;
+  }
+  unsigned long get_capacity();
+  unsigned long get_usage();
+  void cleanup(void){
+    incoming_files.erase(incoming_files.begin(), incoming_files.end());
+  }
+};

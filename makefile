@@ -8,8 +8,8 @@ CFLAGS = -std=gnu++11 -Wall
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
-HEADERS = $(wildcard *.hpp)
+OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
+HEADERS = $(wildcard src/*.hpp)
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -20,5 +20,5 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
 
 clean:
-	-rm -f *.o
+	-rm -f src/*.o
 	-rm -f $(TARGET)
