@@ -36,6 +36,8 @@ void File::log_movement(){
 
 void File::move(){
   if(old_path == new_path) return;
+  if(new_path == symlink_path && is_symlink(new_path))
+    remove(symlink_path);
   if(!is_directory(new_path.parent_path()))
     create_directories(new_path.parent_path());
   Log("Copying " + old_path.string() + " to " + new_path.string(),2);
@@ -56,6 +58,10 @@ void File::move(){
     copy_ownership_and_perms();
     Log("Copy succeeded.\n",2);
     remove(old_path);
+    if(new_path != symlink_path){
+      if(is_symlink(symlink_path)) remove(symlink_path);
+      create_symlink(new_path, symlink_path);
+    }
   }
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }

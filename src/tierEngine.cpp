@@ -189,14 +189,7 @@ void TierEngine::move_files(){
        *     Be sure to check if new name doesnt exist before moving the file.
        */
       //fptr->log_movement();
-      if(fptr->new_path != fptr->symlink_path){
-        fptr->move();
-        if(is_symlink(fptr->symlink_path)) remove(fptr->symlink_path);
-        create_symlink(fptr->new_path, fptr->symlink_path);
-      }else{ // moving to top tier
-        if(is_symlink(fptr->new_path)) remove(fptr->new_path);
-        fptr->move();
-      }
+      fptr->move();
     }
   }
 }
