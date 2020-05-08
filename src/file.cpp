@@ -1,11 +1,11 @@
 #include "file.hpp"
 #include "alert.hpp"
-#include "xxhash64.h"
 
 #include <fcntl.h>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/xattr.h>
+#include <iostream>
 
 void File::log_movement(){
   Log("OldPath: " + old_path.string(),3);
@@ -20,16 +20,23 @@ void File::move(){
   if(!is_directory(new_path.parent_path()))
     create_directories(new_path.parent_path());
   Log("Copying " + old_path.string() + " to " + new_path.string(),2);
-  copy_file(old_path, new_path); // move item to slow tier
-  copy_ownership_and_perms();
-  if(verify_copy()){
+  bool copy_success = true;
+  try{
+    copy_file(old_path, new_path); // move item to slow tier
+  }catch(boost::filesystem::filesystem_error const & e){
+    copy_success = false;
+    std::cerr << "Copy failed: " << e.what() << std::endl;
+    if(e.code() == boost::system::errc::file_exists){
+      std::cerr << "User intervention required to delete duplicate file" << std::endl;
+    }else if(e.code() == boost::system::errc::no_such_file_or_directory){
+      deleted = true;
+      std::cerr << "No action required." << std::endl;
+    }
+  }
+  if(copy_success){
+    copy_ownership_and_perms();
     Log("Copy succeeded.\n",2);
     remove(old_path);
-  }else{
-    Log("Copy failed!\n",0);
-    /*
-     * TODO: put in place protocol for what to do when this happens
-     */
   }
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
@@ -39,46 +46,6 @@ void File::copy_ownership_and_perms(){
   stat(old_path.c_str(), &info);
   chown(new_path.c_str(), info.st_uid, info.st_gid);
   chmod(new_path.c_str(), info.st_mode);
-}
-
-bool File::verify_copy(){
-  /*
-   * TODO: more efficient error checking than this? Also make
-   * optional in global configuration?
-   */
-  int bytes_read;
-  char *src_buffer = new char[4096];
-  char *dst_buffer = new char[4096];
-  
-  int srcf = open(old_path.c_str(),O_RDONLY);
-  int dstf = open(new_path.c_str(),O_RDONLY);
-  
-  XXHash64 src_hash(0);
-  XXHash64 dst_hash(0);
-  
-  while((bytes_read = read(srcf,src_buffer,sizeof(char[4096]))) > 0){
-    src_hash.add(src_buffer,bytes_read);
-  }
-  while((bytes_read = read(dstf,dst_buffer,sizeof(char[4096]))) > 0){
-    dst_hash.add(dst_buffer,bytes_read);
-  }
-  
-  close(srcf);
-  close(dstf);
-  delete [] src_buffer;
-  delete [] dst_buffer;
-  
-  uint64_t src_result = src_hash.hash();
-  uint64_t dst_result = dst_hash.hash();
-  
-  std::stringstream ss;
-  
-  ss << "SRC HASH: 0x" << std::hex << src_result << std::endl;
-  ss << "DST HASH: 0x" << std::hex << dst_result;
-  
-  Log(ss.str(),2);
-  
-  return (src_result == dst_result);
 }
 
 void File::calc_popularity(){
@@ -101,6 +68,7 @@ void File::calc_popularity(){
 }
 
 void File::write_xattrs(){
+  if(deleted) return;
   if(setxattr(new_path.c_str(),"user.autotier_last_atime",&last_atime,sizeof(last_atime),0)==ERR)
     error(SETX);
   if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)

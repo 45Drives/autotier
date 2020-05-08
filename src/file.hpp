@@ -23,6 +23,8 @@ class Tier;
 namespace fs = boost::filesystem;
 
 class File{
+private:
+  bool deleted = false;
 public:
   double popularity;   // calculated from number of accesses
   long last_atime;
@@ -37,7 +39,6 @@ public:
   void log_movement(void);
   void move(void);
   void copy_ownership_and_perms(void);
-  bool verify_copy(void);
   void calc_popularity(void);
   File(fs::path path_, Tier *tptr);
   File(const File &rhs);
