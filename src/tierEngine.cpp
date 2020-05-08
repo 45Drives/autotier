@@ -25,6 +25,24 @@
 #include <chrono>
 #include <thread>
 #include <regex>
+#include <fcntl.h>
+
+fs::path TierEngine::get_mutex_name(const fs::path &config_path){
+  return fs::path(std::to_string(std::hash<std::string>{}(config_path.string())) + ".autotier.lock");
+}
+
+int TierEngine::lock_mutex(void){
+  if(!is_directory(mutex_path.parent_path())){
+    create_directories(mutex_path.parent_path());
+  }
+  int result = open(mutex_path.c_str(), O_CREAT|O_EXCL);
+  close(result);
+  return result;
+}
+
+void TierEngine::unlock_mutex(void){
+  remove(mutex_path);
+}
 
 void TierEngine::begin(bool daemon_mode){
   Log("autotier started.",1);
@@ -35,11 +53,18 @@ void TierEngine::begin(bool daemon_mode){
     // one popularity calculation per loop
     calc_popularity();
     if(timer == 0){
-      // one tier execution per tier period
-      sort();
-      simulate_tier();
-      move_files();
-      Log("Tiering complete.",1);
+      // mutex lock
+      if(lock_mutex() == ERR){
+        Log("autotier already moving files.",0);
+      }else{
+        // mutex locked
+        // one tier execution per tier period
+        sort();
+        simulate_tier();
+        move_files();
+        Log("Tiering complete.",1);
+        unlock_mutex();
+      }
     }
     files.erase(files.begin(), files.end());
     for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){

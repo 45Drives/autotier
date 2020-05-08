@@ -19,6 +19,8 @@
 
 #pragma once
 
+#define MUTEX_PATH "/run/autotier"
+
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -34,13 +36,19 @@ class Config;
 
 class TierEngine{
 private:
+  int mutex;
+  fs::path mutex_path;
   std::vector<Tier> tiers;
   std::list<File> files;
   Config config;
+  fs::path get_mutex_name(const fs::path &config_path);
+  int lock_mutex(void);
+  void unlock_mutex(void);
 public:
   TierEngine(const fs::path &config_path){
     config.load(config_path, tiers);
     log_lvl = config.log_lvl;
+    mutex_path = fs::path(MUTEX_PATH) / get_mutex_name(config_path);
   }
   void begin(bool daemon_mode);
   void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));

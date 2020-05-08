@@ -32,7 +32,8 @@ std::string errors[NUM_ERRORS] = {
   "WATERMARK must be a positive integer between 0 and 100.",
   "Error setting extended attribute.",
   "Error reading log level.",
-  "Error reading tier period."
+  "Error reading tier period.",
+  "Error constructing mutex file path."
 };
 
 void error(enum Error error){
