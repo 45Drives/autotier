@@ -24,7 +24,7 @@ sudo apt-get install libboost-all-dev -y
 make
 ```
 
-You will need to create the `/etc/autotier.conf` config file, and setup a crontab entry to run autotier.
+You will need to create the `/etc/autotier.conf` config file, place `autotier` in `/usr/local/bin/` and set up a systemd service to execute `autotier run`.
 
 
 ## Usage
