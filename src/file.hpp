@@ -60,6 +60,7 @@ public:
   void move(void);
   void copy_ownership_and_perms(void);
   void calc_popularity(void);
+  bool is_open(void);
   File(fs::path path_, Tier *tptr);
   File(const File &rhs);
   ~File();

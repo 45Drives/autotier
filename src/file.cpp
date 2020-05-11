@@ -24,6 +24,9 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/xattr.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <iostream>
 
 void File::log_movement(){
@@ -36,6 +39,11 @@ void File::log_movement(){
 
 void File::move(){
   if(old_path == new_path) return;
+  if(is_open()){
+    std::cerr << "File is open by another process." << std::endl;
+    new_path = old_path;
+    return;
+  }
   if(new_path == symlink_path && is_symlink(new_path))
     remove(symlink_path);
   if(!is_directory(new_path.parent_path()))
@@ -100,6 +108,63 @@ void File::write_xattrs(){
     error(SETX);
   if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
     error(SETX);
+}
+
+bool File::is_open(void){
+  pid_t pid;
+  int status;
+  int fd;
+  int stdout_copy;
+  int stderr_copy;
+  
+  pid = fork();
+  switch(pid){
+  case -1:
+    std::cerr << "Error forking while checking if file is open!" << std::endl;
+    break;
+  case 0:
+    // child
+    pid = getpid();
+    
+    // redirect output to /dev/null
+    stdout_copy = dup(STDOUT_FILENO);
+    stderr_copy = dup(STDERR_FILENO);
+    fd = open("/dev/null", O_WRONLY);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+    
+    execlp("lsof", "lsof", old_path.c_str(), (char *)NULL);
+    
+    // undo redirect
+    dup2(stdout_copy, STDOUT_FILENO);
+    close(stdout_copy);
+    dup2(stderr_copy, STDERR_FILENO);
+    close(stderr_copy);
+    
+    std::cerr << "Error executing lsof! Is it installed?" << std::endl;
+    exit(127);
+  default:
+    // parent
+    if((waitpid(pid, &status, 0)) < 0)
+      std::cerr << "Error waiting for lsof to exit." << std::endl;
+    break;
+  }
+  
+  if(WIFEXITED(status)){
+    switch(WEXITSTATUS(status)){
+    case 0:
+      return true;
+    case 1:
+      return false;
+    default:
+      std::cerr << "Unexpected lsof exit status! Exit status: " << WEXITSTATUS(status) << std::endl;
+      return false;
+    }
+  }else{
+    std::cerr << "Error reading lsof exit status!" << std::endl;
+    return false;
+  }
 }
 
 File::File(fs::path path_, Tier *tptr){
