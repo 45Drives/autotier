@@ -6,7 +6,7 @@ Intelligently moves files between storage tiers based on frequency of use, file 
 
 ## Installation
 ```
-yum install https://github.com/45Drives/autotier/releases/download/v0.6.1-beta/autotier-0.6.1-1.el7.x86_64.rpm
+yum install https://github.com/45Drives/autotier/releases/download/v0.6.3-beta/autotier-0.6.3-1.el7.x86_64.rpm
 ```
 
 For apt-get based systems, or building from source:
@@ -19,7 +19,7 @@ git clone https://github.com/45Drives/autotier.git
 #Change directory into ~/autotier
 cd autotier
 #Install requirements
-sudo apt-get install libboost-all-dev -y
+sudo apt-get install libboost-all-dev lsof -y
 #Compile
 make
 ```
