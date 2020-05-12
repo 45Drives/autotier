@@ -123,8 +123,7 @@ wide links = yes
 path = /path/to/fastest/tier
 # ...
 ```
-## Acknowledgements
-Credits to [Stephan Brumme](https://stephan-brumme.com/) for his single-header implementation of XXHash, which is used after a file is copied to verify that there were no errors.
+---
 ```
     🕯️
   ╒════╕
