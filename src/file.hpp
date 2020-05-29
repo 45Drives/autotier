@@ -20,12 +20,13 @@
 
 #pragma once
 
-// popularity variables
-// y' = (1/DAMPING)*y*(1-(TIME_DIFF/NORMALIZER)*y)
-// DAMPING is how slowly popularity changes
-// TIME_DIFF is time since last file access
-// NORMALIZER is TIME_DIFF at which popularity -> 1.0
-// FLOOR ensures y stays above zero for stability
+/* popularity variables
+ * y' = (1/DAMPING)*y*(1-(TIME_DIFF/NORMALIZER)*y)
+ * DAMPING is how slowly popularity changes
+ * TIME_DIFF is time since last file access
+ * NORMALIZER is TIME_DIFF at which popularity -> 1.0
+ * FLOOR ensures y stays above zero for stability
+ */
 #define DAMPING 50.0
 #define NORMALIZER 1000.0
 #define FLOOR 0.1
@@ -46,7 +47,7 @@ class File{
 private:
   bool deleted = false;
 public:
-  double popularity;   // calculated from number of accesses
+  double popularity;
   long last_atime;
   long size;
   Tier *old_tier;

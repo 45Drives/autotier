@@ -156,9 +156,6 @@ void TierEngine::simulate_tier(){
       tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
     }
     tier_use += fptr->size;
-    /*
-     * TODO: only place file in incoming queue if destination tier != current tier
-     */
     tptr->incoming_files.emplace_back(&(*fptr));
     fptr++;
   }
