@@ -1,5 +1,5 @@
 TARGET = autotier
-LIBS =  -static -lboost_system -lboost_filesystem -lssl -lcrypto
+LIBS =  -static -lboost_system -lboost_filesystem
 CC = g++
 CFLAGS = -std=gnu++11 -Wall
 
