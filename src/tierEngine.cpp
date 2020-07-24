@@ -103,6 +103,10 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
   files.emplace_back(file, tptr);
+  if(hasCache){
+    File *fptr = &files.back();
+    fptr->cache_path = cache.dir/relative(fptr->old_path, fptr->old_tier->dir);
+  }
 }
 
 void TierEngine::print_file_pin(fs::directory_entry &file, Tier *tptr){
@@ -180,10 +184,7 @@ void TierEngine::move_files(){
   Log("Moving files.",2);
   for(std::list<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
     for(File * fptr : titr->incoming_files){
-      if(hasCache)
-        fptr->symlink_path = cache.dir/relative(fptr->old_path, fptr->old_tier->dir);
-      else
-        fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
       if(!fptr->pinned_to.empty())
         fptr->new_path = fptr->pinned_to;
       else

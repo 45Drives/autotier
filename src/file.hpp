@@ -58,6 +58,7 @@ public:
   fs::path old_path;
   fs::path new_path;
   fs::path pinned_to;
+  fs::path cache_path;
   void write_xattrs(void);
   void log_movement(void);
   void move(void);
