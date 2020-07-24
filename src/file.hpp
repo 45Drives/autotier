@@ -27,10 +27,12 @@
  * NORMALIZER is TIME_DIFF at which popularity -> 1.0
  * FLOOR ensures y stays above zero for stability
  */
-#define DAMPING 50.0
-#define NORMALIZER 1000.0
-#define FLOOR 0.1
+#define DAMPING 1000000.0
+#define MULTIPLIER 1000.0
+
 #define CALC_PERIOD 1
+
+#define AVG_USAGE 0.238 // 40hr/(7days * 24hr/day)
 
 #define BUFF_SZ 4096
 
