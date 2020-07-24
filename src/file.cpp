@@ -74,6 +74,14 @@ void File::move(){
   utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
 }
 
+void File::cache(void){
+  if(old_path == new_path) return;
+}
+
+void File::uncache(void){
+  if(old_path == new_path) return;
+}
+
 void File::copy_ownership_and_perms(){
   struct stat info;
   stat(old_path.c_str(), &info);

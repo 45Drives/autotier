@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "tierEngine.hpp"
+
 class CacheEngine : public TierEngine{
 private:
   Tier *cacheTier;
@@ -28,5 +30,6 @@ public:
     cacheTier = &tiers[0];
     coldTier = &tiers[1];
   }
-  
+  void simulate_tier(void);
+  void move_files(void);
 };

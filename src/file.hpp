@@ -61,6 +61,8 @@ public:
   void write_xattrs(void);
   void log_movement(void);
   void move(void);
+  void cache(void);
+  void uncache(void);
   void copy_ownership_and_perms(void);
   void calc_popularity(void);
   bool is_open(void);

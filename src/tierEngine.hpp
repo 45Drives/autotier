@@ -38,12 +38,13 @@ class TierEngine{
 private:
   int mutex;
   fs::path mutex_path;
-  std::vector<Tier> tiers;
-  std::list<File> files;
   Config config;
   fs::path get_mutex_name(const fs::path &config_path);
   int lock_mutex(void);
   void unlock_mutex(void);
+protected:
+  std::vector<Tier> tiers;
+  std::list<File> files;
 public:
   TierEngine(const fs::path &config_path){
     config.load(config_path, tiers);
