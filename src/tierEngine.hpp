@@ -43,11 +43,13 @@ private:
   int lock_mutex(void);
   void unlock_mutex(void);
 protected:
-  std::vector<Tier> tiers;
+  bool hasCache = false;
+  Tier cache;
+  std::list<Tier> tiers;
   std::list<File> files;
 public:
-  TierEngine(const fs::path &config_path){
-    config.load(config_path, tiers);
+  TierEngine(const fs::path &config_path) : cache("CACHE"){
+    config.load(config_path, tiers, cache, hasCache);
     log_lvl = config.log_lvl;
     mutex_path = fs::path(MUTEX_PATH) / get_mutex_name(config_path);
   }

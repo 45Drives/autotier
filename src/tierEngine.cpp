@@ -63,12 +63,13 @@ void TierEngine::begin(bool daemon_mode){
         sort();
         simulate_tier();
         move_files();
+        
         Log("Tiering complete.",1);
         unlock_mutex();
       }
     }
     files.erase(files.begin(), files.end());
-    for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
       t->cleanup();
     }
     auto end = std::chrono::system_clock::now();
@@ -83,7 +84,8 @@ void TierEngine::begin(bool daemon_mode){
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
   Log("Gathering files.",2);
   // get ordered list of files in each tier
-  for(std::vector<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+  for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    if(t->isCache) t++;
     crawl(t->dir, &(*t), function);
   }
 }
@@ -112,7 +114,7 @@ void TierEngine::print_file_pin(fs::directory_entry &file, Tier *tptr){
     strbuff[attr_len] = '\0'; // c-string
     std::cout << file.path().string() << std::endl;
     std::cout << "pinned to" << std::endl;
-    std::vector<Tier>::iterator tptr_;
+    std::list<Tier>::iterator tptr_;
     for(tptr_ = tiers.begin(); tptr_ != tiers.end(); ++tptr_){
       if(std::string(strbuff) == tptr_->dir.string())
         break;
@@ -146,7 +148,7 @@ void TierEngine::simulate_tier(){
   Log("Finding files' tiers.",2);
   long tier_use = 0;
   std::list<File>::iterator fptr = files.begin();
-  std::vector<Tier>::iterator tptr = tiers.begin();
+  std::list<Tier>::iterator tptr = tiers.begin();
   tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
   while(fptr != files.end()){
     if(tier_use + fptr->size >= tptr->watermark_bytes){
@@ -159,6 +161,13 @@ void TierEngine::simulate_tier(){
     tptr->incoming_files.emplace_back(&(*fptr));
     fptr++;
   }
+  tier_use = 0;
+  fptr = files.begin();
+  cache.watermark_bytes = cache.get_capacity() * cache.watermark / 100;
+  while(fptr != files.end() && (tier_use + fptr->size < cache.watermark_bytes)){
+    cache.incoming_files.emplace_back(&(*fptr));
+    fptr++;
+  }
 }
 
 void TierEngine::move_files(){
@@ -169,9 +178,12 @@ void TierEngine::move_files(){
    * a tier by doing them one at a time.
    */
   Log("Moving files.",2);
-  for(std::vector<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
+  for(std::list<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
     for(File * fptr : titr->incoming_files){
-      fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
+      if(hasCache)
+        fptr->symlink_path = cache.dir/relative(fptr->old_path, fptr->old_tier->dir);
+      else
+        fptr->symlink_path = tiers.front().dir/relative(fptr->old_path, fptr->old_tier->dir);
       if(!fptr->pinned_to.empty())
         fptr->new_path = fptr->pinned_to;
       else
@@ -189,13 +201,20 @@ void TierEngine::move_files(){
       fptr->move();
     }
   }
+  for(std::list<File>::iterator fptr = files.begin(); fptr != files.end(); ++fptr){
+    fptr->uncache();
+  }
+  for(File * fptr : cache.incoming_files){
+    fptr->cache();
+  }
 }
 
 void TierEngine::print_tier_info(void){
   int i = 1;
+  
   std::cout << "Tiers from fastest to slowest:" << std::endl;
   std::cout << std::endl;
-  for(std::vector<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+  for(std::list<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
     std::cout <<
     "Tier " << i++ << ":" << std::endl <<
     "tier name: \"" << tptr->id << "\"" << std::endl <<
@@ -207,7 +226,7 @@ void TierEngine::print_tier_info(void){
 }
 
 void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
-  std::vector<Tier>::iterator tptr;
+  std::list<Tier>::iterator tptr;
   for(tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
     if(tier_name == tptr->id)
       break;

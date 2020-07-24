@@ -32,13 +32,13 @@ namespace fs = boost::filesystem;
 class Config{
 private:
   void generate_config(std::fstream &file);
-  bool verify(const std::vector<Tier> &tiers);
+  bool verify(const std::list<Tier> &tiers);
 public:
   int log_lvl = ERR;
   unsigned long period = ERR;
-  void load(const fs::path &config_path, std::vector<Tier> &tiers);
+  void load(const fs::path &config_path, std::list<Tier> &tiers, Tier &cache, bool &hasCache);
   int load_global(std::fstream &config_file, std::string &id);
-  void dump(std::ostream &os, const std::vector<Tier> &tiers) const;
+  void dump(std::ostream &os, const std::list<Tier> &tiers) const;
 };
 
 void discard_comments(std::string &str);

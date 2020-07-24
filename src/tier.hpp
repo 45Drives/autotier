@@ -28,6 +28,7 @@ namespace fs = boost::filesystem;
 
 class Tier{
 public:
+  bool isCache = false;
   unsigned long watermark_bytes;
   int watermark;
   fs::path dir;

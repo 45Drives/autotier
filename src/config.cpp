@@ -27,7 +27,7 @@
 #include <boost/filesystem.hpp>
 #include <regex>
 
-void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
+void Config::load(const fs::path &config_path, std::list<Tier> &tiers, Tier &cache, bool &hasCache){
   log_lvl = 1; // default to 1
   std::fstream config_file(config_path.string(), std::ios::in);
   if(!config_file){
@@ -66,16 +66,28 @@ void Config::load(const fs::path &config_path, std::vector<Tier> &tiers){
         }catch(std::invalid_argument){
           tiers.back().watermark = ERR;
         }
+      }else if(key == "CACHE"){
+        if(&tiers.back() == &tiers.front())
+          tiers.back().isCache = true;
+        else
+          error(CACHE_FIRST_TIER);
       } // else ignore
     }else{
       error(NO_FIRST_TIER);
       exit(1);
     }
   }
-    
+  
   if(verify(tiers)){
     error(LOAD_CONF);
     exit(1);
+  }
+  
+  // pop cache tier if exists
+  if(tiers.front().isCache){
+    cache = tiers.front();
+    hasCache = true;
+    tiers.pop_front();
   }
 }
 
@@ -145,7 +157,7 @@ void Config::generate_config(std::fstream &file){
   << std::endl;
 }
 
-bool Config::verify(const std::vector<Tier> &tiers){
+bool Config::verify(const std::list<Tier> &tiers){
   bool errors = false;
   if(tiers.empty()){
     error(NO_TIERS);
@@ -160,6 +172,10 @@ bool Config::verify(const std::vector<Tier> &tiers){
   }
   if(period == ERR){
     error(PERIOD);
+    errors = true;
+  }
+  if(tiers.front().isCache && tiers.size() < 2){
+    error(CACHE_ONLY_TIER);
     errors = true;
   }
   for(Tier t : tiers){
@@ -177,7 +193,7 @@ bool Config::verify(const std::vector<Tier> &tiers){
   return errors;
 }
 
-void Config::dump(std::ostream &os, const std::vector<Tier> &tiers) const{
+void Config::dump(std::ostream &os, const std::list<Tier> &tiers) const{
   os << "[Global]" << std::endl;
   os << "LOG_LEVEL=" << this->log_lvl << std::endl;
   os << std::endl;

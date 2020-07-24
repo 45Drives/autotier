@@ -33,7 +33,9 @@ std::string errors[NUM_ERRORS] = {
   "Error setting extended attribute.",
   "Error reading log level.",
   "Error reading tier period.",
-  "Error constructing mutex file path."
+  "Error constructing mutex file path.",
+  "CACHE tier must be first defined tier.",
+  "Must have at least one more tier than CACHE."
 };
 
 void error(enum Error error){
