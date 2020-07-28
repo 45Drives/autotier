@@ -19,15 +19,28 @@
 
 #pragma once
 
-#include <string>
+#include <sstream>
+#include <sqlite3.h>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
 
-#define ERR -1
+struct FileInfo{
+	long last_atime;
+	double popularity;
+	fs::path relative_path;
+	fs::path current_tier;
+};
 
-extern int log_lvl;
-
-#define NUM_ERRORS 15
-enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX, LOG_LVL, PERIOD, GET_MUTEX_NAME, CACHE_FIRST_TIER, CACHE_ONLY_TIER, MOUNT, FORK, OPEN_DB};
-
-void error(enum Error error);
-
-void Log(std::string msg, int lvl);
+class Database{
+private:
+	sqlite3 *db;
+	std::stringstream sql;
+	int callback(void *param);
+public:
+	Database(fs::path db_path);
+	~Database(void);
+	int get_file_info(FileInfo &buff, const fs::path &relative_path);
+	int put_file_info(const FileInfo &buff);
+	int add_file(const fs::path &relative_path);
+	int remove_file(const fs::path &relative_path);
+};

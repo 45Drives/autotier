@@ -19,7 +19,7 @@
 
 #pragma once
 
-#define MUTEX_PATH "/run/autotier"
+#define RUN_PATH "/run/autotier"
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;

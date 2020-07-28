@@ -37,7 +37,8 @@ std::string errors[NUM_ERRORS] = {
 	"CACHE tier must be first defined tier.",
 	"Must have at least one more tier than CACHE.",
 	"Error mounting mergerfs.",
-	"Error forking."
+	"Error forking.",
+	"Error opening database."
 };
 
 void error(enum Error error){

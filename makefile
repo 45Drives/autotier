@@ -32,7 +32,7 @@ CXX									 = g++
 EXTRA_CFLAGS					 = -g
 
 # The extra linker options, e.g. "-lmysqlclient -lz" -l:libfuse3.so -lpthread
-EXTRA_LDFLAGS					= -g -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a
+EXTRA_LDFLAGS					= -g -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lsqlite3
 
 # Specify the include dirs, e.g. "-I/usr/include/mysql -I./include -I/usr/include -I/usr/local/include". 
 INCLUDE								= -I/usr/include/fuse3

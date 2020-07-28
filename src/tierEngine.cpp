@@ -42,7 +42,10 @@ TierEngine::TierEngine(const fs::path &config_path){
 	config.load(config_path, tiers, cache, hasCache);
 	//tiers_ptr = &tiers;
 	log_lvl = config.log_lvl;
-	mutex_path = fs::path(MUTEX_PATH) / get_mutex_name(config_path);
+	mutex_path = fs::path(RUN_PATH) / get_mutex_name(config_path);
+	if(!is_directory(fs::path(RUN_PATH))){
+		create_directories(fs::path(RUN_PATH));
+	}
 }
 
 fs::path TierEngine::get_mutex_name(const fs::path &config_path){
