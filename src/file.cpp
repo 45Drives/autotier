@@ -156,24 +156,28 @@ bool File::is_open(void){
 	}
 }
 
-File::File(fs::path path_, Tier *tptr){
+File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
+	db = db_;
 	char strbuff[BUFF_SZ];
 	ssize_t attr_len;
 	new_path = old_path = path_;
 	old_tier = tptr;
+	rel_path = relative(old_path, tptr->dir);
+	ID = std::hash<std::string>{}(rel_path.string());
 	struct stat info;
 	stat(old_path.c_str(), &info);
 	size = (long)info.st_size;
 	times.actime = info.st_atime;
 	times.modtime = info.st_mtime;
-	if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+	get_info(db);
+	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
 		strbuff[attr_len] = '\0'; // c-string
 		pinned_to = fs::path(strbuff);
 	}
 	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
 		// initialize
 		popularity = MULTIPLIER*AVG_USAGE;
-	}
+	}*/
 	last_atime = times.actime;
 }
 
@@ -184,14 +188,14 @@ File::File(const File &rhs){
 	size = rhs.size;
 	times.modtime = rhs.times.modtime;
 	times.actime = rhs.times.actime;
-	symlink_path = rhs.symlink_path;
 	old_path = rhs.old_path;
 	new_path = rhs.new_path;
 	pinned_to = rhs.pinned_to;
 }
 
 File::~File(){
-	write_xattrs();
+	put_info(db);
+	//write_xattrs();
 }
 
 File &File::operator=(const File &rhs){
@@ -201,9 +205,72 @@ File &File::operator=(const File &rhs){
 	size = rhs.size;
 	times.modtime = rhs.times.modtime;
 	times.actime = rhs.times.actime;
-	symlink_path = rhs.symlink_path;
 	old_path = rhs.old_path;
 	new_path = rhs.new_path;
 	pinned_to = rhs.pinned_to;
 	return *this;
+}
+
+static int c_callback_file(void *param, int count, char *data[], char *cols[]){
+	File *file = reinterpret_cast<File *>(param);
+	return file->callback(count, data, cols);
+}
+
+int File::get_info(sqlite3 *db){
+	char *errMsg = 0;
+	
+	std::string sql =
+	"SELECT * FROM Files WHERE ID='" + std::to_string(this->ID) + "';";
+	
+	int res = sqlite3_exec(db, sql.c_str(), c_callback_file, this, &errMsg);
+	
+	if(res != SQLITE_OK){
+		std::cerr << "SQL Error: " << errMsg;
+		sqlite3_free(errMsg);
+	}
+	return res;
+}
+
+int File::put_info(sqlite3 *db){
+	char *errMsg = 0;
+	
+	std::string sql =
+	"REPLACE INTO Files (ID, RELATIVE_PATH, CURRENT_TIER, PIN, POPULARITY, LAST_ACCESS)"
+	"VALUES("
+		+ std::to_string(this->ID) + ","
+		"'" + this->rel_path.string() + "',"
+		"'" + this->old_tier->dir.string() + "',"
+		"'" + this->pinned_to.string() + "',"
+		+ std::to_string(this->popularity) + ","
+		+ std::to_string(this->last_atime) +
+	");";/* ON DUPLICATE KEY UPDATE"
+	"	CURRENT_TIER = '" + this->current_tier.string() + "',"
+	"	POPULARITY = " + std::to_string(this->popularity) + ","
+	"	LAST_ACCESS = " + std::to_string(this->last_atime) + ";";*/
+	
+	int res = sqlite3_exec(db, sql.c_str(), NULL, 0, &errMsg);
+	
+	if(res != SQLITE_OK){
+		std::cerr << "SQL Error: " << sqlite3_errmsg(db);
+		sqlite3_free(errMsg);
+	}
+	return res;
+}
+
+int File::callback(int count, char *data[], char *cols[]){
+	// process returned values
+	for(int i = 0; i < count; i++){
+		//std::cout << "col: " << cols[i] << " data: " << data[i] << std::endl;
+		if(strcmp(cols[i], "ID") == 0)
+			this->ID = std::stoul(data[i]);
+		else if(strcmp(cols[i], "CURRENT_TIER") == 0)
+			this->current_tier = fs::path(data[i]);
+		else if(strcmp(cols[i], "PIN") == 0 && strlen(data[i]))
+			this->pinned_to = fs::path(data[i]);
+		else if(strcmp(cols[i], "POPULARITY") == 0)
+			this->popularity = std::stod(data[i]);
+		else if(strcmp(cols[i], "LAST_ACCESS") == 0)
+			this->last_atime = std::stol(data[i]);
+	}
+	return 0;
 }

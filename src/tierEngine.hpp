@@ -21,6 +21,7 @@
 
 #define RUN_PATH "/run/autotier"
 
+#include <sqlite3.h>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -36,6 +37,7 @@ class Config;
 
 class TierEngine{
 private:
+	sqlite3 *db;
 	pid_t fusermount_pid = 0;
 	int mutex;
 	fs::path mutex_path;
@@ -50,6 +52,8 @@ protected:
 	std::list<File> files;
 public:
 	TierEngine(const fs::path &config_path);
+	~TierEngine(void);
+	void open_db(void);
 	void begin(bool daemon_mode);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));

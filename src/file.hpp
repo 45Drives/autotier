@@ -41,6 +41,7 @@
 
 class Tier;
 
+#include <sqlite3.h>
 #include <utime.h>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -48,17 +49,20 @@ namespace fs = boost::filesystem;
 class File{
 private:
 	bool deleted = false;
+	sqlite3 *db;
 public:
-	double popularity;
+	size_t ID;
+	double popularity = MULTIPLIER*AVG_USAGE;
 	long last_atime;
 	long size;
 	Tier *old_tier;
 	struct utimbuf times;
-	fs::path symlink_path;
+	fs::path rel_path;
 	fs::path old_path;
 	fs::path new_path;
 	fs::path pinned_to;
 	fs::path cache_path;
+	fs::path current_tier;
 	void write_xattrs(void);
 	void log_movement(void);
 	void move(void);
@@ -67,7 +71,10 @@ public:
 	void copy_ownership_and_perms(void);
 	void calc_popularity(void);
 	bool is_open(void);
-	File(fs::path path_, Tier *tptr);
+	int get_info(sqlite3 *db);
+	int put_info(sqlite3 *db);
+	int callback(int count, char *data[], char *cols[]);
+	File(fs::path path_, Tier *tptr, sqlite3 *db_);
 	File(const File &rhs);
 	~File();
 	File &operator=(const File &rhs);
