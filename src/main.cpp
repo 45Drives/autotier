@@ -50,11 +50,16 @@ static void launch_daemon(int argc, char *argv[]){
 		std::cout << std::ifstream(config_path.string()).rdbuf();
 		break;
 	case UNPIN:
-		unpin(argc, argv);
+		if(argc < 3){
+			usage();
+			exit(1);
+		}
+		autotier.unpin(argc, argv);
 		break;
 	case LPIN:
 		std::cout << "Pinned files:" << std::endl;
-		autotier.launch_crawlers(&TierEngine::print_file_pin);
+		autotier.launch_crawlers(&TierEngine::emplace_file);
+		autotier.print_file_pins();
 		break;
 	case LPOP:
 		autotier.launch_crawlers(&TierEngine::emplace_file);

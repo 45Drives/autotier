@@ -58,12 +58,13 @@ public:
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	void emplace_file(fs::directory_entry &file, Tier *tptr);
-	void print_file_pin(fs::directory_entry &file, Tier *tptr);
+	void print_file_pins(void);
 	void print_file_popularity(void);
 	void sort(void);
 	void simulate_tier(void);
 	void move_files(void);
 	void print_tier_info(void);
 	void pin_files(std::string tier_name, std::vector<fs::path> &files_);
+	void unpin(int argc, char *argv[]);
 	void calc_popularity(void);
 };
