@@ -327,7 +327,6 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 			continue;
 		}
 		f.pinned_to = tptr_pin->dir;
-		std::cout << f.old_path << " " << f.pinned_to << std::endl;
 	}
 }
 
