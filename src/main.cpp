@@ -20,15 +20,17 @@
 #include "config.hpp"
 #include "tierEngine.hpp"
 #include "tools.hpp"
+#include "fusePassthrough.hpp"
 #include <thread>
 
 inline bool config_passed(int argc, char *argv[]){
 	return (argc >= 3 && (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--config") == 0));
 }
 
-static void fuse_thread(const fs::path &mountpoint){
-	FusePassthrough fuse(mountpoint);
-	int res = fuse.mount();
+void fuse_thread(FusePassthrough *filesystem, const fs::path &mountpoint){
+	filesystem = new FusePassthrough();
+	int res = filesystem->mount(mountpoint);
+	delete filesystem;
 }
 
 static void launch_daemon(int argc, char *argv[]){
@@ -36,13 +38,14 @@ static void launch_daemon(int argc, char *argv[]){
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	parse_flags(argc, argv, config_path);
 	TierEngine autotier(config_path);
+	FusePassthrough *filesystem = NULL;
 	
 	std::thread *fuse = NULL;
 	
 	int cmd = get_command_index(argc, argv);
 	
-	if(cmd == RUN)
-		fuse = new std::thread(fuse_thread);
+	//if(cmd == RUN)
+	//	fuse = new std::thread(fuse_thread, filesystem, autotier.get_mountpoint());
 	
 	switch(cmd){
 	case RUN:
@@ -83,8 +86,8 @@ static void launch_daemon(int argc, char *argv[]){
 		exit(1);
 		break;
 	}
-	if(cmd == RUN)
-		fuse->join();
+	//if(cmd == RUN)
+	//	fuse->join();
 }
 
 int main(int argc, char *argv[]){

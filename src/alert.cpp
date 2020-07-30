@@ -38,7 +38,8 @@ std::string errors[NUM_ERRORS] = {
 	"Must have at least one more tier than CACHE.",
 	"Error mounting mergerfs.",
 	"Error forking.",
-	"Error opening database."
+	"Error opening database.",
+	"Error: mountpoint does not exist or is not a directory."
 };
 
 void error(enum Error error){

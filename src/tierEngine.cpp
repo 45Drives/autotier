@@ -31,10 +31,6 @@
 
 sig_atomic_t stopFlag = false;
 
-static int callback_null(void *NotUsed, int argc, char *argv[], char *cols[]){
-	return 0;
-}
-
 void int_handler(int){
 	stopFlag = true;
 }
@@ -80,7 +76,7 @@ void TierEngine::open_db(){
 	"	LAST_ACCESS INT"
 	");";
 		
-	res = sqlite3_exec(db, sql, callback_null, 0, &errMsg);
+	res = sqlite3_exec(db, sql, NULL, 0, &errMsg);
 	
 	if(res){
 		std::cerr << "Error creating table: " << sqlite3_errmsg(db);
@@ -315,7 +311,7 @@ void TierEngine::print_tier_info(void){
 }
 
 void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
-	std::list<Tier>::iterator tptr_pin, tptr_old;
+	std::list<Tier>::iterator tptr_pin;
 	for(tptr_pin = tiers.begin(); tptr_pin != tiers.end(); ++tptr_pin){
 		if(tier_name == tptr_pin->id)
 			break;
@@ -325,16 +321,11 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 		exit(1);
 	}
 	for(std::vector<fs::path>::iterator fptr = files_.begin(); fptr != files_.end(); ++fptr){
-		if(!exists(*fptr)){
-			Log("File does not exist! "+fptr->string(),0);
+		File f(*fptr, db);
+		if(!exists(f.current_tier / f.rel_path)){
+			Log("File does not exist! " + fptr->string(),0);
 			continue;
 		}
-		// find original tier
-		for(tptr_old = tiers.begin(); tptr_old != tiers.end(); ++tptr_old){
-			if(fptr->string().compare(0, tptr_old->dir.string().size(), tptr_old->dir.string()) == 0)
-				break;
-		}
-		File f(*fptr, &(*tptr_old), db);
 		f.pinned_to = tptr_pin->dir;
 		std::cout << f.old_path << " " << f.pinned_to << std::endl;
 	}
@@ -343,17 +334,11 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 void TierEngine::unpin(int argc, char *argv[]){
 	for(int i = 2; i < argc; i++){
 		fs::path temp(argv[i]);
-		if(!exists(temp)){
-			Log("File does not exist! " + temp.string(),0);
+		File f(temp, db);
+		if(!exists(f.current_tier / f.rel_path)){
+			Log("File does not exist! " + f.rel_path.string(), 0);
 			continue;
 		}
-		// find original tier
-		std::list<Tier>::iterator tptr_old;
-		for(tptr_old = tiers.begin(); tptr_old != tiers.end(); ++tptr_old){
-			if(temp.string().compare(0, tptr_old->dir.string().size(), tptr_old->dir.string()) == 0)
-				break;
-		}
-		File f(temp, &(*tptr_old), db);
 		f.pinned_to = fs::path();
 	}
 }

@@ -31,18 +31,19 @@
 
 File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 	db = db_;
-	char strbuff[BUFF_SZ];
-	ssize_t attr_len;
-	new_path = old_path = tptr->dir / path_;
-	old_tier = tptr;
 	rel_path = path_;
 	ID = std::hash<std::string>{}(rel_path.string());
+	get_info(db);
+	char strbuff[BUFF_SZ];
+	ssize_t attr_len;
+	current_tier = tptr->dir;
+	new_path = old_path = current_tier / path_;
+	old_tier = tptr;
 	struct stat info;
 	stat(old_path.c_str(), &info);
 	size = (long)info.st_size;
 	times.actime = info.st_atime;
 	times.modtime = info.st_mtime;
-	get_info(db);
 	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
 		strbuff[attr_len] = '\0'; // c-string
 		pinned_to = fs::path(strbuff);
@@ -56,11 +57,11 @@ File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 
 File::File(fs::path path_, sqlite3 *db_){
 	db = db_;
-	char strbuff[BUFF_SZ];
-	ssize_t attr_len;
 	rel_path = path_;
 	ID = std::hash<std::string>{}(rel_path.string());
-	get_info();
+	get_info(db);
+	char strbuff[BUFF_SZ];
+	ssize_t attr_len;
 	new_path = old_path = current_tier / path_;
 	old_tier = NULL;
 	struct stat info;
@@ -78,18 +79,6 @@ File::File(fs::path path_, sqlite3 *db_){
 		popularity = MULTIPLIER*AVG_USAGE;
 	}*/
 	last_atime = times.actime;
-}
-
-File::File(const File &rhs){
-	//priority = rhs.priority;
-	popularity = rhs.popularity;
-	last_atime = rhs.last_atime;
-	size = rhs.size;
-	times.modtime = rhs.times.modtime;
-	times.actime = rhs.times.actime;
-	old_path = rhs.old_path;
-	new_path = rhs.new_path;
-	pinned_to = rhs.pinned_to;
 }
 
 File::~File(){
@@ -224,19 +213,6 @@ bool File::is_open(void){
 	}
 }
 
-File &File::operator=(const File &rhs){
-	//priority = rhs.priority;
-	popularity = rhs.popularity;
-	last_atime = rhs.last_atime;
-	size = rhs.size;
-	times.modtime = rhs.times.modtime;
-	times.actime = rhs.times.actime;
-	old_path = rhs.old_path;
-	new_path = rhs.new_path;
-	pinned_to = rhs.pinned_to;
-	return *this;
-}
-
 static int c_callback_file(void *param, int count, char *data[], char *cols[]){
 	File *file = reinterpret_cast<File *>(param);
 	return file->callback(count, data, cols);
@@ -265,14 +241,11 @@ int File::put_info(sqlite3 *db){
 	"VALUES("
 		+ std::to_string(this->ID) + ","
 		"'" + this->rel_path.string() + "',"
-		"'" + this->old_tier->dir.string() + "',"
+		"'" + this->current_tier.string() + "',"
 		"'" + this->pinned_to.string() + "',"
 		+ std::to_string(this->popularity) + ","
 		+ std::to_string(this->last_atime) +
-	");";/* ON DUPLICATE KEY UPDATE"
-	"	CURRENT_TIER = '" + this->current_tier.string() + "',"
-	"	POPULARITY = " + std::to_string(this->popularity) + ","
-	"	LAST_ACCESS = " + std::to_string(this->last_atime) + ";";*/
+	");";
 	
 	int res = sqlite3_exec(db, sql.c_str(), NULL, 0, &errMsg);
 	
@@ -287,15 +260,13 @@ int File::callback(int count, char *data[], char *cols[]){
 	// process returned values
 	for(int i = 0; i < count; i++){
 		//std::cout << "col: " << cols[i] << " data: " << data[i] << std::endl;
-		if(strcmp(cols[i], "ID") == 0)
-			this->ID = std::stoul(data[i]);
-		else if(strcmp(cols[i], "CURRENT_TIER") == 0)
+		if(data[i] && strcmp(cols[i], "CURRENT_TIER") == 0)
 			this->current_tier = fs::path(data[i]);
-		else if(strcmp(cols[i], "PIN") == 0 && strlen(data[i]))
+		else if(data[i] && strcmp(cols[i], "PIN") == 0 && strlen(data[i]))
 			this->pinned_to = fs::path(data[i]);
-		else if(strcmp(cols[i], "POPULARITY") == 0)
+		else if(data[i] && strcmp(cols[i], "POPULARITY") == 0)
 			this->popularity = std::stod(data[i]);
-		else if(strcmp(cols[i], "LAST_ACCESS") == 0)
+		else if(data[i] && strcmp(cols[i], "LAST_ACCESS") == 0)
 			this->last_atime = std::stol(data[i]);
 	}
 	return 0;

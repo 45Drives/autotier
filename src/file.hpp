@@ -53,9 +53,7 @@ private:
 public:
 	File(fs::path path_, Tier *tptr, sqlite3 *db_);
 	File(fs::path path_, sqlite3 *db_);
-	File(const File &rhs);
 	~File();
-	File &operator=(const File &rhs);
 	size_t ID;
 	double popularity = MULTIPLIER*AVG_USAGE;
 	long last_atime;
