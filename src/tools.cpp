@@ -83,22 +83,6 @@ void pin(int argc, char *argv[], TierEngine &autotier){
 	autotier.pin_files(tier_name, files);
 }
 
-void unpin(int argc, char *argv[]){
-	if(argc < 3){
-		usage();
-		exit(1);
-	}
-	for(int i = 2; i < argc; i++){
-		fs::path temp(argv[i]);
-		if(!exists(temp)){
-			Log("File does not exist! " + temp.string(),0);
-			continue;
-		}
-		if(removexattr(temp.c_str(),"user.autotier_pin")==ERR)
-			Log("Error removing autotier_pin xattr on " + temp.string(),0);
-	}
-}
-
 void usage(){
 	std::cout << 
 	"autotier usage:\n"

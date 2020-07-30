@@ -17,14 +17,20 @@
 		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "fuse_handler.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
 #include "tools.hpp"
+#include "fusePassthrough.hpp"
 #include <thread>
 
 inline bool config_passed(int argc, char *argv[]){
 	return (argc >= 3 && (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--config") == 0));
+}
+
+void fuse_thread(FusePassthrough *filesystem, const fs::path &mountpoint){
+	filesystem = new FusePassthrough();
+	int res = filesystem->mount(mountpoint);
+	delete filesystem;
 }
 
 static void launch_daemon(int argc, char *argv[]){
@@ -32,8 +38,16 @@ static void launch_daemon(int argc, char *argv[]){
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	parse_flags(argc, argv, config_path);
 	TierEngine autotier(config_path);
-
-	switch(get_command_index(argc, argv)){
+	FusePassthrough *filesystem = NULL;
+	
+	std::thread *fuse = NULL;
+	
+	int cmd = get_command_index(argc, argv);
+	
+	//if(cmd == RUN)
+	//	fuse = new std::thread(fuse_thread, filesystem, autotier.get_mountpoint());
+	
+	switch(cmd){
 	case RUN:
 		daemon_mode = true;
 	case ONESHOT:
@@ -50,11 +64,16 @@ static void launch_daemon(int argc, char *argv[]){
 		std::cout << std::ifstream(config_path.string()).rdbuf();
 		break;
 	case UNPIN:
-		unpin(argc, argv);
+		if(argc < 3){
+			usage();
+			exit(1);
+		}
+		autotier.unpin(argc, argv);
 		break;
 	case LPIN:
 		std::cout << "Pinned files:" << std::endl;
-		autotier.launch_crawlers(&TierEngine::print_file_pin);
+		autotier.launch_crawlers(&TierEngine::emplace_file);
+		autotier.print_file_pins();
 		break;
 	case LPOP:
 		autotier.launch_crawlers(&TierEngine::emplace_file);
@@ -67,6 +86,8 @@ static void launch_daemon(int argc, char *argv[]){
 		exit(1);
 		break;
 	}
+	//if(cmd == RUN)
+	//	fuse->join();
 }
 
 int main(int argc, char *argv[]){

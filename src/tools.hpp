@@ -36,6 +36,4 @@ void parse_flags(int argc, char *argv[], fs::path &config_path);
 
 void pin(int argc, char *argv[], TierEngine &autotier);
 
-void unpin(int argc, char *argv[]);
-
 void usage(void);

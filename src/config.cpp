@@ -123,6 +123,8 @@ int Config::load_global(std::fstream &config_file, std::string &id){
 			}catch(std::invalid_argument){
 				this->period = ERR;
 			}
+		}else if(key == "MOUNT_POINT"){
+			this->mountpoint = fs::path(value);
 		} // else if ...
 	}
 	// if here, EOF reached
@@ -162,6 +164,7 @@ void Config::generate_config(std::fstream &file){
 	"[Global]						# global settings\n"
 	"LOG_LEVEL=1				 # 0 = none, 1 = normal, 2 = debug\n"
 	"TIER_PERIOD=1000		# number of seconds between file move batches\n"
+	"MOUNT_POINT=/mnt/autotier"
 	"\n"
 	"[Tier 1]\n"
 	"DIR=								# full path to tier storage pool\n"
@@ -190,6 +193,10 @@ bool Config::verify(const std::list<Tier> &tiers, bool hasCache){
 	}
 	if(period == ERR){
 		error(PERIOD);
+		errors = true;
+	}
+	if(!fs::exists(mountpoint) || !fs::is_directory(mountpoint)){
+		error(MOUNTPOINT);
 		errors = true;
 	}
 	if(hasCache && tiers.size() < 2){
