@@ -51,6 +51,11 @@ private:
 	bool deleted = false;
 	sqlite3 *db;
 public:
+	File(fs::path path_, Tier *tptr, sqlite3 *db_);
+	File(fs::path path_, sqlite3 *db_);
+	File(const File &rhs);
+	~File();
+	File &operator=(const File &rhs);
 	size_t ID;
 	double popularity = MULTIPLIER*AVG_USAGE;
 	long last_atime;
@@ -74,8 +79,4 @@ public:
 	int get_info(sqlite3 *db);
 	int put_info(sqlite3 *db);
 	int callback(int count, char *data[], char *cols[]);
-	File(fs::path path_, Tier *tptr, sqlite3 *db_);
-	File(const File &rhs);
-	~File();
-	File &operator=(const File &rhs);
 };

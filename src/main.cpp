@@ -17,7 +17,6 @@
 		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "fuse_handler.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
 #include "tools.hpp"
@@ -27,13 +26,25 @@ inline bool config_passed(int argc, char *argv[]){
 	return (argc >= 3 && (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--config") == 0));
 }
 
+static void fuse_thread(const fs::path &mountpoint){
+	FusePassthrough fuse(mountpoint);
+	int res = fuse.mount();
+}
+
 static void launch_daemon(int argc, char *argv[]){
 	bool daemon_mode = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	parse_flags(argc, argv, config_path);
 	TierEngine autotier(config_path);
-
-	switch(get_command_index(argc, argv)){
+	
+	std::thread *fuse = NULL;
+	
+	int cmd = get_command_index(argc, argv);
+	
+	if(cmd == RUN)
+		fuse = new std::thread(fuse_thread);
+	
+	switch(cmd){
 	case RUN:
 		daemon_mode = true;
 	case ONESHOT:
@@ -72,6 +83,8 @@ static void launch_daemon(int argc, char *argv[]){
 		exit(1);
 		break;
 	}
+	if(cmd == RUN)
+		fuse->join();
 }
 
 int main(int argc, char *argv[]){

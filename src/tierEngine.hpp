@@ -45,6 +45,7 @@ private:
 	fs::path get_mutex_name(const fs::path &config_path);
 	int lock_mutex(void);
 	void unlock_mutex(void);
+	void open_db(void);
 protected:
 	bool hasCache = false;
 	Tier *cache = NULL;
@@ -53,7 +54,7 @@ protected:
 public:
 	TierEngine(const fs::path &config_path);
 	~TierEngine(void);
-	void open_db(void);
+	fs::path get_mountpoint(void);
 	void begin(bool daemon_mode);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));

@@ -21,7 +21,6 @@
 #include "tier.hpp"
 #include "file.hpp"
 #include "alert.hpp"
-#include "fuse_handler.hpp"
 
 #include <chrono>
 #include <thread>
@@ -55,6 +54,10 @@ TierEngine::TierEngine(const fs::path &config_path){
 
 TierEngine::~TierEngine(){
 	sqlite3_close(db);
+}
+
+fs::path TierEngine::get_mountpoint(void){
+	return config.mountpoint;
 }
 
 void TierEngine::open_db(){
@@ -195,7 +198,7 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 }
 
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
-	files.emplace_back(file, tptr, db);
+	files.emplace_back(fs::relative(file, tptr->dir), tptr, db);
 	if(hasCache){
 		File *fptr = &files.back();
 		fptr->cache_path = cache->dir/relative(fptr->old_path, fptr->old_tier->dir);

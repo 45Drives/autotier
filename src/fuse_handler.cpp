@@ -20,10 +20,52 @@
 #ifdef USE_FUSE
 #include "fuse_handler.hpp"
 #include "tierEngine.hpp"
-#include "tier.hpp"
+#include "file.hpp"
+#include "alert.hpp"
 #include <list>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
+
+FusePassthrough::FusePassthrough(std::list<Tier> *tp_){
+	tiers_ptr = tp_;
+	open_db();
+}
+
+FusePassthrough::~FusePassthrough(){
+	
+}
+
+void FusePassthrough::open_db(){
+	int res = sqlite3_open(RUN_PATH "/db.sqlite", &db);
+	char *errMsg = 0;
+	if(res){
+		std::cerr << "Error opening database: " << sqlite3_errmsg(db);
+		exit(res);
+	}else{
+		Log("Opened database successfully", 2);
+	}
+	
+	const char *sql =
+	"CREATE TABLE IF NOT EXISTS Files("
+	"	ID INT PRIMARY KEY NOT NULL,"
+	"	RELATIVE_PATH TEXT NOT NULL,"
+	"	CURRENT_TIER TEXT,"
+	"	PIN TEXT,"
+	"	POPULARITY REAL,"
+	"	LAST_ACCESS INT"
+	");";
+		
+	res = sqlite3_exec(db, sql, callback_null, 0, &errMsg);
+	
+	if(res){
+		std::cerr << "Error creating table: " << sqlite3_errmsg(db);
+		exit(res);
+	}
+}
+
+int FusePassthrough::mount(fs::path mountpoint){
+	return fuse_main(argc, argv, &at_oper, NULL);
+}
 
 //const char *backend = "/mnt/tier1/";
 

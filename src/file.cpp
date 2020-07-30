@@ -29,6 +29,74 @@
 #include <unistd.h>
 #include <iostream>
 
+File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
+	db = db_;
+	char strbuff[BUFF_SZ];
+	ssize_t attr_len;
+	new_path = old_path = tptr->dir / path_;
+	old_tier = tptr;
+	rel_path = path_;
+	ID = std::hash<std::string>{}(rel_path.string());
+	struct stat info;
+	stat(old_path.c_str(), &info);
+	size = (long)info.st_size;
+	times.actime = info.st_atime;
+	times.modtime = info.st_mtime;
+	get_info(db);
+	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+		strbuff[attr_len] = '\0'; // c-string
+		pinned_to = fs::path(strbuff);
+	}
+	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
+		// initialize
+		popularity = MULTIPLIER*AVG_USAGE;
+	}*/
+	last_atime = times.actime;
+}
+
+File::File(fs::path path_, sqlite3 *db_){
+	db = db_;
+	char strbuff[BUFF_SZ];
+	ssize_t attr_len;
+	rel_path = path_;
+	ID = std::hash<std::string>{}(rel_path.string());
+	get_info();
+	new_path = old_path = current_tier / path_;
+	old_tier = NULL;
+	struct stat info;
+	stat(old_path.c_str(), &info);
+	size = (long)info.st_size;
+	times.actime = info.st_atime;
+	times.modtime = info.st_mtime;
+	get_info(db);
+	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
+		strbuff[attr_len] = '\0'; // c-string
+		pinned_to = fs::path(strbuff);
+	}
+	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
+		// initialize
+		popularity = MULTIPLIER*AVG_USAGE;
+	}*/
+	last_atime = times.actime;
+}
+
+File::File(const File &rhs){
+	//priority = rhs.priority;
+	popularity = rhs.popularity;
+	last_atime = rhs.last_atime;
+	size = rhs.size;
+	times.modtime = rhs.times.modtime;
+	times.actime = rhs.times.actime;
+	old_path = rhs.old_path;
+	new_path = rhs.new_path;
+	pinned_to = rhs.pinned_to;
+}
+
+File::~File(){
+	put_info(db);
+	//write_xattrs();
+}
+
 void File::log_movement(){
 	Log("OldPath: " + old_path.string(),3);
 	Log("NewPath: " + new_path.string(),3);
@@ -154,48 +222,6 @@ bool File::is_open(void){
 		std::cerr << "Error reading lsof exit status!" << std::endl;
 		return false;
 	}
-}
-
-File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
-	db = db_;
-	char strbuff[BUFF_SZ];
-	ssize_t attr_len;
-	new_path = old_path = path_;
-	old_tier = tptr;
-	rel_path = relative(old_path, tptr->dir);
-	ID = std::hash<std::string>{}(rel_path.string());
-	struct stat info;
-	stat(old_path.c_str(), &info);
-	size = (long)info.st_size;
-	times.actime = info.st_atime;
-	times.modtime = info.st_mtime;
-	get_info(db);
-	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
-		strbuff[attr_len] = '\0'; // c-string
-		pinned_to = fs::path(strbuff);
-	}
-	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
-		// initialize
-		popularity = MULTIPLIER*AVG_USAGE;
-	}*/
-	last_atime = times.actime;
-}
-
-File::File(const File &rhs){
-	//priority = rhs.priority;
-	popularity = rhs.popularity;
-	last_atime = rhs.last_atime;
-	size = rhs.size;
-	times.modtime = rhs.times.modtime;
-	times.actime = rhs.times.actime;
-	old_path = rhs.old_path;
-	new_path = rhs.new_path;
-	pinned_to = rhs.pinned_to;
-}
-
-File::~File(){
-	put_info(db);
-	//write_xattrs();
 }
 
 File &File::operator=(const File &rhs){
