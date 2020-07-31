@@ -29,7 +29,7 @@
 #include <sys/xattr.h>
 #include <signal.h>
 
-extern volatile sig_atomic_t stopFlag = false;
+sig_atomic_t stopFlag = false;
 
 void int_handler(int){
 	stopFlag = true;

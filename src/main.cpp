@@ -28,9 +28,9 @@ inline bool config_passed(int argc, char *argv[]){
 }
 
 #ifdef THREAD
-void fuse_thread(FusePassthrough *filesystem, const fs::path &mountpoint, std::list<Tier> &tiers){
-	filesystem = new FusePassthrough(tiers);
-	int res = filesystem->mount_fs(mountpoint);
+void fuse_thread(const fs::path &mountpoint, std::list<Tier> &tiers){
+	FusePassthrough at_filesystem(tiers);
+	int res = at_filesystem.mount_fs(mountpoint);
 }
 #endif
 
@@ -42,16 +42,16 @@ static void launch_daemon(int argc, char *argv[]){
 	
 	
 #ifdef THREAD
-	FusePassthrough *filesystem = NULL;
-	std::thread *fuse = NULL;
+	std::thread fuse;
 #endif
 	
 	int cmd = get_command_index(argc, argv);
 
 #ifdef THREAD
 	if(cmd == RUN)
-		fuse = new std::thread(fuse_thread, filesystem, autotier.get_mountpoint(), std::ref(autotier.get_tiers()));
-#else
+		fuse = std::thread(fuse_thread, autotier.get_mountpoint(), std::ref(autotier.get_tiers()));
+#endif
+#ifndef THREAD
 	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
 	if(pid == -1){
 		error(FORK);
@@ -120,7 +120,7 @@ static void launch_daemon(int argc, char *argv[]){
 			break;
 		}
 #ifdef THREAD
-		fuse->join(); // wait for child to exit
+		fuse.join(); // wait for child to exit
 #endif
 	}
 #ifndef THREAD
