@@ -291,7 +291,23 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 }
 
 static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi){
+	(void) fi;
+	int res;
 	
+	fs::path p(path);
+	
+	if(is_file(p)){
+		File f(p, db);
+		res = lchown(f.old_path.c_str(), uid, gid);
+		if (res == -1)
+			return -errno;
+	}else{
+		res = lchown((tiers.front()->dir / p).c_str(), uid, gid);
+		if (res == -1)
+			return -errno;
+	}
+	
+	return 0;
 }
 
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
