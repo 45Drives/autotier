@@ -13,8 +13,8 @@ class FusePassthrough{
 private:
 	void open_db(void);
 public:
-	FusePassthrough(void);
+	FusePassthrough(std::list<Tier> &tiers_);
 	~FusePassthrough(void);
-	int mount(fs::path mountpoint);
+	int mount_fs(fs::path mountpoint);
 };
 

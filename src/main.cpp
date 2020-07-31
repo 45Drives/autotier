@@ -27,25 +27,42 @@ inline bool config_passed(int argc, char *argv[]){
 	return (argc >= 3 && (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--config") == 0));
 }
 
-void fuse_thread(FusePassthrough *filesystem, const fs::path &mountpoint){
-	filesystem = new FusePassthrough();
-	int res = filesystem->mount(mountpoint);
-	delete filesystem;
+#ifdef THREAD
+void fuse_thread(FusePassthrough *filesystem, const fs::path &mountpoint, std::list<Tier> &tiers){
+	filesystem = new FusePassthrough(tiers);
+	int res = filesystem->mount_fs(mountpoint);
 }
+#endif
 
 static void launch_daemon(int argc, char *argv[]){
 	bool daemon_mode = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	parse_flags(argc, argv, config_path);
 	TierEngine autotier(config_path);
-	FusePassthrough *filesystem = NULL;
 	
+	
+#ifdef THREAD
+	FusePassthrough *filesystem = NULL;
 	std::thread *fuse = NULL;
+#endif
 	
 	int cmd = get_command_index(argc, argv);
-	
-	//if(cmd == RUN)
-	//	fuse = new std::thread(fuse_thread, filesystem, autotier.get_mountpoint());
+
+#ifdef THREAD
+	if(cmd == RUN)
+		fuse = new std::thread(fuse_thread, filesystem, autotier.get_mountpoint(), std::ref(autotier.get_tiers()));
+#else
+	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
+	if(pid == -1){
+		error(FORK);
+		exit(errno);
+	}else if(pid == 0){
+		// child
+		FusePassthrough at_filesystem(autotier.get_tiers());
+		at_filesystem.mount_fs(autotier.get_mountpoint());
+	}else{
+		// parent
+#endif
 	
 	switch(cmd){
 	case RUN:
@@ -86,8 +103,29 @@ static void launch_daemon(int argc, char *argv[]){
 		exit(1);
 		break;
 	}
-	//if(cmd == RUN)
-	//	fuse->join();
+	if(cmd == RUN){
+		// kill fusermount
+		int fusermount_pid = fork();
+		switch(fusermount_pid){
+		case 0:
+			// child
+			execlp("umount", "umount", "/mnt/autotier", NULL);
+			error(MOUNT);
+			exit(EXIT_FAILURE);
+		case -1:
+			error(FORK);
+			exit(EXIT_FAILURE);
+		default:
+			// parent
+			break;
+		}
+#ifdef THREAD
+		fuse->join(); // wait for child to exit
+#endif
+	}
+#ifndef THREAD
+	}
+#endif
 }
 
 int main(int argc, char *argv[]){

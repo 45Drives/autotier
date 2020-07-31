@@ -28,10 +28,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <iostream>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
 
 File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 	db = db_;
-	rel_path = path_;
+	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
 	ID = std::hash<std::string>{}(rel_path.string());
 	get_info(db);
 	char strbuff[BUFF_SZ];
@@ -57,7 +59,7 @@ File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 
 File::File(fs::path path_, sqlite3 *db_){
 	db = db_;
-	rel_path = path_;
+	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
 	ID = std::hash<std::string>{}(rel_path.string());
 	get_info(db);
 	char strbuff[BUFF_SZ];

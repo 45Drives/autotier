@@ -20,6 +20,9 @@
 #include "alert.hpp"
 #include "config.hpp"
 #include <iostream>
+#include <mutex>
+
+std::mutex alert_mutex;
 
 int log_lvl;
 
@@ -48,5 +51,7 @@ void error(enum Error error){
 
 void Log(std::string msg, int lvl){
 	if(log_lvl < lvl) return;
+	alert_mutex.lock();
 	std::cout << msg << std::endl;
+	alert_mutex.unlock();
 }

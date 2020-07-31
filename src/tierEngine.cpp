@@ -29,7 +29,7 @@
 #include <sys/xattr.h>
 #include <signal.h>
 
-sig_atomic_t stopFlag = false;
+extern volatile sig_atomic_t stopFlag = false;
 
 void int_handler(int){
 	stopFlag = true;
@@ -54,6 +54,10 @@ TierEngine::~TierEngine(){
 
 fs::path TierEngine::get_mountpoint(void){
 	return config.mountpoint;
+}
+
+std::list<Tier> &TierEngine::get_tiers(void){
+	return tiers;
 }
 
 void TierEngine::open_db(){
@@ -102,27 +106,6 @@ void TierEngine::unlock_mutex(void){
 }
 
 void TierEngine::begin(bool daemon_mode){
-	// mount fuser
-	char branches[4096] = "";
-	for(Tier t : tiers){
-		strncat(branches, t.dir.c_str(), 4096 - strlen(branches) - 1);
-		strncat(branches, ":", 4096 - strlen(branches) - 1);
-	}
-	branches[strlen(branches) - 1] = '\0'; // remove last :
-	fusermount_pid = fork();
-	switch(fusermount_pid){
-	case 0:
-		// child
-		execlp("mergerfs", "mergerfs", "-o", "allow_other,use_ino,fsname=autotier,category.create=ff", branches, "/mnt/autotier", NULL);
-		error(MOUNT);
-		exit(EXIT_FAILURE);
-	case -1:
-		error(FORK);
-		exit(EXIT_FAILURE);
-	default:
-		// parent
-		break;
-	}
 	Log("autotier started.",1);
 	unsigned int timer = 0;
 	do{
@@ -157,21 +140,6 @@ void TierEngine::begin(bool daemon_mode){
 			std::this_thread::sleep_for(std::chrono::seconds(CALC_PERIOD)-duration);
 		timer = (++timer) % (config.period / CALC_PERIOD);
 	}while(daemon_mode && !stopFlag);
-	// kill fusermount
-	fusermount_pid = fork();
-	switch(fusermount_pid){
-	case 0:
-		// child
-		execlp("umount", "umount", "/mnt/autotier", NULL);
-		error(MOUNT);
-		exit(EXIT_FAILURE);
-	case -1:
-		error(FORK);
-		exit(EXIT_FAILURE);
-	default:
-		// parent
-		break;
-	}
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
