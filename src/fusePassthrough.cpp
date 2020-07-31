@@ -470,6 +470,8 @@ static int at_readdir(
 			return -errno;
 
 		while ((de = readdir(dp)) != NULL) {
+			if(de->d_type == DT_DIR && tptr != tiers.front())
+				continue;
 			struct stat st;
 			memset(&st, 0, sizeof(st));
 			st.st_ino = de->d_ino;
