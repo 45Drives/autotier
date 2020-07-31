@@ -28,11 +28,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <iostream>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
-
-boost::interprocess::interprocess_mutex db_mutex;
 
 File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 	db = db_;
@@ -229,9 +226,7 @@ int File::get_info(sqlite3 *db){
 	std::string sql =
 	"SELECT * FROM Files WHERE ID='" + std::to_string(this->ID) + "';";
 	
-	db_mutex.lock();
 	int res = sqlite3_exec(db, sql.c_str(), c_callback_file, this, &errMsg);
-	db_mutex.unlock();
 	
 	if(res != SQLITE_OK){
 		std::cerr << "SQL Error: " << errMsg;
@@ -253,9 +248,7 @@ int File::put_info(sqlite3 *db){
 		+ std::to_string(this->popularity) + ","
 		+ std::to_string(this->last_atime) +
 	");";
-	db_mutex.lock();
 	int res = sqlite3_exec(db, sql.c_str(), NULL, 0, &errMsg);
-	db_mutex.unlock();
 	
 	if(res != SQLITE_OK){
 		std::cerr << "SQL Error: " << sqlite3_errmsg(db);
