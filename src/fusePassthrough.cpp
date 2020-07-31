@@ -228,7 +228,13 @@ static int at_rmdir(const char *path){
 }
 
 static int at_symlink(const char *from, const char *to){
-	
+	int res;
+
+	res = symlink(from, (tiers.front()->dir / fs::path(to)).c_str());
+	if (res == -1)
+		return -errno;
+
+	return 0;
 }
 
 static int at_rename(const char *from, const char *to, unsigned int flags){
