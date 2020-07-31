@@ -253,7 +253,20 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 }
 
 static int at_link(const char *from, const char *to){
+	int res;
 	
+	File f(from, db);
+	fs::path from_abs(f.old_path);
+	fs::path to_rel = (fs::path(to).is_absolute())? fs::relative(fs::path(to), fs::path("/")) : fs::path(to);
+	fs::path to_abs = f.current_tier / to_rel;
+	
+	f.rel_path = to_rel;
+	f.ID = std::hash<std::string>{}(to_rel.string());
+	
+	res = link(from_abs.c_str(), to_abs.c_str());
+		return -errno;
+
+	return 0;
 }
 
 static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
@@ -282,7 +295,17 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 }
 
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
-	
+	int res;
+
+	if (fi == NULL){
+		File f(path, db);
+		res = truncate(f.old_path.c_str(), size);
+	}else
+		res = ftruncate(fi->fh, size);
+	if (res == -1)
+		return -errno;
+
+	return 0;
 }
 
 static int at_open(const char *path, struct fuse_file_info *fi){
