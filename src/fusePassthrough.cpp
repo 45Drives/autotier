@@ -86,7 +86,9 @@ void FusePassthrough::open_db(){
 	res = sqlite3_exec(db, sql, NULL, 0, &errMsg);
 	
 	if(res){
-		std::cerr << "Error creating table: " << sqlite3_errmsg(db);
+		std::cerr << "Error creating table: " << sqlite3_errmsg(db) << std::endl;
+		std::cerr << errMsg << std::endl;
+		sqlite3_free(errMsg);
 		exit(res);
 	}
 }
@@ -152,6 +154,15 @@ static int mknod_wrapper(int dirfd, const char *path, const char *link,
 	return res;
 }
 
+static int remove_file(File *f){
+	size_t ID = f->ID;
+	delete f;
+	std::string sql = "DELETE from Files where ID=" + std::to_string(ID);
+	int res = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
+	
+	return res;
+}
+
 // methods
 
 static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
@@ -210,14 +221,14 @@ static int at_mkdir(const char *path, mode_t mode){
 }
 
 static int at_unlink(const char *path){
-	File f(path, db);
+	File *f = new File(path, db);
 	int res;
 
-	res = unlink(f.old_path.c_str());
+	res = unlink(f->old_path.c_str());
 	if (res == -1)
 		return -errno;
-
-	return 0;
+	
+	return remove_file(f);
 }
 
 static int at_rmdir(const char *path){
