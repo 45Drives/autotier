@@ -37,7 +37,6 @@ void Config::load(const fs::path &config_path, std::list<Tier> &tiers, Tier *cac
 		config_file.close();
 		config_file.open(config_path.string(), std::ios::in);
 	}
-	std::cout << "Loading config" << std::endl;
 	Tier *tptr = NULL;
 	while(config_file){
 		std::stringstream line_stream;
