@@ -1,5 +1,5 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau
+		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
 		Copyright (C) 2001-2007	Miklos Szeredi <miklos@szeredi.hu>
 		Copyright (C) 2011			 Sebastian Pipping <sebastian@pipping.org>
 		
