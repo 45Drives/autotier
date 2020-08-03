@@ -402,21 +402,21 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
 
 static int at_statfs(const char *path, struct statvfs *stbuf){
 	int res;
-	struct statvfs fs_stats_total, fs_stats_temp;
-	memset(&fs_stats_total, 0, sizeof(struct statvfs));
+	struct statvfs fs_stats_temp;
+	memset(stbuf, 0, sizeof(struct statvfs));
 	
 	for(Tier *tptr : tiers){
 		res = statvfs((tptr->dir / fs::path(path)).c_str(), &fs_stats_temp);
 		if (res == -1)
 			return -errno;
-		if(fs_stats_total.f_bsize == 0) fs_stats_total.f_bsize = fs_stats_temp.f_bsize;
-		if(fs_stats_total.f_frsize == 0) fs_stats_total.f_frsize = fs_stats_temp.f_frsize;
-		fs_stats_total.f_blocks += fs_stats_temp.f_blocks;
-		fs_stats_total.f_bfree += fs_stats_temp.f_bfree;
-		fs_stats_total.f_bavail += fs_stats_temp.f_bavail;
-		fs_stats_total.f_files += fs_stats_temp.f_files;
-		if(fs_stats_total.f_ffree == 0) fs_stats_total.f_ffree = fs_stats_temp.f_ffree;
-		if(fs_stats_total.f_favail == 0) fs_stats_total.f_favail = fs_stats_temp.f_favail;
+		if(stbuf->f_bsize == 0) stbuf->f_bsize = fs_stats_temp.f_bsize;
+		if(stbuf->f_frsize == 0) stbuf->f_frsize = fs_stats_temp.f_frsize;
+		stbuf->f_blocks += fs_stats_temp.f_blocks;
+		stbuf->f_bfree += fs_stats_temp.f_bfree;
+		stbuf->f_bavail += fs_stats_temp.f_bavail;
+		stbuf->f_files += fs_stats_temp.f_files;
+		if(stbuf->f_ffree == 0) stbuf->f_ffree = fs_stats_temp.f_ffree;
+		if(stbuf->f_favail == 0) stbuf->f_favail = fs_stats_temp.f_favail;
 	}
 
 	return 0;
