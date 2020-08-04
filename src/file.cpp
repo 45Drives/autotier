@@ -46,14 +46,6 @@ File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 	size = (long)info.st_size;
 	times.actime = info.st_atime;
 	times.modtime = info.st_mtime;
-	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
-		strbuff[attr_len] = '\0'; // c-string
-		pinned_to = fs::path(strbuff);
-	}
-	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
-		// initialize
-		popularity = MULTIPLIER*AVG_USAGE;
-	}*/
 	last_atime = times.actime;
 }
 
@@ -72,20 +64,11 @@ File::File(fs::path path_, sqlite3 *db_){
 	times.actime = info.st_atime;
 	times.modtime = info.st_mtime;
 	get_info(db);
-	/*if((attr_len = getxattr(old_path.c_str(),"user.autotier_pin",strbuff,sizeof(strbuff))) != ERR){
-		strbuff[attr_len] = '\0'; // c-string
-		pinned_to = fs::path(strbuff);
-	}
-	if(getxattr(old_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity)) <= 0){
-		// initialize
-		popularity = MULTIPLIER*AVG_USAGE;
-	}*/
 	last_atime = times.actime;
 }
 
 File::~File(){
 	put_info(db);
-	//write_xattrs();
 }
 
 void File::log_movement(){
@@ -148,14 +131,6 @@ void File::calc_popularity(){
 	double diff = time(NULL) - last_atime;
 	popularity = MULTIPLIER / (DAMPING * (diff + 1.0))
 						 + (1.0 - 1.0 / DAMPING) * popularity;
-}
-
-void File::write_xattrs(){
-	if(deleted) return;
-	if(setxattr(new_path.c_str(),"user.autotier_popularity",&popularity,sizeof(popularity),0)==ERR)
-		error(SETX);
-	if(setxattr(new_path.c_str(),"user.autotier_pin",pinned_to.c_str(),strlen(pinned_to.c_str()),0)==ERR)
-		error(SETX);
 }
 
 bool File::is_open(void){
