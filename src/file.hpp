@@ -66,7 +66,6 @@ public:
 	fs::path pinned_to;
 	fs::path cache_path;
 	fs::path current_tier;
-	void write_xattrs(void);
 	void log_movement(void);
 	void move(void);
 	void cache(void);
