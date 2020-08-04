@@ -19,15 +19,21 @@
 
 #pragma once
 
-#include <string>
+#define FUSE_USE_VERSION 30
 
-#define ERR -1
+#include "tier.hpp"
+#include <list>
+#include <sqlite3.h>
+#include <fuse.h>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
 
-extern int log_lvl;
+class FusePassthrough{
+private:
+	void open_db(void);
+public:
+	FusePassthrough(std::list<Tier> &tiers_);
+	~FusePassthrough(void);
+	int mount_fs(fs::path mountpoint);
+};
 
-#define NUM_ERRORS 16
-enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX, LOG_LVL, PERIOD, GET_MUTEX_NAME, CACHE_FIRST_TIER, CACHE_ONLY_TIER, MOUNT, FORK, OPEN_DB, MOUNTPOINT};
-
-void error(enum Error error);
-
-void Log(std::string msg, int lvl);
