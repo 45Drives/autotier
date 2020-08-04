@@ -250,7 +250,6 @@ void TierEngine::move_files(){
 			 * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
 			 *		 Be sure to check if new name doesnt exist before moving the file.
 			 */
-			//fptr->log_movement();
 			fptr->move();
 		}
 	}

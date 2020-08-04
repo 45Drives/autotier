@@ -71,13 +71,6 @@ File::~File(){
 	put_info(db);
 }
 
-void File::log_movement(){
-	Log("OldPath: " + old_path.string(),3);
-	Log("NewPath: " + new_path.string(),3);
-	Log("UserPin: " + pinned_to.string(),3);
-	Log("",3);
-}
-
 void File::move(){
 	if(old_path == new_path) return;
 	if(is_open()){
