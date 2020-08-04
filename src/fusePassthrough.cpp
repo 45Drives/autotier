@@ -258,6 +258,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	if (flags)
 		return -EINVAL;
 	
+	File *f_old = new File(from, db);
 	File f(from, db);
 	fs::path from_abs(f.old_path);
 	fs::path to_rel = (fs::path(to).is_absolute())? fs::relative(fs::path(to), fs::path("/")) : fs::path(to);
@@ -269,6 +270,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	res = rename(from_abs.c_str(), to_abs.c_str());
 	if (res == -1)
 		return -errno;
+	remove_file(f_old);
 
 	return 0;
 }
