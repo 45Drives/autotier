@@ -29,7 +29,7 @@ CXX									 = g++
 #CC										= $(CXX)
 
 # The extra pre-processor and compiler options; applies to both C and C++ compiling as well as LD. 
-EXTRA_CFLAGS					 = -g
+EXTRA_CFLAGS					 = -g -std=c++11
 
 # The extra linker options, e.g. "-lmysqlclient -lz" -l:libfuse3.so -lpthread
 EXTRA_LDFLAGS					= -g -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lsqlite3

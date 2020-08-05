@@ -21,6 +21,7 @@
 #include "tier.hpp"
 #include "file.hpp"
 #include "alert.hpp"
+#include "fusePassthrough.hpp"
 
 #include <chrono>
 #include <thread>

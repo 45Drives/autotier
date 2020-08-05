@@ -39,8 +39,7 @@ static void launch_daemon(int argc, char *argv[]){
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	parse_flags(argc, argv, config_path);
 	TierEngine autotier(config_path);
-	
-	
+  
 #ifdef THREAD
 	std::thread fuse;
 #endif
@@ -50,8 +49,7 @@ static void launch_daemon(int argc, char *argv[]){
 #ifdef THREAD
 	if(cmd == RUN)
 		fuse = std::thread(fuse_thread, autotier.get_mountpoint(), std::ref(autotier.get_tiers()));
-#endif
-#ifndef THREAD
+#else
 	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
 	if(pid == -1){
 		error(FORK);

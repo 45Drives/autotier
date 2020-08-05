@@ -41,12 +41,16 @@
 #endif
 #include <list>
 #include <fuse.h>
+#include <unordered_map>
+#include <fstream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 static sqlite3 *db;
 
 static std::list<Tier *> tiers;
+
+static std::unordered_map<std::string, std::string> path_cache;
 
 fs::path _mountpoint_;
 
@@ -348,35 +352,38 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 }
 
 static int at_open(const char *path, struct fuse_file_info *fi){
+  fuse_log(FUSE_LOG_ALERT, "open %s", path);
+  int res;
 	fs::path p(path);
+  std::string backend;
 	if(is_file(p)){
-		File f(path, db);
-		int res;
-		
-		res = open(f.old_path.c_str(), fi->flags);
-		if (res == -1)
-			return -errno;
-		
-		fi->fh = res;
+		if((backend = path_cache[path+1]).empty()){
+      File f(path, db);
+      path_cache[path+1] = backend = f.old_path.string();
+    }
 	}else{
-		int res;
-		
-		res = open((tiers.front()->dir / p).c_str(), fi->flags);
-		if (res == -1)
-			return -errno;
-		
-		fi->fh = res;
+    backend = (tiers.front()->dir / p).string();
 	}
+  res = open(backend.c_str(), fi->flags);
+  if (res == -1)
+    return -errno;
+  fi->fh = res;
+  //path_cache.insert(std::make_pair<std::string, std::string>(p, backend));
 	return 0;
 }
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
+  fuse_log(FUSE_LOG_ALERT, "read %s", path);
 	int fd;
 	int res;
+  std::string backend;
 
 	if(fi == NULL){
-		File f(path, db);
-		fd = open(f.old_path.c_str(), O_RDONLY);
+    if((backend = path_cache[path+1]).empty()){
+      File f(path, db);
+      path_cache[path+1] = backend = f.old_path.string();
+    }
+		fd = open(backend.c_str(), O_RDONLY);
 	}else
 		fd = fi->fh;
 	
@@ -393,13 +400,18 @@ static int at_read(const char *path, char *buf, size_t size, off_t offset, struc
 }
 
 static int at_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
+  fuse_log(FUSE_LOG_ALERT, "write %s", path);
 	int fd;
 	int res;
+  std::string backend;
 
 	(void) fi;
 	if(fi == NULL){
-		File f(path, db);
-		fd = open(f.old_path.c_str(), O_WRONLY);
+    if((backend = path_cache[path+1]).empty()){
+      File f(path, db);
+      path_cache[path+1] = backend = f.old_path.string();
+    }
+		fd = open(backend.c_str(), O_WRONLY);
 	}else
 		fd = fi->fh;
 	
@@ -438,8 +450,9 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 }
 
 static int at_release(const char *path, struct fuse_file_info *fi){
-	(void) path;
+  fuse_log(FUSE_LOG_ALERT, "close %s", path);
 	close(fi->fh);
+  path_cache.erase(path+1);
 	return 0;
 }
 
@@ -652,5 +665,6 @@ int FusePassthrough::mount_fs(fs::path mountpoint){
 	strncpy(mountpoint_, mountpoint.c_str(), strlen(mountpoint.c_str())+1);
 	//std::cerr << std::string("\"") + std::string(mountpoint_) + std::string("\"") << std::endl;
 	char *argv[2] = {"autotier", mountpoint_};
-	return fuse_main(2, argv, &at_oper, NULL);
+	int res = fuse_main(2, argv, &at_oper, NULL);
+  return res;
 }
