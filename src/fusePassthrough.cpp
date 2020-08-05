@@ -341,8 +341,12 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
 
 	if (fi == NULL){
-		File f(path, db);
-		res = truncate(f.old_path.c_str(), size);
+    std::string backend;
+    if((backend = path_cache[path+1]).empty()){
+      File f(path, db);
+      path_cache[path+1] = backend = f.old_path.string();
+    }
+		res = truncate(backend.c_str(), size);
 	}else
 		res = ftruncate(fi->fh, size);
 	if (res == -1)
@@ -352,7 +356,6 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 }
 
 static int at_open(const char *path, struct fuse_file_info *fi){
-  fuse_log(FUSE_LOG_ALERT, "open %s", path);
   int res;
 	fs::path p(path);
   std::string backend;
@@ -373,7 +376,6 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 }
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
-  fuse_log(FUSE_LOG_ALERT, "read %s", path);
 	int fd;
 	int res;
   std::string backend;
@@ -400,7 +402,6 @@ static int at_read(const char *path, char *buf, size_t size, off_t offset, struc
 }
 
 static int at_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
-  fuse_log(FUSE_LOG_ALERT, "write %s", path);
 	int fd;
 	int res;
   std::string backend;
@@ -412,8 +413,9 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
       path_cache[path+1] = backend = f.old_path.string();
     }
 		fd = open(backend.c_str(), O_WRONLY);
-	}else
+	}else{
 		fd = fi->fh;
+  }
 	
 	if (fd == -1)
 		return -errno;
@@ -450,16 +452,12 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 }
 
 static int at_release(const char *path, struct fuse_file_info *fi){
-  fuse_log(FUSE_LOG_ALERT, "close %s", path);
 	close(fi->fh);
   path_cache.erase(path+1);
 	return 0;
 }
 
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
-	/* Just a stub.	 This method is optional and can safely be left
-		 unimplemented */
-
 	(void) path;
 	(void) isdatasync;
 	(void) fi;
