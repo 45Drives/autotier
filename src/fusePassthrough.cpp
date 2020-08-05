@@ -62,7 +62,7 @@ FusePassthrough::~FusePassthrough(){
 }
 
 void FusePassthrough::open_db(){
-	int res = sqlite3_open(RUN_PATH "/db.sqlite", &db);
+	int res = sqlite3_open((RUN_PATH + "/db.sqlite").c_str(), &db);
 	char *errMsg = 0;
 	if(res){
 		std::cerr << "Error opening database: " << sqlite3_errmsg(db);

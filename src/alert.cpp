@@ -42,7 +42,8 @@ std::string errors[NUM_ERRORS] = {
 	"Error mounting mergerfs.",
 	"Error forking.",
 	"Error opening database.",
-	"Error: mountpoint does not exist or is not a directory."
+	"Error: mountpoint does not exist or is not a directory.",
+  "Error creating run path."
 };
 
 void error(enum Error error){

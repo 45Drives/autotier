@@ -19,9 +19,8 @@
 
 #pragma once
 
-#define RUN_PATH "/run/autotier"
-
 #include <sqlite3.h>
+#include <string>
 #include <signal.h>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -30,6 +29,8 @@ namespace fs = boost::filesystem;
 #include "file.hpp"
 #include "config.hpp"
 #include "alert.hpp"
+
+extern std::string RUN_PATH;
 
 // forward declarations
 class Tier;

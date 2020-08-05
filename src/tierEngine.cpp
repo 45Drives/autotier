@@ -29,6 +29,8 @@
 #include <sys/xattr.h>
 #include <signal.h>
 
+std::string RUN_PATH = "/run/autotier";
+
 sig_atomic_t stopFlag = false;
 
 void int_handler(int){
@@ -41,10 +43,19 @@ TierEngine::TierEngine(const fs::path &config_path){
 	config.load(config_path, tiers, cache, hasCache);
 	//tiers_ptr = &tiers;
 	log_lvl = config.log_lvl;
+	while(!is_directory(fs::path(RUN_PATH))){
+    try{
+      create_directories(fs::path(RUN_PATH));
+    }catch(boost::filesystem::filesystem_error){
+      char *home = getenv("HOME");
+      if(home == NULL){
+        error(CREATE_RUNPATH);
+        exit(1);
+      }
+      RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
+    }
+  }
 	mutex_path = fs::path(RUN_PATH) / get_mutex_name(config_path);
-	if(!is_directory(fs::path(RUN_PATH))){
-		create_directories(fs::path(RUN_PATH));
-	}
 	open_db();
 }
 
@@ -61,7 +72,7 @@ std::list<Tier> &TierEngine::get_tiers(void){
 }
 
 void TierEngine::open_db(){
-	int res = sqlite3_open(RUN_PATH "/db.sqlite", &db);
+	int res = sqlite3_open((RUN_PATH + "/db.sqlite").c_str(), &db);
 	char *errMsg = 0;
 	if(res){
 		std::cerr << "Error opening database: " << sqlite3_errmsg(db);
