@@ -170,22 +170,21 @@ static int remove_file(File *f){
 // methods
 
 static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
-	(void) fi;
-	fs::path p(path);
-	if(is_file(p)){
-		File f(p, db);
-		int res;
-
-		res = lstat(f.old_path.c_str(), stbuf);
-		if (res == -1)
-			return -errno;
-	}else{
-		int res;
-		
-		res = lstat((tiers.front()->dir / p).c_str(), stbuf);
-		if (res == -1)
-			return -errno;
-	}
+  int res;
+  (void) path;
+  if(fi == NULL){
+    fs::path p(path);
+    if(is_file(p)){
+      File f(p, db);
+      res = lstat(f.old_path.c_str(), stbuf);
+    }else{
+      res = lstat((tiers.front()->dir / p).c_str(), stbuf);
+    }
+  }else{
+    res = fstat(fi->fh, stbuf);
+  }
+  if (res == -1)
+    return -errno;
 	return 0;
 }
 
@@ -202,14 +201,14 @@ static int at_readlink(const char *path, char *buf, size_t size){
 }
 
 static int at_mknod(const char *path, mode_t mode, dev_t rdev){
-	File f(path, db);
-	int res;
+  int res;
+	fs::path fullpath(tiers.front()->dir / path);
+  res = mknod_wrapper(AT_FDCWD, fullpath.c_str(), NULL, mode, rdev);
+	if (res == -1)
+		return -errno;
+	File(path, tiers.front(), db);
 
-		res = mknod_wrapper(AT_FDCWD, f.old_path.c_str(), NULL, mode, rdev);
-		if (res == -1)
-			return -errno;
-
-		return 0;
+	return 0;
 }
 
 static int at_mkdir(const char *path, mode_t mode){
@@ -371,61 +370,30 @@ static int at_open(const char *path, struct fuse_file_info *fi){
   if (res == -1)
     return -errno;
   fi->fh = res;
-  //path_cache.insert(std::make_pair<std::string, std::string>(p, backend));
 	return 0;
 }
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
-	int fd;
 	int res;
-  std::string backend;
-
-	if(fi == NULL){
-    if((backend = path_cache[path+1]).empty()){
-      File f(path, db);
-      path_cache[path+1] = backend = f.old_path.string();
-    }
-		fd = open(backend.c_str(), O_RDONLY);
-	}else
-		fd = fi->fh;
-	
-	if (fd == -1)
-		return -errno;
-
-	res = pread(fd, buf, size, offset);
-	if (res == -1)
-		res = -errno;
-
-	if(fi == NULL)
-		close(fd);
-	return res;
+  
+  (void) path;
+  
+  res = pread(fi->fh, buf, size, offset);
+  if(res == -1)
+    return -errno;
+  
+  return res;
 }
 
 static int at_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
-	int fd;
 	int res;
-  std::string backend;
 
-	(void) fi;
-	if(fi == NULL){
-    if((backend = path_cache[path+1]).empty()){
-      File f(path, db);
-      path_cache[path+1] = backend = f.old_path.string();
-    }
-		fd = open(backend.c_str(), O_WRONLY);
-	}else{
-		fd = fi->fh;
-  }
-	
-	if (fd == -1)
+	(void) path;
+
+	res = pwrite(fi->fh, buf, size, offset);
+	if (res == -1)
 		return -errno;
 
-	res = pwrite(fd, buf, size, offset);
-	if (res == -1)
-		res = -errno;
-
-	if(fi == NULL)
-		close(fd);
 	return res;
 }
 
@@ -451,6 +419,24 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 	return 0;
 }
 
+static int at_flush(const char *path, struct fuse_file_info *fi)
+{
+	int res;
+
+	(void) path;
+	/* This is called from every close on an open file, so call the
+	   close on the underlying filesystem.	But since flush may be
+	   called multiple times for an open file, this must not really
+	   close the file.  This is important if used on a network
+	   filesystem like NFS which flush the data/metadata on close() */
+	res = close(dup(fi->fh));
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+
 static int at_release(const char *path, struct fuse_file_info *fi){
 	close(fi->fh);
   path_cache.erase(path+1);
@@ -458,9 +444,20 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 }
 
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
+	int res;
 	(void) path;
+
+#ifndef HAVE_FDATASYNC
 	(void) isdatasync;
-	(void) fi;
+#else
+	if (isdatasync)
+		res = fdatasync(fi->fh);
+	else
+#endif
+		res = fsync(fi->fh);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
 
@@ -578,9 +575,47 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 }
 
 #endif
+
+static int at_write_buf(const char *path, struct fuse_bufvec *buf, off_t offset, struct fuse_file_info *fi){
+	struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
+
+	(void) path;
+
+	dst.buf[0].flags = (fuse_buf_flags)(FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+	dst.buf[0].fd = fi->fh;
+	dst.buf[0].pos = offset;
+
+	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+}
+
+static int at_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size, off_t offset, struct fuse_file_info *fi){
+	struct fuse_bufvec *src;
+
+	(void) path;
+
+	src = (struct fuse_bufvec *)malloc(sizeof(struct fuse_bufvec));
+	if (src == NULL)
+		return -ENOMEM;
+
+	*src = FUSE_BUFVEC_INIT(size);
+
+	src->buf[0].flags = (fuse_buf_flags)(FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+	src->buf[0].fd = fi->fh;
+	src->buf[0].pos = offset;
+
+	*bufp = src;
+
+	return 0;
+}
+
 #ifdef HAVE_POSIX_FALLOCATE
 static int at_fallocate(const char *path, int mode, off_t offset, off_t length, struct fuse_file_info *fi){
-	
+	(void) path;
+
+	if (mode)
+		return -EOPNOTSUPP;
+
+	return -posix_fallocate(fi->fh, offset, length);
 }
 
 #endif
@@ -636,6 +671,7 @@ int FusePassthrough::mount_fs(fs::path mountpoint){
 		.read							= at_read,
 		.write						= at_write,
 		.statfs						= at_statfs,
+    .flush            = at_flush,
 		.release					= at_release,
 		.fsync						= at_fsync,
 #ifdef HAVE_SETXATTR
@@ -651,6 +687,8 @@ int FusePassthrough::mount_fs(fs::path mountpoint){
 #ifdef HAVE_UTIMENSAT
 		.utimens					= at_utimens,
 #endif
+    .write_buf        = at_write_buf,
+    .read_buf         = at_read_buf,
 #ifdef HAVE_POSIX_FALLOCATE
 		.fallocate				= at_fallocate,
 #endif
