@@ -72,7 +72,7 @@ void usage(){
   "See <https://www.gnu.org/licenses/> for more details.\n"
   "\n"
 	"Usage:\n"
-	"  autotier <command> <flags>\n"
+	"  autotier <command> [<flags>]\n"
 	"Commands:\n"
 	"  oneshot     - execute tiering only once\n"
 	"  run         - start tiering of files as daemon\n"
