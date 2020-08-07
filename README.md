@@ -1,5 +1,5 @@
 # autotier
-Intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.
+A passthrough filesystem that intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.
 
 ## What it does
 `autotier` is a tiered FUSE filesystem which acts as a merging passthrough to any number of underlying filesystems. These underlying filesystems can be of any type. Behind the scenes, `autotier` moves files around such that the most often accessed files are kept in the highest tier. `autotier` fills each defined tier up to their watermarked capacity, starting at the fastest tier with the highest priority files. If you do a lot of writing, set a lower watermark for the highest tier to allow for more room. If you do mostly reading, set a higher watermark to allow for as much use as possible out of your available top tier storage.  
