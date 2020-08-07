@@ -34,8 +34,8 @@ The RPM install package includes a systemd unit file. Configure `autotier` as de
 ### Command Line Tools
 ```
 Usage:
-  autotier <command> <flags> [{-c|--config} </path/to/config>]
-commands:
+  autotier <command> [<flags>]
+Commands:
   oneshot     - execute tiering only once
   run         - start tiering of files as daemon
   status      - list info about defined tiers
@@ -43,18 +43,24 @@ commands:
               - pin file(s) to tier using tier name in config file
               - if a path to a directory is passed, all top-level files
                 will be pinned
-              - "path/to/file" must be relative to the autotier mountpoint.
+              - "path/to/file" must be relative to the autotier mountpoint
   unpin <path/to/file>...
               - remove pin from file(s)
-              - "path/to/file" must be relative to the autotier mountpoint.
+              - "path/to/file" must be relative to the autotier mountpoint
   config      - display current configuration file
   list-pins   - show all pinned files
   list-popularity
               - print list of all tier files sorted by frequency of use
   help        - display this message
-flags:
-  -c --config <path/to/config>
+Flags:
+  -c, --config <path/to/config>
               - override configuration file path (default /etc/autotier.conf)
+  -m, --mountpoint <path/to/mountpoint>
+              - override mountpoint from configuration file
+  -o, --fuse-options <comma,separated,list>
+              - mount options to pass to fuse (see man mount.fuse)
+  --verbose   - set log level to 2
+  --quiet     - set log level to 0 (no output)
 ```
 Examples:  
 Run tiering of files in daemon mode:  

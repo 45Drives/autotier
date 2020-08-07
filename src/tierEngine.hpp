@@ -59,6 +59,7 @@ public:
 	fs::path get_mountpoint(void);
 	std::list<Tier> &get_tiers(void);
   Tier *tier_lookup(fs::path p);
+  Config *get_config(void);
 	void begin(bool daemon_mode);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
@@ -70,6 +71,6 @@ public:
 	void move_files(void);
 	void print_tier_info(void);
 	void pin_files(std::string tier_name, std::vector<fs::path> &files_);
-	void unpin(int argc, char *argv[]);
+	void unpin(int optind, int argc, char *argv[]);
 	void calc_popularity(void);
 };

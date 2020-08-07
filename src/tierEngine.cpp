@@ -38,24 +38,37 @@ void int_handler(int){
 	stopFlag = true;
 }
 
-TierEngine::TierEngine(const fs::path &config_path){
-	signal(SIGINT, &int_handler);
-	signal(SIGTERM, &int_handler);
-	config.load(config_path, tiers, cache, hasCache);
-	//tiers_ptr = &tiers;
-	log_lvl = config.log_lvl;
-	while(!is_directory(fs::path(RUN_PATH))){
+inline void pick_run_path(void){
+  if(!is_directory(fs::path(RUN_PATH))){
     try{
       create_directories(fs::path(RUN_PATH));
     }catch(boost::filesystem::filesystem_error){
       char *home = getenv("HOME");
       if(home == NULL){
         error(CREATE_RUNPATH);
-        exit(1);
+        exit(EXIT_FAILURE);
       }
       RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
+      create_directories(fs::path(RUN_PATH));
     }
+  }else if(access(RUN_PATH.c_str(), R_OK | W_OK) != 0){
+    char *home = getenv("HOME");
+    if(home == NULL){
+      error(CREATE_RUNPATH);
+      exit(EXIT_FAILURE);
+    }
+    RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
+    create_directories(fs::path(RUN_PATH));
   }
+}
+
+TierEngine::TierEngine(const fs::path &config_path){
+	signal(SIGINT, &int_handler);
+	signal(SIGTERM, &int_handler);
+	config.load(config_path, tiers, cache, hasCache);
+	//tiers_ptr = &tiers;
+	if(log_lvl == -1) log_lvl = config.log_lvl;
+  pick_run_path();
 	mutex_path = fs::path(RUN_PATH) / get_mutex_name(config_path);
 	open_db();
 }
@@ -124,6 +137,10 @@ Tier *TierEngine::tier_lookup(fs::path p){
     if(t->dir == p)
       return &(*t);
   }
+}
+
+Config *TierEngine::get_config(void){
+  return &config;
 }
 
 void TierEngine::begin(bool daemon_mode){
@@ -322,9 +339,10 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 	}
 }
 
-void TierEngine::unpin(int argc, char *argv[]){
-	for(int i = 2; i < argc; i++){
-		fs::path temp(argv[i]);
+void TierEngine::unpin(int optind, int argc, char *argv[]){
+  // argv = {"unpin", file(s), ...}
+	while(optind < argc){
+		fs::path temp(argv[optind++]);
 		File f(temp, db);
 		if(!exists(f.current_tier / f.rel_path)){
 			Log("File does not exist! " + f.rel_path.string(), 0);

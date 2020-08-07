@@ -28,12 +28,12 @@ namespace fs = boost::filesystem;
 #define NUM_COMMANDS 9
 enum command_enum {RUN, ONESHOT, STATUS, PIN, CONFIG, HELP, UNPIN, LPIN, LPOP};
 
+enum args {PROG, COMMAND, OPTS};
+
 extern std::regex command_list[NUM_COMMANDS];
 
-int get_command_index(int argc, char *argv[]);
+int get_command_index(const char *cmd);
 
-void parse_flags(int argc, char *argv[], fs::path &config_path);
-
-void pin(int argc, char *argv[], TierEngine &autotier);
+void pin(int optind, int argc, char *argv[], TierEngine &autotier);
 
 void usage(void);
