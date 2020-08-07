@@ -53,6 +53,7 @@ Commands:
               - print list of all tier files sorted by frequency of use
   help        - display this message
 Flags:
+  -h, --help  - display this message and cancel current command
   -c, --config <path/to/config>
               - override configuration file path (default /etc/autotier.conf)
   -m, --mountpoint <path/to/mountpoint>
