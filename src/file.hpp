@@ -1,20 +1,20 @@
 /*
-    Copyright (C) 2019-2020 Joshua Boudreau
-    
-    This file is part of autotier.
+		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
+		
+		This file is part of autotier.
 
-    autotier is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+		autotier is free software: you can redistribute it and/or modify
+		it under the terms of the GNU General Public License as published by
+		the Free Software Foundation, either version 3 of the License, or
+		(at your option) any later version.
 
-    autotier is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+		autotier is distributed in the hope that it will be useful,
+		but WITHOUT ANY WARRANTY; without even the implied warranty of
+		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+		GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+		You should have received a copy of the GNU General Public License
+		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
 */
 
 
@@ -41,31 +41,38 @@
 
 class Tier;
 
+#include <sqlite3.h>
 #include <utime.h>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 class File{
 private:
-  bool deleted = false;
+	bool deleted = false;
+	sqlite3 *db;
 public:
-  double popularity;
-  long last_atime;
-  long size;
-  Tier *old_tier;
-  struct utimbuf times;
-  fs::path symlink_path;
-  fs::path old_path;
-  fs::path new_path;
-  fs::path pinned_to;
-  void write_xattrs(void);
-  void log_movement(void);
-  void move(void);
-  void copy_ownership_and_perms(void);
-  void calc_popularity(void);
-  bool is_open(void);
-  File(fs::path path_, Tier *tptr);
-  File(const File &rhs);
-  ~File();
-  File &operator=(const File &rhs);
+	File(fs::path path_, Tier *tptr, sqlite3 *db_);
+	File(fs::path path_, sqlite3 *db_);
+	~File();
+	size_t ID;
+	double popularity = MULTIPLIER*AVG_USAGE;
+	long last_atime;
+	long size;
+	Tier *old_tier;
+	struct utimbuf times;
+	fs::path rel_path;
+	fs::path old_path;
+	fs::path new_path;
+	fs::path pinned_to;
+	fs::path cache_path;
+	fs::path current_tier;
+	void move(void);
+	void cache(void);
+	void uncache(void);
+	void copy_ownership_and_perms(void);
+	void calc_popularity(void);
+	bool is_open(void);
+	int get_info(sqlite3 *db);
+	int put_info(sqlite3 *db);
+	int callback(int count, char *data[], char *cols[]);
 };
