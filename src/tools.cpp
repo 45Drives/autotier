@@ -92,6 +92,7 @@ void usage(){
 	"              - print list of all tier files sorted by frequency of use\n"
 	"  help        - display this message\n"
 	"Flags:\n"
+  "  -h, --help  - display this message and cancel current command\n"
 	"  -c, --config <path/to/config>\n"
 	"              - override configuration file path (default /etc/autotier.conf)\n"
   "  -m, --mountpoint <path/to/mountpoint>\n"

@@ -137,6 +137,7 @@ Tier *TierEngine::tier_lookup(fs::path p){
     if(t->dir == p)
       return &(*t);
   }
+  return NULL;
 }
 
 Config *TierEngine::get_config(void){
@@ -203,7 +204,8 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 	files.emplace_back(fs::relative(file, tptr->dir), tptr, db);
   if(!files.back().pinned_to.empty()){
-    tier_lookup(files.back().pinned_to)->pinned_files_size += files.back().size;
+    Tier *tptr = tier_lookup(files.back().pinned_to);
+    if(tptr) tptr->pinned_files_size += files.back().size;
   }
 	if(hasCache){
 		File *fptr = &files.back();
