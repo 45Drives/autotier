@@ -30,25 +30,11 @@
 int main(int argc, char *argv[]){
 	int opt;
 	int option_ind = 0;
+	int cmd;
 	bool daemon_mode = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
-	
-	if(argc < 2){
-		std::cerr << "No command passed." << std::endl;
-		usage();
-		exit(EXIT_FAILURE);
-	}
-	
-	int cmd = get_command_index(argv[1]);
-	
-	if(cmd != ERR){
-		// skip command arg
-		argv[1] = argv[0]; // overwrite command with prog name
-	  argc--;
-	  argv++; // point to command
-	}
 	
 	static struct option long_options[] = {
 		{"config",		   required_argument, 0, 'c'},
@@ -85,8 +71,16 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	if(optind < argc){
+		cmd = get_command_index(argv[optind++]);
+	}else{
+		std::cerr << "No command passed." << std::endl;
+		usage();
+		exit(EXIT_FAILURE);
+	}
+	
 	if(cmd == ERR){
-		std::cerr << "Unknown command: " << argv[1] << std::endl;
+		std::cerr << "Unknown command: " << argv[optind-1] << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	
@@ -112,18 +106,19 @@ int main(int argc, char *argv[]){
 			autotier.print_tier_info();
 			break;
 		case PIN:
-			pin(argc, argv, autotier);
+			pin(optind, argc, argv, autotier);
 			break;
 		case CONFIG:
 			std::cout << "Config file: (" << config_path.string() << ")" << std::endl;
 			std::cout << std::ifstream(config_path.string()).rdbuf();
 			break;
 		case UNPIN:
-			if(argc < 3){
+			if(argc - optind < 1){
+				std::cerr << "No file names passed." << std::endl;
 				usage();
 				exit(1);
 			}
-			autotier.unpin(argc, argv);
+			autotier.unpin(optind, argc, argv);
 			break;
 		case LPIN:
 			std::cout << "Pinned files:" << std::endl;

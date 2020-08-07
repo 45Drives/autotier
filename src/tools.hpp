@@ -34,6 +34,6 @@ extern std::regex command_list[NUM_COMMANDS];
 
 int get_command_index(const char *cmd);
 
-void pin(int argc, char *argv[], TierEngine &autotier);
+void pin(int optind, int argc, char *argv[], TierEngine &autotier);
 
 void usage(void);

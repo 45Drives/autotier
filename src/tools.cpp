@@ -51,15 +51,16 @@ int get_command_index(const char *cmd){
 	return ERR;
 }
 
-void pin(int argc, char *argv[], TierEngine &autotier){
-	if(argc < 4){
+void pin(int optind, int argc, char *argv[], TierEngine &autotier){
+	if(argc - optind < 2){
+    std::cerr << "Invalid argument(s)." << std::endl;
 		usage();
 		exit(1);
 	}
-	std::string tier_name = argv[2];
+	std::string tier_name = argv[optind++];
 	std::vector<fs::path> files;
-	for(int i = 3; i < argc; i++){
-		files.emplace_back(argv[i]);
+	while(optind < argc){
+		files.emplace_back(argv[optind++]);
 	}
 	Log("Pinning files to " + tier_name, 2);
 	autotier.pin_files(tier_name, files);

@@ -339,9 +339,10 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 	}
 }
 
-void TierEngine::unpin(int argc, char *argv[]){
-	for(int i = 2; i < argc; i++){
-		fs::path temp(argv[i]);
+void TierEngine::unpin(int optind, int argc, char *argv[]){
+  // argv = {"unpin", file(s), ...}
+	while(optind < argc){
+		fs::path temp(argv[optind++]);
 		File f(temp, db);
 		if(!exists(f.current_tier / f.rel_path)){
 			Log("File does not exist! " + f.rel_path.string(), 0);

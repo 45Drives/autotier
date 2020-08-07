@@ -71,6 +71,6 @@ public:
 	void move_files(void);
 	void print_tier_info(void);
 	void pin_files(std::string tier_name, std::vector<fs::path> &files_);
-	void unpin(int argc, char *argv[]);
+	void unpin(int optind, int argc, char *argv[]);
 	void calc_popularity(void);
 };
