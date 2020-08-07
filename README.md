@@ -7,7 +7,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ```
-yum install https://github.com/45Drives/autotier/releases/download/v0.6.3-beta/autotier-0.6.3-1.el7.x86_64.rpm
+yum install https://github.com/45Drives/autotier/releases/download/v0.7.1-beta/autotier-0.7.1-1.el8.x86_64.rpm
 ```
 
 For apt-get based systems, or building from source:
