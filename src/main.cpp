@@ -157,8 +157,6 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
-	//launch_daemon(argc, argv);
-	
 	return 0;
 }
 
