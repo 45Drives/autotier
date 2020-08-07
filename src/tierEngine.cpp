@@ -38,12 +38,7 @@ void int_handler(int){
 	stopFlag = true;
 }
 
-TierEngine::TierEngine(const fs::path &config_path){
-	signal(SIGINT, &int_handler);
-	signal(SIGTERM, &int_handler);
-	config.load(config_path, tiers, cache, hasCache);
-	//tiers_ptr = &tiers;
-	if(log_lvl == -1) log_lvl = config.log_lvl;
+inline void pick_run_path(void){
   if(!is_directory(fs::path(RUN_PATH))){
     try{
       create_directories(fs::path(RUN_PATH));
@@ -65,6 +60,15 @@ TierEngine::TierEngine(const fs::path &config_path){
     RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
     create_directories(fs::path(RUN_PATH));
   }
+}
+
+TierEngine::TierEngine(const fs::path &config_path){
+	signal(SIGINT, &int_handler);
+	signal(SIGTERM, &int_handler);
+	config.load(config_path, tiers, cache, hasCache);
+	//tiers_ptr = &tiers;
+	if(log_lvl == -1) log_lvl = config.log_lvl;
+  pick_run_path();
 	mutex_path = fs::path(RUN_PATH) / get_mutex_name(config_path);
 	open_db();
 }
