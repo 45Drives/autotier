@@ -44,17 +44,26 @@ TierEngine::TierEngine(const fs::path &config_path){
 	config.load(config_path, tiers, cache, hasCache);
 	//tiers_ptr = &tiers;
 	if(log_lvl == -1) log_lvl = config.log_lvl;
-	while(!is_directory(fs::path(RUN_PATH))){
+  if(!is_directory(fs::path(RUN_PATH))){
     try{
       create_directories(fs::path(RUN_PATH));
     }catch(boost::filesystem::filesystem_error){
       char *home = getenv("HOME");
       if(home == NULL){
         error(CREATE_RUNPATH);
-        exit(1);
+        exit(EXIT_FAILURE);
       }
       RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
+      create_directories(fs::path(RUN_PATH));
     }
+  }else if(access(RUN_PATH.c_str(), R_OK | W_OK) != 0){
+    char *home = getenv("HOME");
+    if(home == NULL){
+      error(CREATE_RUNPATH);
+      exit(EXIT_FAILURE);
+    }
+    RUN_PATH.assign(std::string(home) + "/.local/run/autotier");
+    create_directories(fs::path(RUN_PATH));
   }
 	mutex_path = fs::path(RUN_PATH) / get_mutex_name(config_path);
 	open_db();
