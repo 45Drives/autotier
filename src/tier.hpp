@@ -29,6 +29,7 @@ namespace fs = boost::filesystem;
 class Tier{
 public:
 	unsigned long watermark_bytes;
+  unsigned long pinned_files_size;
 	int watermark;
 	fs::path dir;
 	std::string id;

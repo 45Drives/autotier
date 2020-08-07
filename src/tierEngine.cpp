@@ -119,6 +119,13 @@ void TierEngine::unlock_mutex(void){
 	remove(mutex_path);
 }
 
+Tier *TierEngine::tier_lookup(fs::path p){
+  for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    if(t->dir == p)
+      return &(*t);
+  }
+}
+
 void TierEngine::begin(bool daemon_mode){
 	Log("autotier started.",1);
 	unsigned int timer = 0;
@@ -160,6 +167,7 @@ void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entr
 	Log("Gathering files.",2);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    t->pinned_files_size = 0;
 		crawl(t->dir, &(*t), function);
 	}
 }
@@ -177,6 +185,9 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 	files.emplace_back(fs::relative(file, tptr->dir), tptr, db);
+  if(!files.back().pinned_to.empty()){
+    tier_lookup(files.back().pinned_to)->pinned_files_size += files.back().size;
+  }
 	if(hasCache){
 		File *fptr = &files.back();
 		fptr->cache_path = cache->dir/relative(fptr->old_path, fptr->old_tier->dir);
@@ -189,7 +200,7 @@ void TierEngine::print_file_pins(){
 			continue;
 		std::cout << fptr->old_path.string() << std::endl;
 		std::cout << "pinned to" << std::endl;
-		std::cout << fptr->pinned_to.string();
+		std::cout << fptr->pinned_to.string() << std::endl;
 	}
 	files.clear();
 }
