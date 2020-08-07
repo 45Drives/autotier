@@ -34,6 +34,6 @@ private:
 public:
 	FusePassthrough(std::list<Tier> &tiers_);
 	~FusePassthrough(void);
-	int mount_fs(fs::path mountpoint);
+	int mount_fs(fs::path mountpoint, char *fuse_opts);
 };
 

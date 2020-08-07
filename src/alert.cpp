@@ -24,7 +24,7 @@
 
 std::mutex alert_mutex;
 
-int log_lvl;
+int log_lvl = -1;
 
 std::string errors[NUM_ERRORS] = {
 	"Error loading configuration file.",

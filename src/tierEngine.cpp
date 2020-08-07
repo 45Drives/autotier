@@ -43,7 +43,7 @@ TierEngine::TierEngine(const fs::path &config_path){
 	signal(SIGTERM, &int_handler);
 	config.load(config_path, tiers, cache, hasCache);
 	//tiers_ptr = &tiers;
-	log_lvl = config.log_lvl;
+	if(log_lvl == -1) log_lvl = config.log_lvl;
 	while(!is_directory(fs::path(RUN_PATH))){
     try{
       create_directories(fs::path(RUN_PATH));
@@ -124,6 +124,10 @@ Tier *TierEngine::tier_lookup(fs::path p){
     if(t->dir == p)
       return &(*t);
   }
+}
+
+Config *TierEngine::get_config(void){
+  return &config;
 }
 
 void TierEngine::begin(bool daemon_mode){

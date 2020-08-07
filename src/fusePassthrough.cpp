@@ -41,6 +41,7 @@
 #endif
 #include <list>
 #include <fuse.h>
+#include <string.h>
 #include <unordered_map>
 #include <fstream>
 #include <boost/filesystem.hpp>
@@ -651,8 +652,8 @@ static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_
 }
 
 
-int FusePassthrough::mount_fs(fs::path mountpoint){
-	_mountpoint_ = mountpoint;
+int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
+	_mountpoint_ = mountpoint; // global
 	Log("Mounting filesystem", 2);
 	static const struct fuse_operations at_oper = {
 		.getattr					= at_getattr,
@@ -697,10 +698,11 @@ int FusePassthrough::mount_fs(fs::path mountpoint){
 #endif
 		.lseek						= at_lseek,
 	};
-	char mountpoint_[4096];
-	strncpy(mountpoint_, mountpoint.c_str(), strlen(mountpoint.c_str())+1);
 	//std::cerr << std::string("\"") + std::string(mountpoint_) + std::string("\"") << std::endl;
-	char *argv[2] = {"autotier", mountpoint_};
-	int res = fuse_main(2, argv, &at_oper, NULL);
-  return res;
+	std::vector<char *>argv = {strdup("autotier"), strdup(mountpoint.c_str())};
+  if(fuse_opts){
+    argv.push_back(strdup("-o"));
+    argv.push_back(fuse_opts);
+  }
+	return fuse_main(argv.size(), argv.data(), &at_oper, NULL);
 }

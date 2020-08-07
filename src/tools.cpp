@@ -43,30 +43,12 @@ std::regex command_list[NUM_COMMANDS] = {
 	std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
 };
 
-int get_command_index(int argc, char *argv[]){
-	if(argc < 2){ // no command
-		return ERR;
-	}
-	std::string command = argv[1];
+int get_command_index(const char *cmd){
 	for(int itr = 0; itr < NUM_COMMANDS; itr++){
-		if(regex_match(command,command_list[itr]))
+		if(regex_match(cmd,command_list[itr]))
 			return itr;
 	}
 	return ERR;
-}
-
-void parse_flags(int argc, char *argv[], fs::path &config_path){
-	for(int i = 0; i < argc; i++){
-		if(regex_match(argv[i],std::regex("^-c|--config$"))){
-			if(++i >= argc){
-				usage();
-				exit(1);
-			}
-			config_path = fs::path(argv[i]);
-		}else if(regex_match(argv[i],std::regex("^-r|--recursive$"))){
-			recursive_flag_set = true;
-		}
-	}
 }
 
 void pin(int argc, char *argv[], TierEngine &autotier){
@@ -90,8 +72,8 @@ void usage(){
   "See <https://www.gnu.org/licenses/> for more details.\n"
   "\n"
 	"Usage:\n"
-	"  autotier <command> <flags> [{-c|--config} </path/to/config>]\n"
-	"commands:\n"
+	"  autotier <command> <flags>\n"
+	"Commands:\n"
 	"  oneshot     - execute tiering only once\n"
 	"  run         - start tiering of files as daemon\n"
 	"  status      - list info about defined tiers\n"
@@ -99,17 +81,23 @@ void usage(){
 	"              - pin file(s) to tier using tier name in config file\n"
 	"              - if a path to a directory is passed, all top-level files\n"
 	"                will be pinned\n"
-	"              - \"path/to/file\" must be relative to the autotier mountpoint.\n"
+	"              - \"path/to/file\" must be relative to the autotier mountpoint\n"
 	"  unpin <path/to/file>...\n"
 	"              - remove pin from file(s)\n"
-	"              - \"path/to/file\" must be relative to the autotier mountpoint.\n"
+	"              - \"path/to/file\" must be relative to the autotier mountpoint\n"
 	"  config      - display current configuration file\n"
 	"  list-pins   - show all pinned files\n"
 	"  list-popularity\n"
 	"              - print list of all tier files sorted by frequency of use\n"
 	"  help        - display this message\n"
-	"flags:\n"
-	"  -c --config <path/to/config>\n"
+	"Flags:\n"
+	"  -c, --config <path/to/config>\n"
 	"              - override configuration file path (default /etc/autotier.conf)\n"
+  "  -m, --mountpoint <path/to/mountpoint>\n"
+  "              - override mountpoint from configuration file\n"
+  "  -o, --fuse-options <comma,separated,list>\n"
+  "              - mount options to pass to fuse (see man mount.fuse)\n"
+  "  --verbose   - set log level to 2\n"
+  "  --quiet     - set log level to 0 (no output)\n"
 	<< std::endl;
 }
