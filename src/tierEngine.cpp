@@ -223,15 +223,15 @@ void TierEngine::sort(){
 
 void TierEngine::simulate_tier(){
 	Log("Finding files' tiers.",2);
-	long tier_use = 0;
 	std::list<File>::iterator fptr = files.begin();
 	std::list<Tier>::iterator tptr = tiers.begin();
+	long tier_use = tptr->pinned_files_size;
 	tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
 	while(fptr != files.end()){
 		if(tier_use + fptr->size >= tptr->watermark_bytes){
 			// move to next tier
-			tier_use = 0;
 			if(++tptr == tiers.end()) break;
+			tier_use = tptr->pinned_files_size;
 			tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
 		}
 		tier_use += fptr->size;
