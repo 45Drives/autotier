@@ -95,7 +95,7 @@ void TierEngine::open_db(){
 		Log("Opened database successfully", 2);
 	}
 	
-	sqlite3_busy_timeout(db, 20);
+	sqlite3_busy_timeout(db, 50);
 	
 	const char *sql =
 	"CREATE TABLE IF NOT EXISTS Files("
