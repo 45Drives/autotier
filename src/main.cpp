@@ -32,21 +32,24 @@ int main(int argc, char *argv[]){
 	int option_ind = 0;
 	int cmd;
 	bool daemon_mode = false;
+	int byte_format = BYTES;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
 	
 	static struct option long_options[] = {
-		{"config",		   required_argument, 0, 'c'},
-		{"help",         no_argument,       0, 'h'},
-		{"mountpoint",   required_argument, 0, 'm'},
-		{"fuse-options", required_argument, 0, 'o'},
-		{"verbose",      no_argument,       &log_lvl, 2},
-		{"quiet",        no_argument,       &log_lvl, 0},
+		{"config",		     required_argument, 0, 'c'},
+		{"help",           no_argument,       0, 'h'},
+		{"mountpoint",     required_argument, 0, 'm'},
+		{"fuse-options",   required_argument, 0, 'o'},
+		{"binary",         no_argument,       0, 'B'},
+		{"SI",             no_argument,       0, 'S'},
+		{"verbose",        no_argument,       &log_lvl, 2},
+		{"quiet",          no_argument,       &log_lvl, 0},
 		{0, 0, 0, 0}
 	};
 	
-	while((opt = getopt_long(argc, argv, "c:hm:o:", long_options, &option_ind)) != -1){
+	while((opt = getopt_long(argc, argv, "c:hm:o:BS", long_options, &option_ind)) != -1){
 		switch(opt){
 		case 0:
 			// flag set
@@ -63,6 +66,12 @@ int main(int argc, char *argv[]){
 			break;
 		case 'o':
 			fuse_opts = optarg;
+			break;
+		case 'B':
+			byte_format = POWTWO;
+			break;
+		case 'S':
+			byte_format = POWTEN;
 			break;
 		case '?':
 			break; // getopt_long prints errors
@@ -86,6 +95,7 @@ int main(int argc, char *argv[]){
 	
 	TierEngine autotier(config_path);
 	if(mountpoint.empty()) mountpoint = autotier.get_mountpoint(); // grab from config
+	autotier.get_config()->byte_format = byte_format;
 	
 	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
 	if(pid == -1){
@@ -99,6 +109,7 @@ int main(int argc, char *argv[]){
 		switch(cmd){
 		case RUN:
 			daemon_mode = true;
+			__attribute__((fallthrough));
 		case ONESHOT:
 			autotier.begin(daemon_mode);
 			break;

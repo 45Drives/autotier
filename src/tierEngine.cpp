@@ -29,6 +29,8 @@
 #include <fcntl.h>
 #include <sys/xattr.h>
 #include <signal.h>
+#include <sstream>
+#include <cmath>
 
 std::string RUN_PATH = "/run/autotier";
 
@@ -38,11 +40,42 @@ void int_handler(int){
 	stopFlag = true;
 }
 
+std::string TierEngine::print_bytes(unsigned long long bytes){
+  switch(config.byte_format){
+  case BYTES:
+    return std::to_string(bytes) + "B";
+  case POWTEN:
+    {
+    std::stringstream out;
+    std::string suffix[] = {"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+    int ind = (int)(log((double)bytes) / log(1000.0));
+    double divisor = pow(1000.0, (double)ind);
+    unsigned value = (unsigned)((double)bytes / divisor);
+    unsigned fract = (unsigned)round(((double)(bytes - value) * 10.0 / divisor));
+    out << value << '.' << fract << suffix[ind];
+    return out.str();
+    }
+  case POWTWO:
+    {
+    std::stringstream out;
+    std::string suffix[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"};
+    int ind = (int)(log((double)bytes) / log(1024.0));
+    double divisor = pow(1024.0, (double)ind);
+    unsigned value = (unsigned)round((double)bytes / divisor);
+    unsigned fract = (unsigned)round((double)(bytes - value) * 10.0 / divisor);
+    out << value << '.' << fract << suffix[ind];
+    return out.str();
+    }
+  default:
+    return "Error formatting bytes";
+  }
+}
+
 inline void pick_run_path(void){
   if(!is_directory(fs::path(RUN_PATH))){
     try{
       create_directories(fs::path(RUN_PATH));
-    }catch(boost::filesystem::filesystem_error){
+    }catch(const boost::filesystem::filesystem_error &){
       char *home = getenv("HOME");
       if(home == NULL){
         error(CREATE_RUNPATH);
@@ -65,7 +98,7 @@ inline void pick_run_path(void){
 TierEngine::TierEngine(const fs::path &config_path){
 	signal(SIGINT, &int_handler);
 	signal(SIGTERM, &int_handler);
-	config.load(config_path, tiers, cache, hasCache);
+	config.load(config_path, tiers);
 	//tiers_ptr = &tiers;
 	if(log_lvl == -1) log_lvl = config.log_lvl;
   pick_run_path();
@@ -177,7 +210,7 @@ void TierEngine::begin(bool daemon_mode){
 		// don't wait for oneshot execution
 		if(daemon_mode && duration < std::chrono::seconds(CALC_PERIOD))
 			std::this_thread::sleep_for(std::chrono::seconds(CALC_PERIOD)-duration);
-		timer = (++timer) % (config.period / CALC_PERIOD);
+		timer = (timer + 1) % (config.period / CALC_PERIOD);
 	}while(daemon_mode && !stopFlag);
 }
 
@@ -207,10 +240,6 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
     Tier *tptr = tier_lookup(files.back().pinned_to);
     if(tptr) tptr->pinned_files_size += files.back().size;
   }
-	if(hasCache){
-		File *fptr = &files.back();
-		fptr->cache_path = cache->dir/relative(fptr->old_path, fptr->old_tier->dir);
-	}
 }
 
 void TierEngine::print_file_pins(){
@@ -235,7 +264,12 @@ void TierEngine::sort(){
 	Log("Sorting files.",2);
 	files.sort(
 		[](const File &a, const File &b){
-			return (a.popularity == b.popularity)? a.times.actime > b.times.actime : a.popularity > b.popularity;
+      if(a.popularity == b.popularity){
+        if(a.times[0].tv_sec == b.times[0].tv_sec)
+          return a.times[0].tv_usec > b.times[0].tv_usec;
+        return a.times[0].tv_sec > b.times[0].tv_sec;
+      }
+      return a.popularity > b.popularity;
 		}
 	);
 }
@@ -244,28 +278,18 @@ void TierEngine::simulate_tier(){
 	Log("Finding files' tiers.",2);
 	std::list<File>::iterator fptr = files.begin();
 	std::list<Tier>::iterator tptr = tiers.begin();
-	long tier_use = tptr->pinned_files_size;
-	tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
+	unsigned long long tier_use = tptr->pinned_files_size;
+	tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100ull;
 	while(fptr != files.end()){
-		if(tier_use + fptr->size >= tptr->watermark_bytes){
+		if(tier_use + (unsigned long long)fptr->size >= tptr->watermark_bytes){
 			// move to next tier
 			if(++tptr == tiers.end()) break;
 			tier_use = tptr->pinned_files_size;
-			tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100;
+			tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100ull;
 		}
-		tier_use += fptr->size;
+		tier_use += (unsigned long long)fptr->size;
 		tptr->incoming_files.emplace_back(&(*fptr));
 		fptr++;
-	}
-	tier_use = 0;
-	fptr = files.begin();
-	if(hasCache){
-		cache->watermark_bytes = cache->get_capacity() * cache->watermark / 100;
-		while(fptr != files.end() && (tier_use + fptr->size < cache->watermark_bytes)){
-			tier_use += fptr->size;
-			cache->incoming_files.emplace_back(&(*fptr));
-			fptr++;
-		}
 	}
 }
 
@@ -295,14 +319,6 @@ void TierEngine::move_files(){
 			fptr->move();
 		}
 	}
-	if(hasCache){
-		for(std::list<File>::iterator fptr = files.begin(); fptr != files.end(); ++fptr){
-			fptr->uncache();
-		}
-		for(File * fptr : cache->incoming_files){
-			fptr->cache();
-		}
-	}
 }
 
 void TierEngine::print_tier_info(void){
@@ -315,8 +331,8 @@ void TierEngine::print_tier_info(void){
 		"Tier " << i++ << ":" << std::endl <<
 		"tier name: \"" << tptr->id << "\"" << std::endl <<
 		"tier path: " << tptr->dir.string() << std::endl <<
-		"current usage: " << tptr->get_usage() * 100 / tptr->get_capacity() << "% (" << tptr->get_usage() << " bytes)" << std::endl <<
-		"watermark: " << tptr->watermark << "% (" << tptr->get_capacity() * tptr->watermark / 100 << " bytes)" << std::endl <<
+		"current usage: " << tptr->get_usage() * 100 / tptr->get_capacity() << "% (" << print_bytes(tptr->get_usage()) << ")" << std::endl <<
+		"watermark: " << tptr->watermark << "% (" << print_bytes((double)tptr->get_capacity() * (double)tptr->watermark / 100.0) << ")" << std::endl <<
 		std::endl;
 	}
 }
