@@ -31,9 +31,19 @@ namespace fs = boost::filesystem;
 class FusePassthrough{
 private:
 	void open_db(void);
+  /* create connection to database for accessing file metadata,
+   * namely current_tier for constructing backend path
+   */
 public:
 	FusePassthrough(std::list<Tier> &tiers_);
+  /* calls open_db and saves pointers to each tier of tiers_
+   */
 	~FusePassthrough(void);
+  /* closes database
+   * TODO: should unmount fs aswell
+   */
 	int mount_fs(fs::path mountpoint, char *fuse_opts);
+  /* creates struct of FUSE function pointers and calls fuse_main()
+   */
 };
 
