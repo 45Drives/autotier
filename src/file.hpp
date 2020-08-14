@@ -59,28 +59,77 @@ private:
 public:
 	File(fs::path path_, Tier *tptr, sqlite3 *db_);
   /* file constructor used while tiering
+   * overwrites current tier path based on tptr
    */
 	File(fs::path path_, sqlite3 *db_);
   /* file constructor used by FUSE filesystem
+   * does not modify current tier path,
+   * grabs current tier path from db
+   * TODO: combine with above constructor
+   * with default value for tptr of NULL
    */
 	~File();
+  /* destructor - calls put_info(db)
+   */
 	size_t ID;
+  /* std::hash of rel_path
+   * used for indexing database table
+   */
 	double popularity = MULTIPLIER*AVG_USAGE;
+  /* popularity rating for sorting files
+   * defaults to new file popularity
+   * but is overridden with value from databse if exists
+   */
 	time_t last_atime;
+  /* last access time taken from stat() call
+   */
 	unsigned long size;
+  /* size of file in bytes
+   */
 	Tier *old_tier;
+  /* pointer to old tier for use while moving
+   */
   struct timeval times[2];
-	//struct utimbuf times;
 	fs::path rel_path;
+  /* file path relative to tier directory
+   */
 	fs::path old_path;
+  /* absolute path to file before moving
+   */
 	fs::path new_path;
+  /* absolute path to file after moving
+   */
 	fs::path pinned_to;
+  /* absolute path to root of tier to which file is pinned
+   */
 	fs::path current_tier;
+  /* absolute path to root of tier file currently occupies
+   */
 	void move(void);
+  /* if new_path != old path
+   * moves file from old_path to new_path
+   * does not modify atime or mtime
+   */
 	void copy_ownership_and_perms(void);
+  /* copy file ownership (user and group) from old_path to new_path
+   * copy file permissions from old_path to new_path
+   */
 	void calc_popularity(void);
+  /* calculate new popularity value of file
+   */
 	bool is_open(void);
+  /* fork and exec lsof, use return value to determine if the file is
+   * currently open. There is probably a less expensive way of doing this.
+   */
 	int get_info(sqlite3 *db);
+  /* execute SQL to retrieve file metadata from db
+   * using callback(count, data, cols) to load data
+   */
 	int put_info(sqlite3 *db);
+  /* execute SQL to insert/update file metadata into db
+   */
 	int callback(int count, char *data[], char *cols[]);
+  /* SQL callback - retrieves 1 record from DB per call and loads data from each
+   * column into File object
+   */
 };
