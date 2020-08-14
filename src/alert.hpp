@@ -26,8 +26,13 @@
 extern int log_lvl;
 
 #define NUM_ERRORS 15
-enum Error{LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX, LOG_LVL, PERIOD, GET_MUTEX_NAME, MOUNT, FORK, OPEN_DB, MOUNTPOINT, CREATE_RUNPATH};
+enum Error{
+  LOAD_CONF, TIER_DNE, NO_FIRST_TIER, NO_TIERS, ONE_TIER, WATERMARK_ERR, SETX,
+  LOG_LVL, PERIOD, GET_MUTEX_NAME, MOUNT, FORK, OPEN_DB, MOUNTPOINT, CREATE_RUNPATH
+};
 
 void error(enum Error error);
 
 void Log(std::string msg, int lvl);
+/* print msg to std::cout if lvl >= log_level from config or CLI opts
+ */
