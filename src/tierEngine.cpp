@@ -282,10 +282,12 @@ void TierEngine::simulate_tier(){
 	tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100ull;
 	while(fptr != files.end()){
 		if(tier_use + (unsigned long long)fptr->size >= tptr->watermark_bytes){
-			// move to next tier
-			if(++tptr == tiers.end()) break;
-			tier_use = tptr->pinned_files_size;
-			tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100ull;
+      if(std::next(tptr) != tiers.end()){
+        // move to next tier
+        tptr++;
+        tier_use = tptr->pinned_files_size;
+        tptr->watermark_bytes = tptr->get_capacity() * tptr->watermark / 100ull;
+      } // else: out of space!
 		}
 		tier_use += (unsigned long long)fptr->size;
 		tptr->incoming_files.emplace_back(&(*fptr));
