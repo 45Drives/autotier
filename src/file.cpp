@@ -57,7 +57,6 @@ File::File(fs::path path_, sqlite3 *db_){
 	get_info(db);
 	new_path = old_path = current_tier / path_;
 	old_tier = NULL;
-	get_info(db);
 	struct stat info;
 	stat(old_path.c_str(), &info);
 	size = (size_t)info.st_size;
