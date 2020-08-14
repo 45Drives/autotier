@@ -296,8 +296,7 @@ void TierEngine::simulate_tier(){
 }
 
 void TierEngine::move_files(){
-	/*
-	 * Currently, this starts at the lowest tier, assuming it has the most free space, and
+	/*  Currently, this starts at the lowest tier, assuming it has the most free space, and
 	 * moves all incoming files from their current tiers before moving on to the next lowest
 	 * tier. There should be a better way to shuffle all the files around to avoid over-filling
 	 * a tier by doing them one at a time.
@@ -310,13 +309,15 @@ void TierEngine::move_files(){
 			else
 				fptr->new_path = titr->dir;
 			fptr->new_path /= relative(fptr->old_path, fptr->old_tier->dir);
-			/*
-			 * TODO: handle cases where file already exists at destination (should not happen but could)
+			/* TODO: handle cases where file already exists at destination (should not happen but could)
 			 * 1 - Check if new_path exists.
 			 * 2 - Hash both old_path and new_path to check if they are the same file.
 			 * 2a- If old_hash == new_hash, remove old_path and create symlink if needed.
 			 * 2b- If old_hash != new_hash, rename the new_path file with new_path plus something to make it unique. 
 			 *		 Be sure to check if new name doesnt exist before moving the file.
+       * ^ don't hash here, hashing would be more expensive than checking content of files directly.
+       * Now that this is a filesystem, this should never happen
+       * anyway unless the end user purposely screws it up
 			 */
 			fptr->move();
 		}
