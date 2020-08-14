@@ -34,5 +34,5 @@ enum Error{
 void error(enum Error error);
 
 void Log(std::string msg, int lvl);
-/* print msg to std::cout if lvl >= log_level from config or CLI opts
+/* print msg to std::cout if lvl >= log_lvl from config or CLI opts
  */
