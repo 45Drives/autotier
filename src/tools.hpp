@@ -31,7 +31,14 @@ enum command_enum {RUN, ONESHOT, STATUS, PIN, CONFIG, HELP, UNPIN, LPIN, LPOP};
 extern std::regex command_list[NUM_COMMANDS];
 
 int get_command_index(const char *cmd);
+/* return switchable index determined by regex match of cmd against
+ * each entry in command_list
+ */
 
 void pin(int optind, int argc, char *argv[], TierEngine &autotier);
+/* grab tier name and set up list of files for TierEngine::pin_files()
+ */
 
 void usage(void);
+/* print usage message to std::cout
+ */
