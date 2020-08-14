@@ -184,7 +184,7 @@ bool Config::verify(const std::list<Tier> &tiers){
 		error(LOG_LVL);
 		errors = true;
 	}
-	if(period == (unsigned long long)ERR){
+	if(period == (unsigned long)ERR){
 		error(PERIOD);
 		errors = true;
 	}
