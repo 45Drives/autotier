@@ -173,6 +173,7 @@ static int remove_file(File *f){
 static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
   int res;
   (void) path;
+  
   if(fi == NULL){
     fs::path p(path);
     if(is_file(p)){
@@ -184,19 +185,19 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
   }else{
     res = fstat(fi->fh, stbuf);
   }
+  
   if (res == -1)
     return -errno;
 	return 0;
 }
 
 static int at_readlink(const char *path, char *buf, size_t size){
-	File f(path, db);
 	int res;
 	
-	res = readlink(f.old_path.c_str(), buf, size - 1);
+	res = readlink((tiers.front()->dir / fs::path(path)).c_str(), buf, size - 1);
+  
 	if (res == -1)
 		return -errno;
-	
 	buf[res] = '\0';
 	return 0;
 }
@@ -204,11 +205,12 @@ static int at_readlink(const char *path, char *buf, size_t size){
 static int at_mknod(const char *path, mode_t mode, dev_t rdev){
   int res;
 	fs::path fullpath(tiers.front()->dir / path);
+  
   res = mknod_wrapper(AT_FDCWD, fullpath.c_str(), NULL, mode, rdev);
+  
 	if (res == -1)
 		return -errno;
 	File(path, tiers.front(), db);
-
 	return 0;
 }
 
@@ -225,18 +227,19 @@ static int at_mkdir(const char *path, mode_t mode){
 }
 
 static int at_unlink(const char *path){
-	File *f = new File(path, db);
 	int res;
+	File *f = new File(path, db);
 
 	res = unlink(f->old_path.c_str());
+  
 	if (res == -1)
 		return -errno;
-	
 	return remove_file(f);
 }
 
 static int at_rmdir(const char *path){
 	int res;
+  
 	for(Tier *tptr : tiers){
 		res = rmdir((tptr->dir / fs::path(path)).c_str());
 		if (res == -1)
@@ -250,9 +253,9 @@ static int at_symlink(const char *from, const char *to){
 	int res;
 
 	res = symlink(from, (tiers.front()->dir / fs::path(to)).c_str());
+  
 	if (res == -1)
 		return -errno;
-
 	return 0;
 }
 
@@ -264,6 +267,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	
 	File *f_old = new File(from, db);
 	File f(from, db);
+  
 	fs::path from_abs(f.old_path);
 	fs::path to_rel = (fs::path(to).is_absolute())? fs::relative(fs::path(to), fs::path("/")) : fs::path(to);
 	fs::path to_abs = f.current_tier / to_rel;
@@ -272,17 +276,17 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	f.ID = std::hash<std::string>{}(to_rel.string());
 	
 	res = rename(from_abs.c_str(), to_abs.c_str());
+  
 	if (res == -1)
 		return -errno;
 	remove_file(f_old);
-
 	return 0;
 }
 
 static int at_link(const char *from, const char *to){
 	int res;
-	
 	File f(from, db);
+  
 	fs::path from_abs(f.old_path);
 	fs::path to_rel = (fs::path(to).is_absolute())? fs::relative(fs::path(to), fs::path("/")) : fs::path(to);
 	fs::path to_abs = f.current_tier / to_rel;
@@ -291,49 +295,43 @@ static int at_link(const char *from, const char *to){
 	f.ID = std::hash<std::string>{}(to_rel.string());
 	
 	res = link(from_abs.c_str(), to_abs.c_str());
+  
+  if(res == -1)
 		return -errno;
-
-	return 0;
+	return res;
 }
 
 static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
-	(void) fi;
+	int res;
+  (void) fi;
 	fs::path p(path);
+  
 	if(is_file(p)){
 		File f(p, db);
-		int res;
-
 		res = chmod(f.old_path.c_str(), mode);
-		if (res == -1)
-			return -errno;
 	}else{
-		int res;
-		
 		res = chmod((tiers.front()->dir / p).c_str(), mode);
-		if (res == -1)
-			return -errno;
 	}
 	
-	return 0;
+  if (res == -1)
+    return -errno;
+	return res;
 }
 
 static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi){
-	(void) fi;
 	int res;
-	
+	(void) fi;
 	fs::path p(path);
 	
 	if(is_file(p)){
 		File f(p, db);
 		res = lchown(f.old_path.c_str(), uid, gid);
-		if (res == -1)
-			return -errno;
 	}else{
 		res = lchown((tiers.front()->dir / p).c_str(), uid, gid);
-		if (res == -1)
-			return -errno;
 	}
 	
+  if (res == -1)
+    return -errno;
 	return 0;
 }
 
@@ -347,11 +345,12 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
       path_cache[path+1] = backend = f.old_path.string();
     }
 		res = truncate(backend.c_str(), size);
-	}else
+	}else{
 		res = ftruncate(fi->fh, size);
+  }
+  
 	if (res == -1)
 		return -errno;
-
 	return 0;
 }
 
@@ -359,6 +358,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
   int res;
 	fs::path p(path);
   std::string backend;
+  
 	if(is_file(p)){
 		if((backend = path_cache[path+1]).empty()){
       File f(path, db);
@@ -368,6 +368,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
     backend = (tiers.front()->dir / p).string();
 	}
   res = open(backend.c_str(), fi->flags);
+  
   if (res == -1)
     return -errno;
   fi->fh = res;
@@ -376,25 +377,23 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
 	int res;
-  
   (void) path;
   
   res = pread(fi->fh, buf, size, offset);
+  
   if(res == -1)
     return -errno;
-  
   return res;
 }
 
 static int at_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
 	int res;
-
 	(void) path;
 
 	res = pwrite(fi->fh, buf, size, offset);
+  
 	if (res == -1)
 		return -errno;
-
 	return res;
 }
 
@@ -423,17 +422,18 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 static int at_flush(const char *path, struct fuse_file_info *fi)
 {
 	int res;
-
 	(void) path;
+  
 	/* This is called from every close on an open file, so call the
 	   close on the underlying filesystem.	But since flush may be
 	   called multiple times for an open file, this must not really
 	   close the file.  This is important if used on a network
 	   filesystem like NFS which flush the data/metadata on close() */
+  
 	res = close(dup(fi->fh));
+  
 	if (res == -1)
 		return -errno;
-
 	return 0;
 }
 
@@ -456,9 +456,9 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 	else
 #endif
 		res = fsync(fi->fh);
+  
 	if (res == -1)
 		return -errno;
-
 	return 0;
 }
 
@@ -522,6 +522,7 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 		 the cache of the associated inode - resulting in an
 		 incorrect st_nlink value being reported for any remaining
 		 hardlinks to this inode. */
+  
 	cfg->entry_timeout = 0;
 	cfg->attr_timeout = 0;
 	cfg->negative_timeout = 0;
@@ -530,48 +531,45 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 }
 
 static int at_access(const char *path, int mask){
+  int res;
 	fs::path p(path);
+  
 	if(is_file(p)){
 		File f(p, db);
-		int res;
-		
 		res = access(f.old_path.c_str(), mask);
-		if (res == -1)
-			return -errno;
 	}else{
-		int res;
-		
 		res = access((tiers.front()->dir / p).c_str(), mask);
-		if (res == -1)
-			return -errno;
 	}
 	
+  if (res == -1)
+    return -errno;
 	return 0;
 }
 
 static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	int res;
 	fs::path fullpath(tiers.front()->dir / path);
+  
 	res = open(fullpath.c_str(), fi->flags, mode);
+  
 	if (res == -1)
 		return -errno;
 	File(path, tiers.front(), db);
-
 	fi->fh = res;
 	return 0;
 }
 
 #ifdef HAVE_UTIMENSAT
 static int at_utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi){
-	(void) fi;
-	File f(path, db);
 	int res;
+	File f(path, db);
+	(void) fi;
 	
 	/* don't use utime/utimes since they follow symlinks */
 	res = utimensat(0, f.old_path.c_str(), ts, AT_SYMLINK_NOFOLLOW);
+  
 	if (res == -1)
 		return -errno;
-
 	return 0;
 }
 

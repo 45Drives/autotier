@@ -27,7 +27,7 @@
 #include <boost/filesystem.hpp>
 #include <regex>
 
-void Config::load(const fs::path &config_path, std::list<Tier> &tiers, Tier *cache, bool &hasCache){
+void Config::load(const fs::path &config_path, std::list<Tier> &tiers){
 	log_lvl = 1; // default to 1
 	std::fstream config_file(config_path.string(), std::ios::in);
 	if(!config_file){
@@ -55,14 +55,8 @@ void Config::load(const fs::path &config_path, std::list<Tier> &tiers, Tier *cac
 			if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
 				if(this->load_global(config_file, id) == EOF) break;
 			}
-			if(regex_match(id,std::regex("^\\s*[Cc]ache\\s*$"))){
-				cache = new Tier(id);
-				tptr = cache;
-				hasCache = true;
-			}else{
-				tiers.emplace_back(id);
-				tptr = &tiers.back();
-			}
+      tiers.emplace_back(id);
+      tptr = &tiers.back();
 		}else if(tptr){
 			line_stream.str(line);
 			getline(line_stream, key, '=');
@@ -74,14 +68,14 @@ void Config::load(const fs::path &config_path, std::list<Tier> &tiers, Tier *cac
 			}else if(key == "WATERMARK"){
 				try{
 					tptr->watermark = stoi(value);
-				}catch(std::invalid_argument){
+				}catch(const std::invalid_argument &){
 					tptr->watermark = ERR;
 				}
 			} // else ignore
 		}
 	}
 	
-	if(verify(tiers, hasCache)){
+	if(verify(tiers)){
 		error(LOAD_CONF);
 		exit(1);
 	}
@@ -113,13 +107,13 @@ int Config::load_global(std::fstream &config_file, std::string &id){
 		if(key == "LOG_LEVEL"){
 			try{
 				this->log_lvl = stoi(value);
-			}catch(std::invalid_argument){
+			}catch(const std::invalid_argument &){
 				this->log_lvl = ERR;
 			}
 		}else if(key == "TIER_PERIOD"){
 			try{
 				this->period = stoul(value);
-			}catch(std::invalid_argument){
+			}catch(const std::invalid_argument &){
 				this->period = ERR;
 			}
 		}else if(key == "MOUNT_POINT"){
@@ -177,7 +171,7 @@ void Config::generate_config(std::fstream &file){
 	<< std::endl;
 }
 
-bool Config::verify(const std::list<Tier> &tiers, bool hasCache){
+bool Config::verify(const std::list<Tier> &tiers){
 	bool errors = false;
 	if(tiers.empty()){
 		error(NO_TIERS);
@@ -190,16 +184,12 @@ bool Config::verify(const std::list<Tier> &tiers, bool hasCache){
 		error(LOG_LVL);
 		errors = true;
 	}
-	if(period == ERR){
+	if(period == (unsigned long long)ERR){
 		error(PERIOD);
 		errors = true;
 	}
 	if(!fs::exists(mountpoint) || !fs::is_directory(mountpoint)){
 		error(MOUNTPOINT);
-		errors = true;
-	}
-	if(hasCache && tiers.size() < 2){
-		error(CACHE_ONLY_TIER);
 		errors = true;
 	}
 	for(Tier t : tiers){
@@ -220,6 +210,7 @@ bool Config::verify(const std::list<Tier> &tiers, bool hasCache){
 void Config::dump(std::ostream &os, const std::list<Tier> &tiers) const{
 	os << "[Global]" << std::endl;
 	os << "LOG_LEVEL=" << this->log_lvl << std::endl;
+  os << "MOUNT_POINT=" << this->mountpoint.string() << std::endl;
 	os << std::endl;
 	for(Tier t : tiers){
 		os << "[" << t.id << "]" << std::endl;

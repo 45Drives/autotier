@@ -48,7 +48,6 @@ namespace fs = boost::filesystem;
 
 class File{
 private:
-	bool deleted = false;
 	sqlite3 *db;
 public:
 	File(fs::path path_, Tier *tptr, sqlite3 *db_);
@@ -56,19 +55,17 @@ public:
 	~File();
 	size_t ID;
 	double popularity = MULTIPLIER*AVG_USAGE;
-	long last_atime;
-	long size;
+	time_t last_atime;
+	unsigned long size;
 	Tier *old_tier;
-	struct utimbuf times;
+  struct timeval times[2];
+	//struct utimbuf times;
 	fs::path rel_path;
 	fs::path old_path;
 	fs::path new_path;
 	fs::path pinned_to;
-	fs::path cache_path;
 	fs::path current_tier;
 	void move(void);
-	void cache(void);
-	void uncache(void);
 	void copy_ownership_and_perms(void);
 	void calc_popularity(void);
 	bool is_open(void);

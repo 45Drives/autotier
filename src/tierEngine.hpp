@@ -48,9 +48,8 @@ private:
 	int lock_mutex(void);
 	void unlock_mutex(void);
 	void open_db(void);
+  std::string print_bytes(unsigned long long bytes);
 protected:
-	bool hasCache = false;
-	Tier *cache = NULL;
 	std::list<Tier> tiers;
 	std::list<File> files;
 public:

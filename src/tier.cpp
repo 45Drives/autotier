@@ -21,7 +21,7 @@
 
 #include <sys/statvfs.h>
 
-unsigned long Tier::get_capacity(){
+unsigned long long Tier::get_capacity(){
 	/*
 	 * Returns maximum number of bytes
 	 * available in a tier
@@ -32,7 +32,7 @@ unsigned long Tier::get_capacity(){
 	return (fs_stats.f_blocks * fs_stats.f_bsize);
 }
 
-unsigned long Tier::get_usage(){
+unsigned long long Tier::get_usage(){
 	/*
 	 * Returns number of free bytes in a tier
 	 */

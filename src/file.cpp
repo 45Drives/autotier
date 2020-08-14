@@ -22,6 +22,7 @@
 
 #include <fcntl.h>
 #include <sstream>
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
 #include <sys/types.h>
@@ -36,17 +37,17 @@ File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
 	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
 	ID = std::hash<std::string>{}(rel_path.string());
 	get_info(db);
-	char strbuff[BUFF_SZ];
-	ssize_t attr_len;
 	current_tier = tptr->dir;
 	new_path = old_path = current_tier / path_;
 	old_tier = tptr;
 	struct stat info;
 	stat(old_path.c_str(), &info);
-	size = (long)info.st_size;
-	times.actime = info.st_atime;
-	times.modtime = info.st_mtime;
-	last_atime = times.actime;
+	size = (size_t)info.st_size;
+  times[0].tv_sec = info.st_atim.tv_sec;
+  times[0].tv_usec = info.st_atim.tv_nsec / 1000;
+  times[1].tv_sec = info.st_mtim.tv_sec;
+  times[1].tv_usec = info.st_mtim.tv_nsec / 1000;
+	last_atime = times[0].tv_sec;
 }
 
 File::File(fs::path path_, sqlite3 *db_){
@@ -54,17 +55,17 @@ File::File(fs::path path_, sqlite3 *db_){
 	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
 	ID = std::hash<std::string>{}(rel_path.string());
 	get_info(db);
-	char strbuff[BUFF_SZ];
-	ssize_t attr_len;
 	new_path = old_path = current_tier / path_;
 	old_tier = NULL;
+	get_info(db);
 	struct stat info;
 	stat(old_path.c_str(), &info);
-	size = (long)info.st_size;
-	times.actime = info.st_atime;
-	times.modtime = info.st_mtime;
-	get_info(db);
-	last_atime = times.actime;
+	size = (size_t)info.st_size;
+  times[0].tv_sec = info.st_atim.tv_sec;
+  times[0].tv_usec = info.st_atim.tv_nsec / 1000;
+  times[1].tv_sec = info.st_mtim.tv_sec;
+  times[1].tv_usec = info.st_mtim.tv_nsec / 1000;
+	last_atime = times[0].tv_sec;
 }
 
 File::~File(){
@@ -90,7 +91,6 @@ void File::move(){
 		if(e.code() == boost::system::errc::file_exists){
 			std::cerr << "User intervention required to delete duplicate file" << std::endl;
 		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			deleted = true;
 			std::cerr << "No action required." << std::endl;
 		}
 	}
@@ -99,15 +99,7 @@ void File::move(){
 		Log("Copy succeeded.\n",2);
 		remove(old_path);
 	}
-	utime(new_path.c_str(), &times); // overwrite mtime and atime with previous times
-}
-
-void File::cache(void){
-	if(old_path == new_path) return;
-}
-
-void File::uncache(void){
-	if(old_path == new_path) return;
+	utimes(new_path.c_str(), times); // overwrite mtime and atime with previous times
 }
 
 void File::copy_ownership_and_perms(){
