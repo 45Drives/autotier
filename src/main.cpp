@@ -28,6 +28,10 @@
 #include <getopt.h>
 
 int main(int argc, char *argv[]){
+	/* parse flags, get command,
+	 * construct TierEngine,
+	 * execute command.
+	 */
 	int opt;
 	int option_ind = 0;
 	int cmd;

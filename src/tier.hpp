@@ -29,17 +29,35 @@ namespace fs = boost::filesystem;
 class Tier{
 public:
 	unsigned long long watermark_bytes;
+  /* number of bytes at which to stop filling tier
+   */
   unsigned long long pinned_files_size;
+  /* size of files pinned to tier in bytes
+   */
 	int watermark;
+  /* percent of tier capacity at which to stop filling tier
+   */
 	fs::path dir;
+  /* backend path to tier
+   */
 	std::string id;
+  /* name of tier read in from configuration file
+   */
 	std::list<File *> incoming_files;
+  /* list of files to be moved into tier
+   */
 	Tier(std::string id_){
 		id = id_;
 	}
 	unsigned long long get_capacity();
+  /* returns capacity of tier in bytes
+   */
 	unsigned long long get_usage();
+  /* returns current tier fullness in bytes
+   */
 	void cleanup(void){
 		incoming_files.erase(incoming_files.begin(), incoming_files.end());
 	}
+  /* empties list at end of tiering cycle
+   */
 };
