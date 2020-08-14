@@ -106,8 +106,11 @@ public:
   /* absolute path to root of tier file currently occupies
    */
 	void move(void);
-  /* if new_path != old path
+  /* IF new_path != old path THEN
    * moves file from old_path to new_path
+   * ELSE
+   * do nothing
+   * END IF
    * does not modify atime or mtime
    */
 	void copy_ownership_and_perms(void);
