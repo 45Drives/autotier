@@ -20,26 +20,30 @@
 
 #pragma once
 
-/* popularity variables
- * y' = (1/DAMPING)*y*(1-(TIME_DIFF/NORMALIZER)*y)
- * DAMPING is how slowly popularity changes
- * TIME_DIFF is time since last file access
- * NORMALIZER is TIME_DIFF at which popularity -> 1.0
- * FLOOR ensures y stays above zero for stability
+/* popularity calculation
+ * y[n] = MULTIPLIER/(DAMPING * (time_diff + 1)) + (1 - 1/DAMPING) * y[n-1]
  */
 #define DAMPING 1000000.0
 #define MULTIPLIER 1000.0
+/* DAMPING is how slowly popularity changes
+ * TIME_DIFF is time since last file access
+ * MULTIPLIER is to scale values
+ */
 
 #define CALC_PERIOD 1
+/* period in seconds for popularity calculation
+ */
 
 #define AVG_USAGE 0.238 // 40hr/(7days * 24hr/day)
-
-#define BUFF_SZ 4096
+/* for calculating initial popularity for new files
+ */
 
 #include "alert.hpp"
 #include "tier.hpp"
 
 class Tier;
+/* forward declaration of class Tier
+ */
 
 #include <sqlite3.h>
 #include <utime.h>
@@ -49,9 +53,16 @@ namespace fs = boost::filesystem;
 class File{
 private:
 	sqlite3 *db;
+  /* database for storing file metadata
+   * was previously stored in extended attributes
+   */
 public:
 	File(fs::path path_, Tier *tptr, sqlite3 *db_);
+  /* file constructor used while tiering
+   */
 	File(fs::path path_, sqlite3 *db_);
+  /* file constructor used by FUSE filesystem
+   */
 	~File();
 	size_t ID;
 	double popularity = MULTIPLIER*AVG_USAGE;
