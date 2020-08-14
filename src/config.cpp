@@ -75,7 +75,7 @@ void Config::load(const fs::path &config_path, std::list<Tier> &tiers){
 		}
 	}
 	
-	if(verify(tiers)){
+	if(!verify(tiers)){
 		error(LOAD_CONF);
 		exit(1);
 	}
@@ -172,39 +172,39 @@ void Config::generate_config(std::fstream &file){
 }
 
 bool Config::verify(const std::list<Tier> &tiers){
-	bool errors = false;
+	bool no_errors = true;
 	if(tiers.empty()){
 		error(NO_TIERS);
-		errors = true;
+		no_errors = false;
 	}else if(tiers.size() == 1){
 		error(ONE_TIER);
-		errors = true;
+		no_errors = false;
 	}
 	if(log_lvl == ERR){
 		error(LOG_LVL);
-		errors = true;
+		no_errors = false;
 	}
 	if(period == (unsigned long)ERR){
 		error(PERIOD);
-		errors = true;
+		no_errors = false;
 	}
 	if(!fs::exists(mountpoint) || !fs::is_directory(mountpoint)){
 		error(MOUNTPOINT);
-		errors = true;
+		no_errors = false;
 	}
 	for(Tier t : tiers){
 		if(!is_directory(t.dir)){
 			std::cerr << t.id << ": ";
 			error(TIER_DNE);
-			errors = true;
+      no_errors = false;
 		}
 		if(t.watermark == ERR || t.watermark > 100 || t.watermark < 0){
 			std::cerr << t.id << ": ";
 			error(WATERMARK_ERR);
-			errors = true;
+      no_errors = false;
 		}
 	}
-	return errors;
+	return no_errors;
 }
 
 void Config::dump(std::ostream &os, const std::list<Tier> &tiers) const{
