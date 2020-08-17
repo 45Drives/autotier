@@ -235,7 +235,7 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 }
 
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
-	files.emplace_back(fs::relative(file, tptr->dir), tptr, db);
+	files.emplace_back(fs::relative(file, tptr->dir), db, tptr);
   if(!files.back().pinned_to.empty()){
     Tier *tptr = tier_lookup(files.back().pinned_to);
     if(tptr) tptr->pinned_files_size += files.back().size;

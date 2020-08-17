@@ -57,16 +57,11 @@ private:
    * was previously stored in extended attributes
    */
 public:
-	File(fs::path path_, Tier *tptr, sqlite3 *db_);
+	File(fs::path path_, sqlite3 *db_, Tier *tptr = NULL);
   /* file constructor used while tiering
-   * overwrites current tier path based on tptr
-   */
-	File(fs::path path_, sqlite3 *db_);
-  /* file constructor used by FUSE filesystem
-   * does not modify current tier path,
+   * overwrites current tier path based on tptr if tptr != NULL,
+   * else does not modify current tier path and
    * grabs current tier path from db
-   * TODO: combine with above constructor
-   * with default value for tptr of NULL
    */
 	~File();
   /* destructor - calls put_info(db)
