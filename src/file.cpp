@@ -32,31 +32,16 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-File::File(fs::path path_, Tier *tptr, sqlite3 *db_){
+File::File(fs::path path_, sqlite3 *db_, Tier *tptr){
 	db = db_;
 	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
 	ID = std::hash<std::string>{}(rel_path.string());
 	get_info(db);
-	current_tier = tptr->dir;
+  if(tptr){
+    current_tier = tptr->dir;
+  } // else keep current_tier grabbed from db
+  old_tier = tptr; // either tier or NULL
 	new_path = old_path = current_tier / path_;
-	old_tier = tptr;
-	struct stat info;
-	stat(old_path.c_str(), &info);
-	size = (size_t)info.st_size;
-  times[0].tv_sec = info.st_atim.tv_sec;
-  times[0].tv_usec = info.st_atim.tv_nsec / 1000;
-  times[1].tv_sec = info.st_mtim.tv_sec;
-  times[1].tv_usec = info.st_mtim.tv_nsec / 1000;
-	last_atime = times[0].tv_sec;
-}
-
-File::File(fs::path path_, sqlite3 *db_){
-	db = db_;
-	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
-	ID = std::hash<std::string>{}(rel_path.string());
-	get_info(db);
-	new_path = old_path = current_tier / path_;
-	old_tier = NULL;
 	struct stat info;
 	stat(old_path.c_str(), &info);
 	size = (size_t)info.st_size;

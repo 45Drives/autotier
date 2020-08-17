@@ -95,7 +95,9 @@ public:
   /* returns reference to list of tiers
    */
   Tier *tier_lookup(fs::path p);
-  /* returns pointer to tier with path p
+  Tier *tier_lookup(std::string id);
+  /* returns pointer to tier either with t->dir == p
+   * or with t->id == id
    * useful for file pinning
    */
   Config *get_config(void);
@@ -156,7 +158,7 @@ public:
    */
 	void pin_files(std::string tier_name, std::vector<fs::path> &files_);
   /* pin each file in files_ to tier referenced by tier_name
-   * TODO: use tier_lookup to find tier, remove non-existant files from db
+   * TODO: remove non-existant files from db
    * possibly just use SQL directly to accomplish this
    */
 	void unpin(int optind, int argc, char *argv[]);
