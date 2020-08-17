@@ -173,6 +173,14 @@ Tier *TierEngine::tier_lookup(fs::path p){
   return NULL;
 }
 
+Tier *TierEngine::tier_lookup(std::string id){
+  for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+    if(t->id == id)
+      return &(*t);
+  }
+  return NULL;
+}
+
 Config *TierEngine::get_config(void){
   return &config;
 }
@@ -341,12 +349,8 @@ void TierEngine::print_tier_info(void){
 }
 
 void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
-	std::list<Tier>::iterator tptr_pin;
-	for(tptr_pin = tiers.begin(); tptr_pin != tiers.end(); ++tptr_pin){
-		if(tier_name == tptr_pin->id)
-			break;
-	}
-	if(tptr_pin == tiers.end()){
+	Tier *tptr;
+	if((tptr = tier_lookup(tier_name)) == NULL){
 		Log("Tier does not exist.",0);
 		exit(1);
 	}
@@ -356,7 +360,7 @@ void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_)
 			Log("File does not exist! " + fptr->string(),0);
 			continue;
 		}
-		f.pinned_to = tptr_pin->dir;
+		f.pinned_to = tptr->dir;
 	}
 }
 
