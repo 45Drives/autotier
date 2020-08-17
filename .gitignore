@@ -31,3 +31,4 @@
 *.out
 *.app
 autotier
+!example/autotier
