@@ -6,12 +6,12 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 ![autotier example](doc/mounted_fs_status.png)
 
 ## Installation
-### Current release
-* `yum install https://github.com/45Drives/autotier/releases/download/v0.7.1-beta/autotier-0.7.1-1.el8.x86_64.rpm`
+### Current Release
+* `dnf install https://github.com/45Drives/autotier/releases/download/v0.7.1-beta/autotier-0.7.1-1.el8.x86_64.rpm`
 * Create configuration file
 * `systemctl enable --now autotier`
 
-### Installing from source
+### Installing from Source
 * Install dependencies: boost-devel, fuse-devel, sqlite-devel
 * `git clone https://github.com/45drives/autotier`
 * `cd autotier`
@@ -21,7 +21,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 * `systemctl enable --now autotier`
 
 ### Uninstallation
-From RPM: `yum remove autotier`  
+From RPM: `dnf remove autotier`  
 From source: `make uninstall`
 
 ## Configuration
