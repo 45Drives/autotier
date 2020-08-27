@@ -1,0 +1,11 @@
+[Unit]
+Description=autotier
+After=network.service
+
+[Service]
+Type=simple
+PIDFile=/var/run/autotier.pid
+ExecStart=/usr/local/bin/autotier run
+
+[Install]
+WantedBy=multi-user.target
