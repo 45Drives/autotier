@@ -59,7 +59,7 @@ File::~File(){
 void File::move(){
 	if(old_path == new_path) return;
 	if(is_open()){
-		std::cerr << "File is open by another process." << std::endl;
+		Log("File is open by another process.", 2);
 		new_path = old_path;
 		return;
 	}
