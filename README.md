@@ -12,7 +12,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 * `systemctl enable --now autotier`
 
 ### Installing from source
-* Install dependencies: boost-devel, fuse-devel  
+* Install dependencies: boost-devel, fuse-devel, sqlite-devel
 * `git clone https://github.com/45drives/autotier`
 * `cd autotier`
 * `make`
