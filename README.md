@@ -18,7 +18,14 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 * `make`
 * `sudo make install`
 * Create configuration file
-* `systemctl enable --now autotier`
+* `systemctl enable --now autotier`  
+  
+If you get the following error after running make:
+```
+/usr/bin/ld: cannot find -l:libboost_system.a
+/usr/bin/ld: cannot find -l:libboost_filesystem.a
+```
+then run `sed -i "s/\\.a\\b/.so/g" makefile` to switch from static linking to dynamic linking.
 
 ### Uninstallation
 From RPM: `dnf remove autotier`  
