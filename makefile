@@ -1,13 +1,13 @@
 TARGET = autotier
 LIBS =  -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lsqlite3
 CC = g++
-CFLAGS = -std=gnu++11 -Wall -Wextra -I/usr/include/fuse3
+CFLAGS = -g -std=gnu++11 -Wall -Wextra -I/usr/include/fuse3
 
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
 HEADERS = $(wildcard src/*.hpp)
 
 ifeq ($(PREFIX),)
-	PREFIX := /usr/local
+	PREFIX := /opt/45drives/autotier
 endif
 
 .PHONY: default all clean clean-build clean-target install uninstall
