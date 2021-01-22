@@ -31,3 +31,18 @@
 *.out
 *.app
 autotier
+
+# Kate swap file
+*.kate-swp
+
+# kdevelop
+.kdev4/
+*.kdev4
+
+# deb packaging
+debian/cephgeorep
+debian/cephgeorep.substvars
+debian/cephgeorep.postrm.debhelper
+debian/debhelper-build-stamp
+debian/files
+debian/.debhelper
