@@ -1,7 +1,7 @@
 TARGET = autotier
-LIBS =  -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lsqlite3
+LIBS =  -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lrocksdb -lboost_serialization
 CC = g++
-CFLAGS = -g -std=gnu++11 -Wall -Wextra -I/usr/include/fuse3
+CFLAGS = -g -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -I/usr/include/fuse -D_FILE_OFFSET_BITS=64 
 
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
 HEADERS = $(wildcard src/*.hpp)

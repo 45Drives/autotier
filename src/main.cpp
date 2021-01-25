@@ -1,21 +1,21 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include "config.hpp"
 #include "tierEngine.hpp"
@@ -35,8 +35,8 @@ int main(int argc, char *argv[]){
 	int opt;
 	int option_ind = 0;
 	int cmd;
+	int log_lvl = 1;
 	bool daemon_mode = false;
-	int byte_format = BYTES;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
@@ -44,16 +44,13 @@ int main(int argc, char *argv[]){
 	static struct option long_options[] = {
 		{"config",		     required_argument, 0, 'c'},
 		{"help",           no_argument,       0, 'h'},
-		{"mountpoint",     required_argument, 0, 'm'},
 		{"fuse-options",   required_argument, 0, 'o'},
-		{"binary",         no_argument,       0, 'B'},
-		{"SI",             no_argument,       0, 'S'},
 		{"verbose",        no_argument,       &log_lvl, 2},
 		{"quiet",          no_argument,       &log_lvl, 0},
 		{0, 0, 0, 0}
 	};
 	
-	while((opt = getopt_long(argc, argv, "c:hm:o:BS", long_options, &option_ind)) != -1){
+	while((opt = getopt_long(argc, argv, "c:ho:BS", long_options, &option_ind)) != -1){
 		switch(opt){
 		case 0:
 			// flag set
@@ -65,17 +62,8 @@ int main(int argc, char *argv[]){
 			usage();
 			exit(EXIT_SUCCESS);
 			break;
-		case 'm':
-			mountpoint = optarg;
-			break;
 		case 'o':
 			fuse_opts = optarg;
-			break;
-		case 'B':
-			byte_format = POWTWO;
-			break;
-		case 'S':
-			byte_format = POWTEN;
 			break;
 		case '?':
 			break; // getopt_long prints errors
@@ -85,35 +73,31 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(optind < argc){
-		cmd = get_command_index(argv[optind++]);
+		cmd = get_command_index(argv[optind]);
 	}else{
-		std::cerr << "No command passed." << std::endl;
+		Logging::log.error("No command passed.", false);
 		usage();
 		exit(EXIT_FAILURE);
 	}
 	
-	if(cmd == ERR){
-		std::cerr << "Unknown command: " << argv[optind-1] << std::endl;
-		exit(EXIT_FAILURE);
+	TierEngine autotier(config_path);
+	
+	if(cmd == MOUNTPOINT){
+		mountpoint = argv[optind];
+		daemon_mode = true;
+		pid_t pid = fork(); // fork if run else goto parent
+		if(pid == -1){
+			Logging::log.error("Error forking!");
+		}else if(pid == 0){
+			// child
+			FusePassthrough at_filesystem(autotier.get_tiers(), autotier.get_db());
+			at_filesystem.mount_fs(mountpoint, fuse_opts);
+			return 0;
+		}
 	}
 	
-	TierEngine autotier(config_path);
-	if(mountpoint.empty()) mountpoint = autotier.get_mountpoint(); // grab from config
-	autotier.get_config()->byte_format = byte_format;
-	
-	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
-	if(pid == -1){
-		error(FORK);
-		exit(EXIT_FAILURE);
-	}else if(pid == 0){
-		// child
-		FusePassthrough at_filesystem(autotier.get_tiers());
-		at_filesystem.mount_fs(mountpoint, fuse_opts);
-	}else{
-		switch(cmd){
-		case RUN:
-			daemon_mode = true;
-			__attribute__((fallthrough));
+	switch(cmd){
+		case MOUNTPOINT:
 		case ONESHOT:
 			autotier.begin(daemon_mode);
 			break;
@@ -152,26 +136,7 @@ int main(int argc, char *argv[]){
 			usage();
 			exit(EXIT_FAILURE);
 			break;
-		}
-		if(cmd == RUN){
-			// kill fusermount
-			int fusermount_pid = fork();
-			switch(fusermount_pid){
-			case 0:
-				// child
-				execlp("umount", "umount", mountpoint.c_str(), NULL);
-				error(MOUNT);
-				exit(EXIT_FAILURE);
-			case -1:
-				error(FORK);
-				exit(EXIT_FAILURE);
-			default:
-				// parent
-				break;
-			}
-		}
 	}
-	
 	return 0;
 }
 

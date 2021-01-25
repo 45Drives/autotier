@@ -1,22 +1,21 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
-
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
@@ -45,89 +44,84 @@ class Tier;
 /* forward declaration of class Tier
  */
 
-#include <sqlite3.h>
-#include <utime.h>
+#include <chrono>
+#include <rocksdb/db.h>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/level.hpp> 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+BOOST_CLASS_IMPLEMENTATION(boost::filesystem::path, boost::serialization::object_serializable)
+
+class File;
+
+class Metadata{
+	friend class boost::serialization::access;
+	friend class File;
+private:
+	uintmax_t access_count_ = 0;
+	double popularity_ = MULTIPLIER*AVG_USAGE;
+	bool pinned_ = false;
+	std::string tier_path_;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version){
+		(void) version;
+		ar & tier_path_;
+		ar & access_count_;
+		ar & popularity_;
+		ar & pinned_;
+	}
+	void put_info(const char *key, rocksdb::DB *db);
+	/* put info into db
+	 */
+public:
+	Metadata(const char *path, rocksdb::DB *db, Tier *tptr = nullptr);
+	void update(const char *relative_path, rocksdb::DB *db);
+	~Metadata(void) = default;
+	void touch(void);
+	std::string tier_path(void) const;
+};
+
 class File{
 private:
-	sqlite3 *db;
-  /* database for storing file metadata
-   * was previously stored in extended attributes
-   */
+	// not in database
+	uintmax_t size_ = 0;
+	Tier *tier_ptr_;
+	struct timeval times_[2];
+	time_t atime_;
+	fs::path relative_path_;
+	rocksdb::DB *db_;
+	
+	// in database
+	Metadata metadata;
 public:
-	File(fs::path path_, sqlite3 *db_, Tier *tptr = NULL);
-  /* file constructor used while tiering
-   * overwrites current tier path based on tptr if tptr != NULL,
-   * else does not modify current tier path and
-   * grabs current tier path from db
-   */
+	File(fs::path full_path, rocksdb::DB *db, Tier *tptr);
+	/* file constructor used while tiering
+	 * overwrites current tier path based on tptr if tptr != NULL,
+	 * else does not modify current tier path and
+	 * grabs current tier path from db
+	 */
+	File(fs::path rel_path, rocksdb::DB *db);
 	~File();
-  /* destructor - calls put_info(db)
-   */
-	size_t ID;
-  /* std::hash of rel_path
-   * used for indexing database table
-   */
-	double popularity = MULTIPLIER*AVG_USAGE;
-  /* popularity rating for sorting files
-   * defaults to new file popularity
-   * but is overridden with value from databse if exists
-   */
-	time_t last_atime;
-  /* last access time taken from stat() call
-   */
-	unsigned long size;
-  /* size of file in bytes
-   */
-	Tier *old_tier;
-  /* pointer to old tier for use while moving
-   */
-  struct timeval times[2];
-	fs::path rel_path;
-  /* file path relative to tier directory
-   */
-	fs::path old_path;
-  /* absolute path to file before moving
-   */
-	fs::path new_path;
-  /* absolute path to file after moving
-   */
-	fs::path pinned_to;
-  /* absolute path to root of tier to which file is pinned
-   */
-	fs::path current_tier;
-  /* absolute path to root of tier file currently occupies
-   */
-	void move(void);
-  /* IF new_path != old path THEN
-   * moves file from old_path to new_path
-   * ELSE
-   * do nothing
-   * END IF
-   * does not modify atime or mtime
-   */
-	void copy_ownership_and_perms(void);
-  /* copy file ownership (user and group) from old_path to new_path
-   * copy file permissions from old_path to new_path
-   */
-	void calc_popularity(void);
-  /* calculate new popularity value of file
-   */
+	/* destructor - calls put_info(db)
+	 */
+	void calc_popularity(double period_seconds);
+	/* calculate new popularity value of file
+	 */
 	bool is_open(void);
-  /* fork and exec lsof, use return value to determine if the file is
-   * currently open. There is probably a less expensive way of doing this.
-   */
-	int get_info(sqlite3 *db);
-  /* execute SQL to retrieve file metadata from db
-   * using callback(count, data, cols) to load data
-   */
-	int put_info(sqlite3 *db);
-  /* execute SQL to insert/update file metadata into db
-   */
-	int callback(int count, char *data[], char *cols[]);
-  /* SQL callback - retrieves 1 record from DB per call and loads data from each
-   * column into File object
-   */
+	/* fork and exec lsof, use return value to determine if the file is
+	 * currently open. There is probably a less expensive way of doing this.
+	 */
+	fs::path full_path(void) const;
+	fs::path relative_path(void) const;
+	Tier *tier_ptr(void) const;
+	double popularity(void) const;
+	struct timeval atime(void) const;
+	bool is_pinned(void) const;
+	void pin(void);
+	void unpin(void);
+	uintmax_t size(void) const;
+	void transfer_to_tier(Tier *tptr);
+	void overwrite_times(void) const;
 };

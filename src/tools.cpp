@@ -1,21 +1,21 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include "tools.hpp"
 #include "tierEngine.hpp"
@@ -31,29 +31,27 @@
 
 bool recursive_flag_set = false;
 
-std::regex command_list[NUM_COMMANDS] = {
-	std::regex("^[Rr]un|RUN$"),
-	std::regex("^[Oo]neshot|ONESHOT$"),
-	std::regex("^[Ss]tatus|STATUS$"),
-	std::regex("^[Pp]in|PIN$"),
-	std::regex("^[Cc]onfig|CONFIG$"),
-	std::regex("^[Hh]elp|HELP$"),
-	std::regex("^[Uu]npin|UNPIN$"),
-	std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
-	std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
-};
-
 int get_command_index(const char *cmd){
+	std::regex command_list[NUM_COMMANDS] = {
+		std::regex("^[Oo]neshot|ONESHOT$"),
+		std::regex("^[Ss]tatus|STATUS$"),
+		std::regex("^[Pp]in|PIN$"),
+		std::regex("^[Cc]onfig|CONFIG$"),
+		std::regex("^[Hh]elp|HELP$"),
+		std::regex("^[Uu]npin|UNPIN$"),
+		std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
+		std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
+	};
 	for(int itr = 0; itr < NUM_COMMANDS; itr++){
 		if(regex_match(cmd,command_list[itr]))
 			return itr;
 	}
-	return ERR;
+	return MOUNTPOINT;
 }
 
 void pin(int optind, int argc, char *argv[], TierEngine &autotier){
 	if(argc - optind < 2){
-    std::cerr << "Invalid argument(s)." << std::endl;
+		std::cerr << "Invalid argument(s)." << std::endl;
 		usage();
 		exit(1);
 	}
@@ -62,16 +60,16 @@ void pin(int optind, int argc, char *argv[], TierEngine &autotier){
 	while(optind < argc){
 		files.emplace_back(argv[optind++]);
 	}
-	Log("Pinning files to " + tier_name, 2);
+	Logging::log.message("Pinning files to " + tier_name, 1);
 	autotier.pin_files(tier_name, files);
 }
 
 void usage(){
 	std::cout <<
 	"autotier Copyright (C) 2019-2020  Josh Boudreau <jboudreau@45drives.com>\n"
-  "This program is released under the GNU General Public License v3.\n"
-  "See <https://www.gnu.org/licenses/> for more details.\n"
-  "\n"
+	"This program is released under the GNU General Public License v3.\n"
+	"See <https://www.gnu.org/licenses/> for more details.\n"
+	"\n"
 	"Usage:\n"
 	"  autotier <command> [<flags>]\n"
 	"Commands:\n"
@@ -92,14 +90,14 @@ void usage(){
 	"              - print list of all tier files sorted by frequency of use\n"
 	"  help        - display this message\n"
 	"Flags:\n"
-  "  -h, --help  - display this message and cancel current command\n"
+	"  -h, --help  - display this message and cancel current command\n"
 	"  -c, --config <path/to/config>\n"
 	"              - override configuration file path (default /etc/autotier.conf)\n"
-  "  -m, --mountpoint <path/to/mountpoint>\n"
-  "              - override mountpoint from configuration file\n"
-  "  -o, --fuse-options <comma,separated,list>\n"
-  "              - mount options to pass to fuse (see man mount.fuse)\n"
-  "  --verbose   - set log level to 2\n"
-  "  --quiet     - set log level to 0 (no output)\n"
+	"  -m, --mountpoint <path/to/mountpoint>\n"
+	"              - override mountpoint from configuration file\n"
+	"  -o, --fuse-options <comma,separated,list>\n"
+	"              - mount options to pass to fuse (see man mount.fuse)\n"
+	"  --verbose   - set log level to 2\n"
+	"  --quiet     - set log level to 0 (no output)\n"
 	<< std::endl;
 }

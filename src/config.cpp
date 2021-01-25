@@ -1,96 +1,113 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include "config.hpp"
 #include "alert.hpp"
-#include "tierEngine.hpp"
 #include "tier.hpp"
-#include <iostream>
 #include <sstream>
-#include <fstream>
-#include <boost/filesystem.hpp>
 #include <regex>
 
-void Config::load(const fs::path &config_path, std::list<Tier> &tiers){
-	log_lvl = 1; // default to 1
-	std::fstream config_file(config_path.string(), std::ios::in);
-	if(!config_file){
-		if(!is_directory(config_path.parent_path())) create_directories(config_path.parent_path());
-		config_file.open(config_path.string(), std::ios::out);
-		this->generate_config(config_file);
-		config_file.close();
-		config_file.open(config_path.string(), std::ios::in);
+inline void strip_whitespace(std::string &str){
+	std::size_t strItr;
+	// back ws
+	if((strItr = str.find('#')) == std::string::npos){ // strItr point to '#' or end
+		strItr = str.length();
 	}
-	Tier *tptr = NULL;
+	if(strItr != 0) // protect from underflow
+		strItr--; // point to last character
+	while(strItr && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
+		strItr--;
+	} // strItr points to last character
+	str = str.substr(0,strItr + 1);
+	// front ws
+	strItr = 0;
+	while(strItr < str.length() && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
+		strItr++;
+	} // strItr points to first character
+	str = str.substr(strItr, str.length() - strItr);
+}
+
+Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
+	std::stringstream line_stream;
+	std::string line, key, value;
+	
+	// open file
+	std::fstream config_file(config_path.string());
+	if(!config_file){
+		config_file.close();
+		init_config_file(config_path);
+		config_file.open(config_path.string());
+	}
+	
+	Tier *tptr = nullptr;
 	while(config_file){
-		std::stringstream line_stream;
-		std::string line, key, value;
-		
 		getline(config_file, line);
 		
-		// discard comments
-		if(line.empty() || line.front() == '#') continue;
 		strip_whitespace(line);
-		
-		if(line.empty()) continue;
+		// full line comments:
+		if(line.empty() || line.front() == '#')
+			continue; // ignore comments
 		
 		if(line.front() == '['){
 			std::string id = line.substr(1,line.find(']')-1);
 			if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
-				if(this->load_global(config_file, id) == EOF) break;
+				if(load_global(config_file, id) == EOF) break;
 			}
-      tiers.emplace_back(id);
-      tptr = &tiers.back();
+			tiers.emplace_back(id);
+			tptr = &tiers.back();
 		}else if(tptr){
 			line_stream.str(line);
+			
 			getline(line_stream, key, '=');
 			getline(line_stream, value);
+			
 			strip_whitespace(key);
 			strip_whitespace(value);
-			if(key == "DIR"){
-				tptr->dir = value;
-			}else if(key == "WATERMARK"){
+			
+			if(key.empty() || value.empty())
+				continue; // ignore unassigned fields
+			
+			if(key == "Path"){
+				tptr->path(value);
+			}else if(key == "Watermark"){
 				try{
-					tptr->watermark = stoi(value);
+					tptr->watermark(stoi(value));
 				}catch(const std::invalid_argument &){
-					tptr->watermark = ERR;
+					tptr->watermark(-1);
 				}
 			} // else ignore
 		}
 	}
 	
-	if(!verify(tiers)){
-		error(LOAD_CONF);
-		exit(1);
-	}
+	verify(config_path, tiers);
 }
 
 int Config::load_global(std::fstream &config_file, std::string &id){
+	std::stringstream line_stream;
+	std::string line, key, value;
 	while(config_file){
-		std::stringstream line_stream;
-		std::string line, key, value;
-		
 		getline(config_file, line);
 		
-		// discard comments
-		if(line.empty() || line.front() == '#') continue;
 		strip_whitespace(line);
+		// full line comments:
+		if(line.empty() || line.front() == '#')
+			continue; // ignore comments
 		
 		if(line.front() == '['){
 			id = line.substr(1,line.find(']')-1);
@@ -103,56 +120,31 @@ int Config::load_global(std::fstream &config_file, std::string &id){
 		strip_whitespace(key);
 		strip_whitespace(value);
 		
-		
-		if(key == "LOG_LEVEL"){
+		if(key == "Log Level"){
 			try{
-				this->log_lvl = stoi(value);
+				log_level_ = stoi(value);
 			}catch(const std::invalid_argument &){
-				this->log_lvl = ERR;
+				log_level_ = -1;
 			}
-		}else if(key == "TIER_PERIOD"){
+		}else if(key == "Tier Period"){
 			try{
-				this->period = stoul(value);
+				tier_period_s_ = std::chrono::seconds(stoi(value));
 			}catch(const std::invalid_argument &){
-				this->period = ERR;
+				tier_period_s_ = std::chrono::seconds(-1);
 			}
-		}else if(key == "MOUNT_POINT"){
-			this->mountpoint = fs::path(value);
 		} // else if ...
 	}
 	// if here, EOF reached
 	return EOF;
 }
 
-void strip_whitespace(std::string &str){
-#ifdef DEBUG_WS
-	std::cout << "Input: \"" << str << "\"" << std::endl;
-#endif
-	if(str.length() == 0) return;
-	std::size_t strItr;
-	// back ws
-	if((strItr = str.find('#')) == std::string::npos){ // strItr point to '#' or end
-		strItr = str.length();
-	}
-	strItr--; // point to last character
-	while(strItr && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
-		strItr--;
-	} // strItr points to last character
-	str = str.substr(0,strItr + 1);
-	if(str.empty()) return;
-	// front ws
-	strItr = 0;
-	while(strItr < str.length() && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
-		strItr++;
-	} // strItr points to first character
-	str = str.substr(strItr, str.length() - strItr);
-#ifdef DEBUG_WS
-	std::cout << "Output: \"" << str << "\"" << std::endl;
-#endif
-}
-
-void Config::generate_config(std::fstream &file){
-	file <<
+void Config::init_config_file(const fs::path &config_path) const{
+	boost::system::error_code ec;
+	fs::create_directories(config_path.parent_path(), ec);
+	if(ec) Logging::log.error("Error creating path: " + config_path.parent_path().string());
+	std::ofstream f(config_path.string());
+	if(!f) Logging::log.error("Error opening config file: " + config_path.string());
+	f <<
 	"# autotier config\n"
 	"[Global]						# global settings\n"
 	"LOG_LEVEL=1				 # 0 = none, 1 = normal, 2 = debug\n"
@@ -167,55 +159,55 @@ void Config::generate_config(std::fstream &file){
 	"[Tier 2]\n"
 	"DIR=\n"
 	"WATERMARK=\n"
-	"# ... (add as many tiers as you like)\n"
-	<< std::endl;
+	"# ... (add as many tiers as you like)\n";
+	f.close();
 }
 
-bool Config::verify(const std::list<Tier> &tiers){
-	bool no_errors = true;
+void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) const{
+	bool errors = false;
 	if(tiers.empty()){
-		error(NO_TIERS);
-		no_errors = false;
+		Logging::log.error("No tiers defined.", false);
+		errors = true;
 	}else if(tiers.size() == 1){
-		error(ONE_TIER);
-		no_errors = false;
+		Logging::log.error("Only one tier is defined. Two or more are needed.", false);
+		errors = true;
 	}
-	if(log_lvl == ERR){
-		error(LOG_LVL);
-		no_errors = false;
+	if(log_level_ == -1){
+		Logging::log.error("Invalid log level. (Log Level)", false);
+		errors = true;
 	}
-	if(period == (unsigned long)ERR){
-		error(PERIOD);
-		no_errors = false;
+	if(tier_period_s_ == std::chrono::seconds(-1)){
+		Logging::log.error("Invalid tier period. (Tier Period)", false);
+		errors = true;
 	}
-	if(!fs::exists(mountpoint) || !fs::is_directory(mountpoint)){
-		error(MOUNTPOINT);
-		no_errors = false;
-	}
-	for(Tier t : tiers){
-		if(!is_directory(t.dir)){
-			std::cerr << t.id << ": ";
-			error(TIER_DNE);
-      no_errors = false;
+	for(const Tier &t : tiers){
+		if(!is_directory(t.path())){
+			Logging::log.error(t.id() + ": Tier directory does not exist. (Path)", false);
+			errors = true;
 		}
-		if(t.watermark == ERR || t.watermark > 100 || t.watermark < 0){
-			std::cerr << t.id << ": ";
-			error(WATERMARK_ERR);
-      no_errors = false;
+		if(t.watermark() > 100 || t.watermark() < 0){
+			Logging::log.error(t.id() + ": Invalid watermark. (Watermark)", false);
+			errors = true;
 		}
 	}
-	return no_errors;
+	if(errors){
+		Logging::log.error("Please fix these mistakes in " + config_path.string());
+	}
 }
 
-void Config::dump(std::ostream &os, const std::list<Tier> &tiers) const{
-	os << "[Global]" << std::endl;
-	os << "LOG_LEVEL=" << this->log_lvl << std::endl;
-  os << "MOUNT_POINT=" << this->mountpoint.string() << std::endl;
-	os << std::endl;
-	for(Tier t : tiers){
-		os << "[" << t.id << "]" << std::endl;
-		os << "DIR=" << t.dir.string() << std::endl;
-		os << "WATERMARK=" << t.watermark << std::endl;
-		os << std::endl;
+std::chrono::seconds Config::tier_period_s(void) const{
+	return tier_period_s_;
+}
+
+void Config::dump(const std::list<Tier> &tiers) const{
+	Logging::log.message("[Global]", 1);
+	Logging::log.message("Log Level = " + std::to_string(log_level_), 1);
+	Logging::log.message("Tier Period = " + std::to_string(tier_period_s_.count()), 1);
+	Logging::log.message("", 1);
+	for(const Tier &t : tiers){
+		Logging::log.message("[" + t.id() + "]", 1);
+		Logging::log.message("Path = " + t.path().string(), 1);
+		Logging::log.message("Watermark = " + std::to_string(t.watermark()), 1);
+		Logging::log.message("", 1);
 	}
 }
