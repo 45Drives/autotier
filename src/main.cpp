@@ -89,7 +89,8 @@ int main(int argc, char *argv[]){
 		FusePassthrough at_filesystem(config_path);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	}else{
-		TierEngine autotier(config_path);
+		bool read_only = true;
+		TierEngine autotier(config_path, read_only);
 		optind++;
 		switch(cmd){
 			case ONESHOT:
