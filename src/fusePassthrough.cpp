@@ -346,7 +346,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	if (res == -1)
 		return -errno;
 	fi->fh = res;
-	return res;
+	return 0;
 }
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
