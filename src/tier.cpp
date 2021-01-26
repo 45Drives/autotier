@@ -27,7 +27,7 @@ void Tier::get_capacity_and_usage(void){
 	if((statvfs(path_.c_str(), &fs_stats) == -1))
 		Logging::log.error("statvfs() failed on " + path_.string());
 	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
-	usage_ = (fs_stats.f_blocks - fs_stats.f_bfree) * fs_stats.f_bsize;
+	usage_ = 0;
 }
 void Tier::add_file_size(uintmax_t size){
 	usage_ += size;
@@ -83,6 +83,7 @@ void Tier::transfer_files(void){
 		fs::remove(old_path);
 	}
 	incoming_files_.clear();
+	usage_ = 0;
 }
 
 void Tier::copy_file(const fs::path &old_path, const fs::path &new_path) const{
