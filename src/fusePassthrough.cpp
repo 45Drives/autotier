@@ -239,7 +239,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	
 	f.update(to, FuseGlobal::db_);
 	
-	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), from).ok())
+	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), from+1).ok())
 		return -1;
 	return res;
 }
