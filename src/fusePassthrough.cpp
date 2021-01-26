@@ -154,7 +154,7 @@ static int at_readlink(const char *path, char *buf, size_t size){
 	if (res == -1)
 		return -errno;
 	buf[res] = '\0';
-	return res;
+	return 0;
 }
 
 static int at_mknod(const char *path, mode_t mode, dev_t rdev){
@@ -216,6 +216,8 @@ static int at_symlink(const char *from, const char *to){
 	int res;
 	
 	res = symlink(from, (FuseGlobal::tiers_.front()->path() / to).c_str());
+	
+	Metadata l(to, FuseGlobal::db_, FuseGlobal::tiers_.front());
 	
 	if (res == -1)
 		return -errno;
