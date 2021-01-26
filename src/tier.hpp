@@ -56,4 +56,5 @@ public:
 	void transfer_files(void);
 	double usage_percent(void) const;
 	uintmax_t usage_bytes(void) const;
+	void calc_watermark_bytes(void);
 };

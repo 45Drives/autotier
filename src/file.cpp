@@ -30,6 +30,7 @@ extern "C" {
 
 Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
 	std::string str;
+	if(path[0] == '/') path++;
 	rocksdb::Status s = db->Get(rocksdb::ReadOptions(), path, &str);
 	if(s.ok()){
 		std::stringstream ss(str);
@@ -39,11 +40,12 @@ Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
 		tier_path_ = tptr->path().string();
 		put_info(path, db);
 	}else{
-		throw 1;
+		not_found_ = true;
 	}
 }
 
 void Metadata::put_info(const char *key, rocksdb::DB* db){
+	if(key[0] == '/') key++;
 	std::stringstream ss;
 	{
 		boost::archive::text_oarchive oa(ss);
@@ -64,8 +66,21 @@ void Metadata::touch(void){
 	access_count_++;
 }
 
+bool Metadata::not_found(void) const{
+	return not_found_;
+}
+
+std::string Metadata::dump_stats(void) const{
+	std::stringstream ss;
+	ss << "tier_path_: " << tier_path_ << std::endl;
+	ss << "access_count_: " << access_count_ << std::endl;
+	ss << "popularity_: " << popularity_ << std::endl;
+	ss << "pinned: " << std::boolalpha << pinned_ << std::noboolalpha << std::endl;
+	return ss.str();
+}
+
 File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
-		: relative_path_(fs::relative(full_path, tptr->path())), metadata(relative_path_.c_str(), db){
+		: relative_path_(fs::relative(full_path, tptr->path())), metadata(relative_path_.c_str(), db, tptr){
 	tier_ptr_ = tptr;
 	struct stat info;
 	stat(full_path.c_str(), &info);

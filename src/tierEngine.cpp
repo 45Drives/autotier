@@ -39,7 +39,7 @@ void int_handler(int){
 }
 
 TierEngine::TierEngine(const fs::path &config_path)
-		: config_(config_path, tiers){
+		: tiers(), config_(config_path, std::ref(tiers)){
 	signal(SIGINT, &int_handler);
 	signal(SIGTERM, &int_handler);
 	pick_run_path(config_path);
@@ -116,7 +116,7 @@ Tier *TierEngine::tier_lookup(std::string id){
 		if(t->id() == id)
 			return &(*t);
 	}
-	return NULL;
+	return nullptr;
 }
 
 Config *TierEngine::get_config(void){
@@ -220,7 +220,7 @@ void TierEngine::simulate_tier(){
 			} // else: out of space!
 		}
 		tptr->add_file_size(fptr->size());
-		tptr->enqueue_file_ptr(&(*fptr));
+		if(fptr->tier_ptr() != &(*tptr)) tptr->enqueue_file_ptr(&(*fptr));
 		++fptr;
 	}
 }
@@ -251,11 +251,13 @@ void TierEngine::print_tier_info(void){
 		"current usage: " << tptr->usage_percent() << "% (" << Logging::log.format_bytes(tptr->usage_bytes()) << ")" << std::endl <<
 		"watermark: " << tptr->watermark() << "% (" << Logging::log.format_bytes(tptr->watermark_bytes()) << ")" << std::endl <<
 		std::endl;
+		Logging::log.message(ss.str(), 1);
 	}
 }
 
 void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
 	Tier *tptr;
+	Logging::log.message("Tier name: " + tier_name, 2);
 	if((tptr = tier_lookup(tier_name)) == nullptr){
 		Logging::log.error("Tier does not exist.");
 	}

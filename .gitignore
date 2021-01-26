@@ -46,3 +46,6 @@ debian/cephgeorep.postrm.debhelper
 debian/debhelper-build-stamp
 debian/files
 debian/.debhelper
+
+# tests
+test_db

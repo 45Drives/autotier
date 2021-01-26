@@ -44,7 +44,6 @@ inline void strip_whitespace(std::string &str){
 }
 
 Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
-	std::stringstream line_stream;
 	std::string line, key, value;
 	
 	// open file
@@ -69,10 +68,11 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 			if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
 				if(load_global(config_file, id) == EOF) break;
 			}
+			Logging::log.message("ID: \"" + id + "\"", 2);
 			tiers.emplace_back(id);
 			tptr = &tiers.back();
 		}else if(tptr){
-			line_stream.str(line);
+			std::stringstream line_stream(line);
 			
 			getline(line_stream, key, '=');
 			getline(line_stream, value);
@@ -84,8 +84,10 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 				continue; // ignore unassigned fields
 			
 			if(key == "Path"){
+				Logging::log.message("Found Path: \"" + value + "\"", 2);
 				tptr->path(value);
 			}else if(key == "Watermark"){
+				Logging::log.message("Found Watermark: \"" + value + "\"", 2);
 				try{
 					tptr->watermark(stoi(value));
 				}catch(const std::invalid_argument &){
@@ -95,11 +97,14 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 		}
 	}
 	
+	for(Tier & t: tiers){
+		t.calc_watermark_bytes();
+	}
+	
 	verify(config_path, tiers);
 }
 
 int Config::load_global(std::fstream &config_file, std::string &id){
-	std::stringstream line_stream;
 	std::string line, key, value;
 	while(config_file){
 		getline(config_file, line);
@@ -114,7 +119,7 @@ int Config::load_global(std::fstream &config_file, std::string &id){
 			return 0;
 		}
 		
-		line_stream.str(line);
+		std::stringstream line_stream(line);
 		getline(line_stream, key, '=');
 		getline(line_stream, value);
 		strip_whitespace(key);
@@ -147,18 +152,17 @@ void Config::init_config_file(const fs::path &config_path) const{
 	f <<
 	"# autotier config\n"
 	"[Global]						# global settings\n"
-	"LOG_LEVEL=1				 # 0 = none, 1 = normal, 2 = debug\n"
-	"TIER_PERIOD=1000		# number of seconds between file move batches\n"
-	"MOUNT_POINT=/mnt/autotier"
+	"Log Level = 1				 # 0 = none, 1 = normal, 2 = debug\n"
+	"Tier Period = 1000		# number of seconds between file move batches\n"
 	"\n"
 	"[Tier 1]\n"
-	"DIR=								# full path to tier storage pool\n"
-	"WATERMARK=			# % usage at which to tier down from tier\n"
+	"Path =								# full path to tier storage pool\n"
+	"Watermark =			# % usage at which to tier down from tier\n"
 	"# file age is calculated as (current time - file mtime), i.e. the amount\n"
 	"# of time that has passed since the file was last modified.\n"
 	"[Tier 2]\n"
-	"DIR=\n"
-	"WATERMARK=\n"
+	"Path =\n"
+	"Watermark =\n"
 	"# ... (add as many tiers as you like)\n";
 	f.close();
 }

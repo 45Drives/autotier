@@ -27,6 +27,7 @@
 
 #define FUSE_USE_VERSION 30
 extern "C"{
+	#include <syslog.h>
 	#include <string.h>
 	#include <fuse.h>
 	#include <stdlib.h>
@@ -117,14 +118,17 @@ static int mknod_wrapper(int dirfd, const char *path, const char *link,
 
 static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
 	int res;
-	(void) path;
 	
 	if(fi == NULL){
 		if(is_directory(path)){
 			res = lstat((FuseGlobal::tiers_.front()->path() / path).c_str(), stbuf);
 		}else{
-			std::string real_path = Metadata(path, FuseGlobal::db_).tier_path() + "/" + path;
-			res = lstat(real_path.c_str(), stbuf);
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			
+			fs::path tier_path = f.tier_path();
+			res = lstat((tier_path / path).c_str(), stbuf);
 		}
 	}else{
 		res = fstat(fi->fh, stbuf);
@@ -132,19 +136,24 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 static int at_readlink(const char *path, char *buf, size_t size){
 	int res;
 	
-	std::string real_path = Metadata(path, FuseGlobal::db_).tier_path() + "/" + path;
-	res = readlink(real_path.c_str(), buf, size - 1);
+	Metadata f(path, FuseGlobal::db_);
+	if(f.not_found())
+		return -ENOENT;
+	
+	fs::path tier_path = f.tier_path();
+	
+	res = readlink((tier_path / path).c_str(), buf, size - 1);
 	
 	if (res == -1)
 		return -errno;
 	buf[res] = '\0';
-	return 0;
+	return res;
 }
 
 static int at_mknod(const char *path, mode_t mode, dev_t rdev){
@@ -156,7 +165,7 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	if (res == -1)
 		return -errno;
 	File(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
-	return 0;
+	return res;
 }
 
 static int at_mkdir(const char *path, mode_t mode){
@@ -168,21 +177,26 @@ static int at_mkdir(const char *path, mode_t mode){
 			return -errno;
 	}
 	
-	return 0;
+	return res;
 }
 
 static int at_unlink(const char *path){
 	int res;
-	std::string real_path = Metadata(path, FuseGlobal::db_).tier_path() + "/" + path;
 	
-	res = unlink(real_path.c_str());
+	Metadata f(path, FuseGlobal::db_);
+	if(f.not_found())
+		return -ENOENT;
+	
+	fs::path tier_path = f.tier_path();
+	
+	res = unlink((tier_path / path).c_str());
 	
 	if (res == -1)
 		return -errno;
 	
 	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), path).ok())
 		return -1;
-	return 0;
+	return res;
 }
 
 static int at_rmdir(const char *path){
@@ -194,7 +208,7 @@ static int at_rmdir(const char *path){
 			return -errno;
 	}
 	
-	return 0;
+	return res;
 }
 
 static int at_symlink(const char *from, const char *to){
@@ -204,7 +218,7 @@ static int at_symlink(const char *from, const char *to){
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 static int at_rename(const char *from, const char *to, unsigned int flags){
@@ -214,6 +228,8 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 		return -EINVAL;
 	
 	Metadata f(from, FuseGlobal::db_);
+	if(f.not_found())
+		return -ENOENT;
 	fs::path tier_path = f.tier_path();
 	
 	res = rename((tier_path / from).c_str(), (tier_path / to).c_str());
@@ -224,13 +240,15 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	
 	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), from).ok())
 		return -1;
-	return 0;
+	return res;
 }
 
 static int at_link(const char *from, const char *to){
 	int res;
 	
 	Metadata f(from, FuseGlobal::db_);
+	if(f.not_found())
+		return -ENOENT;
 	fs::path tier_path = f.tier_path();
 	
 	res = link((tier_path / from).c_str(), (tier_path / to).c_str());
@@ -255,6 +273,8 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 		}
 	}else{
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = chmod((tier_path / path).c_str(), mode);
 	}
@@ -276,13 +296,15 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 		}
 	}else{
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = lchown((tier_path / path).c_str(), uid, gid);
 	}
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
@@ -290,6 +312,8 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	
 	if (fi == NULL){
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = truncate((tier_path / path).c_str(), size);
 	}else{
@@ -298,7 +322,7 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 static int at_open(const char *path, struct fuse_file_info *fi){
@@ -310,14 +334,18 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 			return -errno;
 	}else{
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = open((tier_path / path).c_str(), fi->flags);
+		f.touch();
+		f.update(path, FuseGlobal::db_);
 	}
 	
 	if (res == -1)
 		return -errno;
 	fi->fh = res;
-	return 0;
+	return res;
 }
 
 static int at_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
@@ -361,7 +389,7 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 		if(stbuf->f_favail == 0) stbuf->f_favail = fs_stats_temp.f_favail;
 	}
 	
-	return 0;
+	return res;
 }
 
 static int at_flush(const char *path, struct fuse_file_info *fi)
@@ -379,14 +407,15 @@ static int at_flush(const char *path, struct fuse_file_info *fi)
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 
 static int at_release(const char *path, struct fuse_file_info *fi){
+	int res;
 	(void) path;
-	close(fi->fh);
-	return 0;
+	res = close(fi->fh);
+	return res;
 }
 
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
@@ -404,7 +433,7 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 #ifdef HAVE_SETXATTR
@@ -429,6 +458,9 @@ static int at_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi,
 	enum fuse_readdir_flags flags
  					){
+	openlog("autotier", LOG_USER, LOG_USER);
+	syslog(LOG_INFO, "%s", "readdir");
+	closelog();
 	DIR *dp;
 	struct dirent *de;
 	
@@ -477,25 +509,28 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 
 static int at_access(const char *path, int mask){
 	int res;
-	fs::path p(path);
+	
+	openlog("autotier", LOG_USER, LOG_USER);
+	syslog(LOG_INFO, "access: %s", path);
+	closelog();
 	
 	if(is_directory(path)){
 		for(Tier *tptr: FuseGlobal::tiers_){
 			res = access((tptr->path() / path).c_str(), mask);
-			if (res == -1)
-				return -errno;
+			if (res != 0)
+				return res;
 		}
 	}else{
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = access((tier_path / path).c_str(), mask);
-		f.touch();
-		f.update(path, FuseGlobal::db_);
 	}
 	
-	if (res == -1)
-		return -errno;
-	return 0;
+	if (res != 0)
+		return res;
+	return res;
 }
 
 static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
@@ -507,7 +542,7 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	if (res == -1)
 		return -errno;
 	
-	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
+	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front()).update(path, FuseGlobal::db_);
 	fi->fh = res;
 	
 	return 0;
@@ -519,6 +554,8 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 	(void) fi;
 	
 	Metadata f(path, FuseGlobal::db_);
+	if(f.not_found())
+		return -ENOENT;
 	fs::path tier_path = f.tier_path();
 	
 	/* don't use utime/utimes since they follow symlinks */
@@ -526,7 +563,7 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 	
 	if (res == -1)
 		return -errno;
-	return 0;
+	return res;
 }
 
 #endif
@@ -589,6 +626,8 @@ static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_
 	
 	if (fi == NULL){
 		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		fd = open((tier_path / path).c_str(), O_RDONLY);
 	}else

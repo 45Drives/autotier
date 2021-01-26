@@ -6,6 +6,8 @@ CFLAGS = -g -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -I/usr/include/fuse -D
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
 HEADERS = $(wildcard src/*.hpp)
 
+TEST_OBJECTS = tests/view_db.o src/file.o src/tier.o src/alert.o
+
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
 endif
@@ -41,3 +43,6 @@ uninstall:
 	-rm -f $(DESTDIR)$(PREFIX)/bin/$(TARGET)
 	-rm -f /usr/lib/systemd/system/autotier.service
 	systemctl daemon-reload
+
+tests: $(TEST_OBJECTS)
+	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o test_db

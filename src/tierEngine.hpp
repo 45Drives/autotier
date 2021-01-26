@@ -48,9 +48,6 @@ private:
 	fs::path run_path_;
 	/* path to mutex lock file
 	 */
-	Config config_;
-	/* configuration goes here, read in from file in TierEngine::TierEngine()
-	 */
 	void pick_run_path(const fs::path &config_path);
 	fs::path get_mutex_name(const fs::path &config_path);
 	/* returns RUN_PATH/<hash of config file path>.autotier.lock
@@ -76,6 +73,9 @@ private:
 	 */
 	std::list<File> files;
 	/* list to contain every file across all tiers for sorting
+	 */
+	Config config_;
+	/* configuration goes here, read in from file in TierEngine::TierEngine()
 	 */
 public:
 	TierEngine(const fs::path &config_path);

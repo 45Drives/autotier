@@ -62,6 +62,7 @@ class Metadata{
 private:
 	uintmax_t access_count_ = 0;
 	double popularity_ = MULTIPLIER*AVG_USAGE;
+	bool not_found_ = false;
 	bool pinned_ = false;
 	std::string tier_path_;
 	template<class Archive>
@@ -81,6 +82,8 @@ public:
 	~Metadata(void) = default;
 	void touch(void);
 	std::string tier_path(void) const;
+	bool not_found(void) const;
+	std::string dump_stats(void) const;
 };
 
 class File{

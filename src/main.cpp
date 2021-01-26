@@ -72,6 +72,8 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	Logging::log = Logger(log_lvl);
+	
 	if(optind < argc){
 		cmd = get_command_index(argv[optind]);
 	}else{
@@ -92,9 +94,10 @@ int main(int argc, char *argv[]){
 			// child
 			FusePassthrough at_filesystem(autotier.get_tiers(), autotier.get_db());
 			at_filesystem.mount_fs(mountpoint, fuse_opts);
-			return 0;
+			Logging::log.warning("Child returned from mounting fs!");
 		}
-	}
+	}else
+		optind++;
 	
 	switch(cmd){
 		case MOUNTPOINT:

@@ -125,3 +125,7 @@ uintmax_t Tier::usage_bytes(void) const{
 uintmax_t Tier::watermark_bytes(void) const{
 	return watermark_bytes_;
 }
+
+void Tier::calc_watermark_bytes(void){
+	watermark_bytes_ = capacity_ * watermark_ / 100;
+}
