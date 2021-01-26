@@ -28,7 +28,7 @@ namespace fs = boost::filesystem;
 class FusePassthrough{
 private:
 public:
-	FusePassthrough(std::list<Tier> &tiers, rocksdb::DB *db);
+	FusePassthrough(const fs::path &config_path);
 	/* calls open_db and saves pointers to each tier of tiers_
 	 */
 	~FusePassthrough(void) = default;

@@ -23,25 +23,50 @@
 #include <sstream>
 #include <cmath>
 #include <algorithm>
+extern "C"{
+	#include <syslog.h>
+}
 
 namespace Logging{
 	Logger log(1);
 }
 
-Logger::Logger(int log_level){
+Logger::Logger(int log_level, output_t output){
 	log_level_ = log_level;
+	output_ = output;
+	if(output_ == SYSLOG){
+		openlog("autotier", LOG_USER, LOG_USER);
+	}
+}
+
+Logger::~Logger(void){
+	closelog();
 }
 
 void Logger::message(const std::string &msg, int lvl) const{
-	if(log_level_ >= lvl) std::cout << msg << std::endl;
+	if(log_level_ >= lvl){
+		if(output_ == STD){
+			std::cout << msg << std::endl;
+		}else{
+			syslog(LOG_INFO, "%s", msg.c_str());
+		}
+	}
 }
 
 void Logger::warning(const std::string &msg) const{
-	std::cerr << "Warning: " << msg << std::endl;
+	if(output_ == STD){
+		std::cerr << "Warning: " << msg << std::endl;
+	}else{
+		syslog(LOG_WARNING, "%s", msg.c_str());
+	}
 }
 
 void Logger::error(const std::string &msg, bool exit_) const{
-	std::cerr << "Error: " << msg << std::endl;
+	if(output_ == STD){
+		std::cerr << "Error: " << msg << std::endl;
+	}else{
+		syslog(LOG_ERR, "%s", msg.c_str());
+	}
 	if(exit_) exit(EXIT_FAILURE);
 }
 

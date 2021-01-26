@@ -23,6 +23,7 @@
 #include "tierEngine.hpp"
 #include "file.hpp"
 #include "alert.hpp"
+#include <thread>
 
 
 #define FUSE_USE_VERSION 30
@@ -47,17 +48,17 @@ extern "C"{
 }
 
 namespace FuseGlobal{
+	static fs::path config_path_;
+	static TierEngine *autotier_;
 	static rocksdb::DB *db_;
 	static std::vector<Tier *> tiers_;
+	static std::thread tier_worker_;
 }
 
 fs::path _mountpoint_;
 
-FusePassthrough::FusePassthrough(std::list<Tier> &tiers, rocksdb::DB *db){
-	for(std::list<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
-		FuseGlobal::tiers_.push_back(&(*tptr));
-	}
-	FuseGlobal::db_ = db;
+FusePassthrough::FusePassthrough(const fs::path &config_path){
+	FuseGlobal::config_path_ = config_path;
 }
 
 // helpers
@@ -194,7 +195,7 @@ static int at_unlink(const char *path){
 	if (res == -1)
 		return -errno;
 	
-	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), path).ok())
+	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), path+1).ok())
 		return -1;
 	return res;
 }
@@ -458,9 +459,6 @@ static int at_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi,
 	enum fuse_readdir_flags flags
  					){
-	openlog("autotier", LOG_USER, LOG_USER);
-	syslog(LOG_INFO, "%s", "readdir");
-	closelog();
 	DIR *dp;
 	struct dirent *de;
 	
@@ -504,15 +502,28 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	cfg->attr_timeout = 0;
 	cfg->negative_timeout = 0;
 	
+	FuseGlobal::autotier_ = new TierEngine(FuseGlobal::config_path_);
+	
+	for(std::list<Tier>::iterator tptr = FuseGlobal::autotier_->get_tiers().begin(); tptr != FuseGlobal::autotier_->get_tiers().end(); ++tptr){
+		FuseGlobal::tiers_.push_back(&(*tptr));
+	}
+	FuseGlobal::db_ = FuseGlobal::autotier_->get_db();
+	
+	FuseGlobal::tier_worker_ = std::thread(&TierEngine::begin, FuseGlobal::autotier_, true);
+	
 	return NULL;
+}
+
+void at_destroy(void *private_data){
+	(void) private_data;
+	FuseGlobal::autotier_->stop();
+	
+	FuseGlobal::tier_worker_.join();
+	delete FuseGlobal::autotier_;
 }
 
 static int at_access(const char *path, int mask){
 	int res;
-	
-	openlog("autotier", LOG_USER, LOG_USER);
-	syslog(LOG_INFO, "access: %s", path);
-	closelog();
 	
 	if(is_directory(path)){
 		for(Tier *tptr: FuseGlobal::tiers_){
@@ -677,6 +688,7 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		#endif
 		.readdir					= at_readdir,
 		.init			 				= at_init,
+		.destroy					= at_destroy,
 		.access						= at_access,
 		.create 					= at_create,
 		#ifdef HAVE_UTIMENSAT

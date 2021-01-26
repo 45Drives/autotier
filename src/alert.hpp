@@ -21,6 +21,8 @@
 
 #include <string>
 
+enum output_t {STD, SYSLOG};
+
 class Logger{
 private:
 	int log_level_;
@@ -28,11 +30,13 @@ private:
 	 * passes a log level to check against this number.
 	 * If the message's level is higher, it is printed.
 	 */
+	output_t output_;
 public:
-	explicit Logger(int log_level);
+	explicit Logger(int log_level, output_t output = STD);
 	/* Constructs Logger, assigning log_level to the
 	 * internal log_level_.
 	 */
+	~Logger(void);
 	void message(const std::string &msg, int lvl) const;
 	/* Print message to stdout if lvl >= log_level_.
 	 * Use this for regular informational log messages.

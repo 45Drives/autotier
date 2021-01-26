@@ -22,6 +22,7 @@
 #include <rocksdb/db.h>
 #include <string>
 #include <signal.h>
+#include <atomic>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -37,6 +38,7 @@ class Config;
 
 class TierEngine{
 private:
+	std::atomic<bool> stop_flag_;
 	rocksdb::DB *db_;
 	/* database holding file metadata:
 	 * table Files:
@@ -60,7 +62,7 @@ private:
 	void unlock_mutex(void);
 	/* deletes mutex lock file
 	 */
-	void open_db(void);
+	void open_db(bool read_only);
 	/* creates connection with sqlite database db
 	 */
 	std::string print_bytes(unsigned long long bytes);
@@ -78,7 +80,7 @@ private:
 	/* configuration goes here, read in from file in TierEngine::TierEngine()
 	 */
 public:
-	TierEngine(const fs::path &config_path);
+	TierEngine(const fs::path &config_path, bool read_only = false);
 	/* attaches signal handlers, loads config, picks run path for mutex lock and
 	 * db with pick_run_path(), constructs mutex_path,
 	 * opens database with open_db()
@@ -165,4 +167,5 @@ public:
 	void calc_popularity(void);
 	/* call File::calc_popularity() for each file in files
 	 */
+	void stop(void);
 };

@@ -82,63 +82,55 @@ int main(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 	}
 	
-	TierEngine autotier(config_path);
-	
 	if(cmd == MOUNTPOINT){
 		mountpoint = argv[optind];
 		daemon_mode = true;
-		pid_t pid = fork(); // fork if run else goto parent
-		if(pid == -1){
-			Logging::log.error("Error forking!");
-		}else if(pid == 0){
-			// child
-			FusePassthrough at_filesystem(autotier.get_tiers(), autotier.get_db());
-			at_filesystem.mount_fs(mountpoint, fuse_opts);
-			Logging::log.warning("Child returned from mounting fs!");
-		}
-	}else
+		Logging::log = Logger(log_lvl, SYSLOG);
+		FusePassthrough at_filesystem(config_path);
+		at_filesystem.mount_fs(mountpoint, fuse_opts);
+	}else{
+		TierEngine autotier(config_path);
 		optind++;
-	
-	switch(cmd){
-		case MOUNTPOINT:
-		case ONESHOT:
-			autotier.begin(daemon_mode);
-			break;
-		case STATUS:
-			autotier.print_tier_info();
-			break;
-		case PIN:
-			pin(optind, argc, argv, autotier);
-			break;
-		case CONFIG:
-			std::cout << "Config file: (" << config_path.string() << ")" << std::endl;
-			std::cout << std::ifstream(config_path.string()).rdbuf();
-			break;
-		case UNPIN:
-			if(argc - optind < 1){
-				std::cerr << "No file names passed." << std::endl;
+		switch(cmd){
+			case ONESHOT:
+				autotier.begin(daemon_mode);
+				break;
+			case STATUS:
+				autotier.print_tier_info();
+				break;
+			case PIN:
+				pin(optind, argc, argv, autotier);
+				break;
+			case CONFIG:
+				std::cout << "Config file: (" << config_path.string() << ")" << std::endl;
+				std::cout << std::ifstream(config_path.string()).rdbuf();
+				break;
+			case UNPIN:
+				if(argc - optind < 1){
+					std::cerr << "No file names passed." << std::endl;
+					usage();
+					exit(1);
+				}
+				autotier.unpin(optind, argc, argv);
+				break;
+			case LPIN:
+				std::cout << "Pinned files:" << std::endl;
+				autotier.launch_crawlers(&TierEngine::emplace_file);
+				autotier.print_file_pins();
+				break;
+			case LPOP:
+				autotier.launch_crawlers(&TierEngine::emplace_file);
+				autotier.sort();
+				autotier.print_file_popularity();
+				break;
+			case HELP:
 				usage();
-				exit(1);
-			}
-			autotier.unpin(optind, argc, argv);
-			break;
-		case LPIN:
-			std::cout << "Pinned files:" << std::endl;
-			autotier.launch_crawlers(&TierEngine::emplace_file);
-			autotier.print_file_pins();
-			break;
-		case LPOP:
-			autotier.launch_crawlers(&TierEngine::emplace_file);
-			autotier.sort();
-			autotier.print_file_popularity();
-			break;
-		case HELP:
-			usage();
-			exit(EXIT_SUCCESS);
-		default:
-			usage();
-			exit(EXIT_FAILURE);
-			break;
+				exit(EXIT_SUCCESS);
+			default:
+				usage();
+				exit(EXIT_FAILURE);
+				break;
+		}
 	}
 	return 0;
 }

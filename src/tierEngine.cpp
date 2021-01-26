@@ -28,22 +28,13 @@
 #include <regex>
 #include <fcntl.h>
 #include <sys/xattr.h>
-#include <signal.h>
 #include <sstream>
 #include <cmath>
 
-sig_atomic_t stopFlag = false;
-
-void int_handler(int){
-	stopFlag = true;
-}
-
-TierEngine::TierEngine(const fs::path &config_path)
-		: tiers(), config_(config_path, std::ref(tiers)){
-	signal(SIGINT, &int_handler);
-	signal(SIGTERM, &int_handler);
+TierEngine::TierEngine(const fs::path &config_path, bool read_only)
+		: stop_flag_(false), tiers(), config_(config_path, std::ref(tiers)){;
 	pick_run_path(config_path);
-	open_db();
+	open_db(read_only);
 }
 
 void TierEngine::pick_run_path(const fs::path &config_path){
@@ -83,11 +74,15 @@ rocksdb::DB *TierEngine::get_db(void){
 	return db_;
 }
 
-void TierEngine::open_db(){
+void TierEngine::open_db(bool read_only){
 	std::string db_path = (run_path_ / "db").string();
 	rocksdb::Options options;
 	options.create_if_missing = true;
-	rocksdb::Status status = rocksdb::DB::Open(options, db_path, &db_);
+	rocksdb::Status status;
+	if(read_only)
+		status = rocksdb::DB::OpenForReadOnly(options, db_path, &db_);
+	else
+		status = rocksdb::DB::Open(options, db_path, &db_);
 	if(!status.ok()){
 		Logging::log.error("Failed to open RocksDB database: " + db_path);
 	}
@@ -147,7 +142,7 @@ void TierEngine::begin(bool daemon_mode){
 		// don't wait for oneshot execution
 		if(daemon_mode && duration < config_.tier_period_s())
 			std::this_thread::sleep_for(config_.tier_period_s()-duration);
-	}while(daemon_mode && !stopFlag);
+	}while(daemon_mode && !stop_flag_);
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -294,4 +289,8 @@ void TierEngine::calc_popularity(void){
 	for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
 		f->calc_popularity(tier_period_s);
 	}
+}
+
+void TierEngine::stop(void){
+	stop_flag_ = true;
 }
