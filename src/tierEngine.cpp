@@ -18,18 +18,16 @@
  */
 
 #include "tierEngine.hpp"
-#include "tier.hpp"
-#include "file.hpp"
 #include "alert.hpp"
 #include "fusePassthrough.hpp"
-
 #include <chrono>
 #include <thread>
-#include <regex>
-#include <fcntl.h>
-#include <sys/xattr.h>
 #include <sstream>
 #include <cmath>
+
+extern "C" {
+	#include <fcntl.h>
+}
 
 TierEngine::TierEngine(const fs::path &config_path, bool read_only)
 		: stop_flag_(false), tiers(), config_(config_path, std::ref(tiers)){;
@@ -204,7 +202,7 @@ void TierEngine::sort(){
 }
 
 void TierEngine::simulate_tier(){
-	Logging::log.message("Finding files' tiers.",2);
+	Logging::log.message("Finding files' tiers.", 2);
 	std::list<File>::iterator fptr = files.begin();
 	std::list<Tier>::iterator tptr = tiers.begin();
 	while(fptr != files.end()){

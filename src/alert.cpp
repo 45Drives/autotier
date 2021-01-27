@@ -22,7 +22,7 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
-#include <algorithm>
+
 extern "C"{
 	#include <syslog.h>
 }

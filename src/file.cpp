@@ -19,6 +19,7 @@
 
 #include "file.hpp"
 #include "alert.hpp"
+#include "tier.hpp"
 #include <sstream>
 
 extern "C" {

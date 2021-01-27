@@ -16,7 +16,11 @@
  *    You should have received a copy of the GNU General Public License
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 #include "tier.hpp"
+#include "alert.hpp"
+#include "file.hpp"
+
 extern "C" {
 	#include <sys/stat.h>
 	#include <sys/statvfs.h>

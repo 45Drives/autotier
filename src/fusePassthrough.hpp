@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "tier.hpp"
 #include <list>
 #include <rocksdb/db.h>
 #include <boost/filesystem.hpp>

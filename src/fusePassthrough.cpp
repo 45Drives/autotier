@@ -20,11 +20,11 @@
 #define HAVE_UTIMENSAT
 
 #include "fusePassthrough.hpp"
+#include "tier.hpp"
 #include "tierEngine.hpp"
 #include "file.hpp"
 #include "alert.hpp"
 #include <thread>
-
 
 #define FUSE_USE_VERSION 30
 extern "C"{
@@ -37,14 +37,8 @@ extern "C"{
 	#include <sys/stat.h>
 	#include <dirent.h>
 	#include <errno.h>
-	#ifdef __FreeBSD__
-	#include <sys/socket.h>
-	#include <sys/un.h>
-	#endif
 	#include <sys/time.h>
-	#ifdef HAVE_SETXATTR
 	#include <sys/xattr.h>
-	#endif
 }
 
 namespace FuseGlobal{

@@ -19,22 +19,14 @@
 
 #pragma once
 
+#include "config.hpp"
+#include "tier.hpp"
+#include "file.hpp"
 #include <rocksdb/db.h>
 #include <string>
-#include <signal.h>
 #include <atomic>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
-
-#include "tier.hpp"
-#include "file.hpp"
-#include "config.hpp"
-#include "alert.hpp"
-
-// forward declarations
-class Tier;
-class File;
-class Config;
 
 class TierEngine{
 private:

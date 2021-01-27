@@ -19,8 +19,6 @@
 
 #pragma once
 
-#include "tier.hpp"
-
 #include <fstream>
 #include <chrono>
 #include <boost/filesystem.hpp>
@@ -59,6 +57,8 @@ public:
 		return overridden_;
 	}
 };
+
+class Tier;
 
 class Config{
 private:

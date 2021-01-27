@@ -17,15 +17,17 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "alert.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
 #include "tools.hpp"
 #include "fusePassthrough.hpp"
-#include "alert.hpp"
-#include <thread>
-#include <iostream>
-#include <string.h>
-#include <getopt.h>
+#include <sstream>
+#include <cstring>
+
+extern "C" {
+	#include <getopt.h>
+}
 
 int main(int argc, char *argv[]){
 	/* parse flags, get command,
@@ -103,19 +105,24 @@ int main(int argc, char *argv[]){
 				pin(optind, argc, argv, autotier);
 				break;
 			case CONFIG:
-				std::cout << "Config file: (" << config_path.string() << ")" << std::endl;
-				std::cout << std::ifstream(config_path.string()).rdbuf();
+				Logging::log.message("Config file: (" + config_path.string() + ")", 1);
+				{
+					std::ifstream f(config_path.string());
+					std::stringstream ss;
+					ss << f.rdbuf();
+					Logging::log.message(ss.str(), 1);
+				}
 				break;
 			case UNPIN:
 				if(argc - optind < 1){
-					std::cerr << "No file names passed." << std::endl;
+					Logging::log.error("No file names passed.", false);
 					usage();
-					exit(1);
+					exit(EXIT_FAILURE);
 				}
 				autotier.unpin(optind, argc, argv);
 				break;
 			case LPIN:
-				std::cout << "Pinned files:" << std::endl;
+				Logging::log.message("Pinned files:", 1);
 				autotier.launch_crawlers(&TierEngine::emplace_file);
 				autotier.print_file_pins();
 				break;

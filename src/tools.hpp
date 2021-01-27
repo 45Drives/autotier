@@ -19,12 +19,6 @@
 
 #pragma once
 
-#include "tierEngine.hpp"
-
-#include <regex>
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
-
 #define NUM_COMMANDS 8
 enum command_enum {ONESHOT, STATUS, PIN, CONFIG, HELP, UNPIN, LPIN, LPOP, MOUNTPOINT};
 
@@ -32,6 +26,8 @@ int get_command_index(const char *cmd);
 /* return switchable index determined by regex match of cmd against
  * each entry in command_list
  */
+
+class TierEngine;
 
 void pin(int optind, int argc, char *argv[], TierEngine &autotier);
 /* grab tier name and set up list of files for TierEngine::pin_files()

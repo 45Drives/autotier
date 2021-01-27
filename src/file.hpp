@@ -20,7 +20,8 @@
 #pragma once
 
 /* popularity calculation
- * y[n] = MULTIPLIER/(DAMPING * (time_diff + 1)) + (1 - 1/DAMPING) * y[n-1]
+ * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
+ * where x is file usage frequency
  */
 #define DAMPING 1000000.0
 #define MULTIPLIER 1000.0
@@ -29,32 +30,18 @@
  * MULTIPLIER is to scale values
  */
 
-#define CALC_PERIOD 1
-/* period in seconds for popularity calculation
- */
-
 #define AVG_USAGE 0.238 // 40hr/(7days * 24hr/day)
 /* for calculating initial popularity for new files
  */
 
-#include "alert.hpp"
-#include "tier.hpp"
-
-class Tier;
-/* forward declaration of class Tier
- */
-
-#include <chrono>
 #include <rocksdb/db.h>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
-#include <boost/serialization/level.hpp> 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-BOOST_CLASS_IMPLEMENTATION(boost::filesystem::path, boost::serialization::object_serializable)
-
 class File;
+class Tier;
 
 class Metadata{
 	friend class boost::serialization::access;
