@@ -118,7 +118,7 @@ Config *TierEngine::get_config(void){
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
 	do{
-		auto start = std::chrono::system_clock::now();
+		auto start = std::chrono::steady_clock::now();
 		launch_crawlers(&TierEngine::emplace_file);
 		// one popularity calculation per loop
 		calc_popularity();
@@ -134,15 +134,15 @@ void TierEngine::begin(bool daemon_mode){
 			unlock_mutex();
 		}
 		files.clear();
-		auto end = std::chrono::system_clock::now();
+		auto end = std::chrono::steady_clock::now();
 		auto duration = end - start;
 		// don't wait for oneshot execution
 		if(daemon_mode && duration < config_.tier_period_s())
-			sleep(std::chrono::duration_cast<std::chrono::seconds>(config_.tier_period_s()-duration));
+			sleep(config_.tier_period_s() - duration);
 	}while(daemon_mode && !stop_flag_);
 }
 
-void TierEngine::sleep(std::chrono::seconds t){
+void TierEngine::sleep(std::chrono::steady_clock::duration t){
 	std::unique_lock<std::mutex> lk(sleep_mt_);
 	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_; });
 }
