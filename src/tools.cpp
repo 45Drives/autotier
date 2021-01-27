@@ -52,13 +52,13 @@ int get_command_index(const char *cmd){
 	return MOUNTPOINT;
 }
 
-WorkPipe::WorkPipe(fs::path run_path){
+WorkPipe::WorkPipe(fs::path run_path, int flags){
 	fs::path pipe_path = run_path / "work.pipe";
 	int res = mkfifo(pipe_path.c_str(), 0755);
 	if(res == -1){
 		if(errno != EEXIST) throw errno; // allow fail if exists
 	}
-	fd_ = open(pipe_path.c_str(), O_RDWR);
+	fd_ = open(pipe_path.c_str(), flags);
 	if(fd_ == -1){
 		throw errno;
 	}
@@ -104,18 +104,18 @@ int WorkPipe::put(const std::vector<std::string> &payload) const{
 	return 0;
 }
 
-int WorkPipe::non_block(void) const{
-	int flags;
-	if((flags = fcntl(fd_, F_GETFL, 0)) == -1)
-		flags = 0;
-	return fcntl(fd_, F_SETFL, flags | O_NONBLOCK);
+int WorkPipe::set_flags(int flags) const{
+	int curr_flags;
+	if((curr_flags = fcntl(fd_, F_GETFL, 0)) == -1)
+		curr_flags = 0;
+	return fcntl(fd_, F_SETFL, curr_flags | flags);
 }
 
-int WorkPipe::block(void) const{
-	int flags;
-	if((flags = fcntl(fd_, F_GETFL, 0)) == -1)
-		flags = 0;
-	return fcntl(fd_, F_SETFL, flags & ~O_NONBLOCK);
+int WorkPipe::clear_flags(int flags) const{
+	int curr_flags;
+	if((curr_flags = fcntl(fd_, F_GETFL, 0)) == -1)
+		curr_flags = 0;
+	return fcntl(fd_, F_SETFL, curr_flags & ~flags);
 }
 
 void usage(){

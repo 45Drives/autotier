@@ -51,16 +51,17 @@ public:
 	~AdHoc(void) = default;
 };
 
+
 class WorkPipe{
 private:
 	int fd_;
 public:
-	WorkPipe(fs::path run_path);
+	WorkPipe(fs::path run_path, int flags);
 	~WorkPipe(void);
 	int get(std::vector<std::string> &payload) const;
 	int put(const std::vector<std::string> &payload) const;
-	int non_block(void) const;
-	int block(void) const;
+	int set_flags(int flags) const;
+	int clear_flags(int flags) const;
 };
 
 void usage(void);

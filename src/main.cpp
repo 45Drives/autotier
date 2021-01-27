@@ -27,6 +27,7 @@
 
 extern "C" {
 	#include <getopt.h>
+	#include <fcntl.h>
 }
 
 int main(int argc, char *argv[]){
@@ -106,7 +107,7 @@ int main(int argc, char *argv[]){
 						payload.push_back(argv[optind++]);
 					WorkPipe *pipe;
 					try{
-						pipe = new WorkPipe(pick_run_path(config_path));
+						pipe = new WorkPipe(pick_run_path(config_path), O_WRONLY | O_NONBLOCK);
 					}catch(const int &errno_){
 						switch(errno_){
 							case EACCES:
@@ -118,13 +119,14 @@ int main(int argc, char *argv[]){
 							case ENOTDIR:
 								Logging::log.error("Path to create pipe in is not a directory.");
 								break;
+							case ENXIO:
+								Logging::log.error("Pipe is not connected, autotier seems to not be mounted.");
+								break;
 							default:
 								Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
 								break;
 						}
 					}
-					if(pipe->non_block() == -1)
-						Logging::log.error("Setting O_NONBLOCK flag on pipe failed.");
 					if(pipe->put(payload) == -1)
 						Logging::log.error("Writing to pipe failed.");
 			// 		if(pipe->get(payload) == -1)
