@@ -23,17 +23,25 @@
 #include <iostream>
 #include <regex>
 #include <vector>
+#include <sstream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
+
+extern "C" {
+	#include <sys/types.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <unistd.h>
+}
 
 int get_command_index(const char *cmd){
 	std::regex command_list[NUM_COMMANDS] = {
 		std::regex("^[Oo]neshot|ONESHOT$"),
-		std::regex("^[Ss]tatus|STATUS$"),
 		std::regex("^[Pp]in|PIN$"),
+		std::regex("^[Uu]npin|UNPIN$"),
+		std::regex("^[Ss]tatus|STATUS$"),
 		std::regex("^[Cc]onfig|CONFIG$"),
 		std::regex("^[Hh]elp|HELP$"),
-		std::regex("^[Uu]npin|UNPIN$"),
 		std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
 		std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
 	};
@@ -44,32 +52,85 @@ int get_command_index(const char *cmd){
 	return MOUNTPOINT;
 }
 
-void pin(int optind, int argc, char *argv[], TierEngine &autotier){
-	if(argc - optind < 2){
-		Logging::log.error("Invalid argument(s).", false);
-		usage();
-		exit(EXIT_FAILURE);
+WorkPipe::WorkPipe(fs::path run_path){
+	fs::path pipe_path = run_path / "work.pipe";
+	int res = mkfifo(pipe_path.c_str(), 0755);
+	if(res == -1){
+		if(errno != EEXIST) throw errno; // allow fail if exists
 	}
-	std::string tier_name = argv[optind++];
-	std::vector<fs::path> files;
-	while(optind < argc){
-		files.emplace_back(argv[optind++]);
+	fd_ = open(pipe_path.c_str(), O_RDWR);
+	if(fd_ == -1){
+		throw errno;
 	}
-	Logging::log.message("Pinning files to " + tier_name, 1);
-	autotier.pin_files(tier_name, files);
+}
+
+WorkPipe::~WorkPipe(void){
+	close(fd_);
+}
+
+int WorkPipe::get(std::vector<std::string> &payload) const{
+	payload.clear();
+	char buff[256];
+	int res;
+	std::stringstream ss;
+	std::string token;
+	while((res = read(fd_, buff, sizeof(buff)))){
+		if(res == -1)
+			return res;
+		ss.write(buff, res);
+	}
+	while(ss){
+		getline(ss, token);
+		payload.push_back(token);
+	}
+	return 0;
+}
+
+int WorkPipe::put(const std::vector<std::string> &payload) const{
+	char buff[256];
+	int res;
+	std::stringstream ss;
+	for(const std::string &str : payload){
+		ss << str << '\n';
+	}
+	ss << '\0';
+	while(ss){
+		ss.read(buff, sizeof(buff));
+		res = ss.gcount();
+		res = write(fd_, buff, res);
+		if(res == -1)
+			return res;
+	}
+	return 0;
+}
+
+int WorkPipe::non_block(void) const{
+	int flags;
+	if((flags = fcntl(fd_, F_GETFL, 0)) == -1)
+		flags = 0;
+	return fcntl(fd_, F_SETFL, flags | O_NONBLOCK);
+}
+
+int WorkPipe::block(void) const{
+	int flags;
+	if((flags = fcntl(fd_, F_GETFL, 0)) == -1)
+		flags = 0;
+	return fcntl(fd_, F_SETFL, flags & ~O_NONBLOCK);
 }
 
 void usage(){
 	Logging::log.message(
-		"autotier Copyright (C) 2019-2020  Josh Boudreau <jboudreau@45drives.com>\n"
+		"autotier Copyright (C) 2019-2021  Josh Boudreau <jboudreau@45drives.com>\n"
 		"This program is released under the GNU General Public License v3.\n"
 		"See <https://www.gnu.org/licenses/> for more details.\n"
 		"\n"
 		"Usage:\n"
-		"  autotier <command> [<flags>]\n"
+		"  mount filesystem:\n"
+		"    autotier [<flags>] <mountpoint> [-o <fuse,options,...>]\n"
+		"  ad hoc commands:\n"
+		"    autotier [<flags>] <command> [<arg1 arg2 ...>]\n"
 		"Commands:\n"
 		"  oneshot     - execute tiering only once\n"
-		"  run         - start tiering of files as daemon\n"
 		"  status      - list info about defined tiers\n"
 		"  pin <\"tier name\"> <\"path/to/file\">...\n"
 		"              - pin file(s) to tier using tier name in config file\n"
@@ -88,8 +149,6 @@ void usage(){
 		"  -h, --help  - display this message and cancel current command\n"
 		"  -c, --config <path/to/config>\n"
 		"              - override configuration file path (default /etc/autotier.conf)\n"
-		"  -m, --mountpoint <path/to/mountpoint>\n"
-		"              - override mountpoint from configuration file\n"
 		"  -o, --fuse-options <comma,separated,list>\n"
 		"              - mount options to pass to fuse (see man mount.fuse)\n"
 		"  --verbose   - set log level to 2\n"

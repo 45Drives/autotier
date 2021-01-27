@@ -86,23 +86,61 @@ int main(int argc, char *argv[]){
 	
 	if(cmd == MOUNTPOINT){
 		mountpoint = argv[optind];
+		if(!is_directory(mountpoint)){
+			Logging::log.error("Invalid mountpoint or command: " + mountpoint.string(), false);
+			usage();
+			exit(EXIT_FAILURE);
+		}
 		daemon_mode = true;
 		Logging::log = Logger(log_lvl, SYSLOG);
 		FusePassthrough at_filesystem(config_path);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	}else{
-		bool read_only = true;
-		TierEngine autotier(config_path, read_only);
-		optind++;
 		switch(cmd){
 			case ONESHOT:
-				autotier.begin(daemon_mode);
+			case PIN:
+			case UNPIN:
+				{
+					std::vector<std::string> payload;
+					while(optind < argc)
+						payload.push_back(argv[optind++]);
+					WorkPipe *pipe;
+					try{
+						pipe = new WorkPipe(pick_run_path(config_path));
+					}catch(const int &errno_){
+						switch(errno_){
+							case EACCES:
+								Logging::log.error("No permission to create pipe.");
+								break;
+							case EEXIST:
+								Logging::log.error("Pipe already exists!");
+								break;
+							case ENOTDIR:
+								Logging::log.error("Path to create pipe in is not a directory.");
+								break;
+							default:
+								Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
+								break;
+						}
+					}
+					if(pipe->non_block() == -1)
+						Logging::log.error("Setting O_NONBLOCK flag on pipe failed.");
+					if(pipe->put(payload) == -1)
+						Logging::log.error("Writing to pipe failed.");
+			// 		if(pipe->get(payload) == -1)
+			// 			Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
+			// 		for(std::string &str : payload){
+			// 			Logging::log.message(str, 1);
+			// 		}
+					delete pipe;
+				}
 				break;
 			case STATUS:
-				autotier.print_tier_info();
-				break;
-			case PIN:
-				pin(optind, argc, argv, autotier);
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, read_only);
+					autotier.print_tier_info();
+				}
 				break;
 			case CONFIG:
 				Logging::log.message("Config file: (" + config_path.string() + ")", 1);
@@ -113,30 +151,27 @@ int main(int argc, char *argv[]){
 					Logging::log.message(ss.str(), 1);
 				}
 				break;
-			case UNPIN:
-				if(argc - optind < 1){
-					Logging::log.error("No file names passed.", false);
-					usage();
-					exit(EXIT_FAILURE);
-				}
-				autotier.unpin(optind, argc, argv);
+			case HELP:
+				usage();
 				break;
 			case LPIN:
 				Logging::log.message("Pinned files:", 1);
-				autotier.launch_crawlers(&TierEngine::emplace_file);
-				autotier.print_file_pins();
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, read_only);
+					autotier.launch_crawlers(&TierEngine::emplace_file);
+					autotier.print_file_pins();
+				}
 				break;
 			case LPOP:
-				autotier.launch_crawlers(&TierEngine::emplace_file);
-				autotier.sort();
-				autotier.print_file_popularity();
-				break;
-			case HELP:
-				usage();
-				exit(EXIT_SUCCESS);
-			default:
-				usage();
-				exit(EXIT_FAILURE);
+				Logging::log.message("File popularity:", 1);
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, read_only);
+					autotier.launch_crawlers(&TierEngine::emplace_file);
+					autotier.sort();
+					autotier.print_file_popularity();
+				}
 				break;
 		}
 	}
