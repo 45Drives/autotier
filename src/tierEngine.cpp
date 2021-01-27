@@ -28,9 +28,35 @@ extern "C" {
 	#include <fcntl.h>
 }
 
+fs::path pick_run_path(const fs::path &config_path){
+	fs::path run_path = "/run/autotier";
+	if(!fs::is_directory(run_path)){
+		try{
+			fs::create_directories(run_path);
+		}catch(const fs::filesystem_error &){
+			char *home = getenv("HOME");
+			if(home == NULL){
+				Logging::log.error("$HOME not exported.");
+			}
+			run_path = fs::path(home) / ".local/run/autotier";
+			fs::create_directories(run_path);
+		}
+	}else if(access(run_path.c_str(), R_OK | W_OK) != 0){
+		char *home = getenv("HOME");
+		if(home == NULL){
+			Logging::log.error("$HOME not exported.");
+		}
+		run_path = fs::path(home) / ".local/run/autotier";
+		fs::create_directories(run_path);
+	}
+	run_path /= std::to_string(std::hash<std::string>{}(config_path.string()));
+	fs::create_directory(run_path);
+	return run_path;
+}
+
 TierEngine::TierEngine(const fs::path &config_path, bool read_only)
 		: stop_flag_(false), tiers(), config_(config_path, std::ref(tiers)){;
-	pick_run_path(config_path);
+	run_path_ = pick_run_path(config_path);
 	open_db(read_only);
 }
 
@@ -38,30 +64,7 @@ TierEngine::~TierEngine(){
 	delete db_;
 }
 
-void TierEngine::pick_run_path(const fs::path &config_path){
-	run_path_ = "/run/autotier";
-	if(!fs::is_directory(run_path_)){
-		try{
-			fs::create_directories(run_path_);
-		}catch(const fs::filesystem_error &){
-			char *home = getenv("HOME");
-			if(home == NULL){
-				Logging::log.error("$HOME not exported.");
-			}
-			run_path_ = fs::path(home) / ".local/run/autotier";
-			fs::create_directories(run_path_);
-		}
-	}else if(access(run_path_.c_str(), R_OK | W_OK) != 0){
-		char *home = getenv("HOME");
-		if(home == NULL){
-			Logging::log.error("$HOME not exported.");
-		}
-		run_path_ = fs::path(home) / ".local/run/autotier";
-		fs::create_directories(run_path_);
-	}
-	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
-	fs::create_directory(run_path_);
-}
+
 
 std::list<Tier> &TierEngine::get_tiers(void){
 	return tiers;
@@ -142,11 +145,6 @@ void TierEngine::begin(bool daemon_mode){
 	}while(daemon_mode && !stop_flag_);
 }
 
-void TierEngine::sleep(std::chrono::steady_clock::duration t){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_; });
-}
-
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
@@ -171,6 +169,11 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 		tptr->add_file_size(files.back().size());
 		files.pop_back();
 	}
+}
+
+void TierEngine::sleep(std::chrono::steady_clock::duration t){
+	std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_; });
 }
 
 void TierEngine::print_file_pins(){

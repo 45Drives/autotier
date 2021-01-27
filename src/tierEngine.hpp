@@ -29,6 +29,8 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+fs::path pick_run_path(const fs::path &config_path);
+
 class TierEngine{
 private:
 	bool stop_flag_;
@@ -45,7 +47,6 @@ private:
 	fs::path run_path_;
 	/* path to mutex lock file
 	 */
-	void pick_run_path(const fs::path &config_path);
 	fs::path get_mutex_name(const fs::path &config_path);
 	/* returns RUN_PATH/<hash of config file path>.autotier.lock
 	 */
