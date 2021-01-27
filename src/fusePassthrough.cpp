@@ -159,7 +159,9 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	
 	if (res == -1)
 		return -errno;
-	File(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
+	
+	Metadata l(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
+	
 	return res;
 }
 
