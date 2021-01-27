@@ -24,13 +24,16 @@
 #include "file.hpp"
 #include <rocksdb/db.h>
 #include <string>
-#include <atomic>
+#include <mutex>
+#include <condition_variable>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 class TierEngine{
 private:
-	std::atomic<bool> stop_flag_;
+	bool stop_flag_;
+	std::mutex sleep_mt_;
+	std::condition_variable sleep_cv_;
 	rocksdb::DB *db_;
 	/* database holding file metadata:
 	 * table Files:
@@ -105,6 +108,7 @@ public:
 	 * tiers files once
 	 * END IF
 	 */
+	void sleep(std::chrono::seconds t);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	/* crawl() for each tier in tiers
 	 */

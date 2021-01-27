@@ -21,7 +21,6 @@
 #include "alert.hpp"
 #include "fusePassthrough.hpp"
 #include <chrono>
-#include <thread>
 #include <sstream>
 #include <cmath>
 
@@ -33,6 +32,10 @@ TierEngine::TierEngine(const fs::path &config_path, bool read_only)
 		: stop_flag_(false), tiers(), config_(config_path, std::ref(tiers)){;
 	pick_run_path(config_path);
 	open_db(read_only);
+}
+
+TierEngine::~TierEngine(){
+	delete db_;
 }
 
 void TierEngine::pick_run_path(const fs::path &config_path){
@@ -58,10 +61,6 @@ void TierEngine::pick_run_path(const fs::path &config_path){
 	}
 	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
 	fs::create_directory(run_path_);
-}
-
-TierEngine::~TierEngine(){
-	delete db_;
 }
 
 std::list<Tier> &TierEngine::get_tiers(void){
@@ -139,8 +138,13 @@ void TierEngine::begin(bool daemon_mode){
 		auto duration = end - start;
 		// don't wait for oneshot execution
 		if(daemon_mode && duration < config_.tier_period_s())
-			std::this_thread::sleep_for(config_.tier_period_s()-duration);
+			sleep(std::chrono::duration_cast<std::chrono::seconds>(config_.tier_period_s()-duration));
 	}while(daemon_mode && !stop_flag_);
+}
+
+void TierEngine::sleep(std::chrono::seconds t){
+	std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_; });
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -290,5 +294,7 @@ void TierEngine::calc_popularity(void){
 }
 
 void TierEngine::stop(void){
+	std::lock_guard<std::mutex> lk(sleep_mt_);
 	stop_flag_ = true;
+	sleep_cv_.notify_one();
 }
