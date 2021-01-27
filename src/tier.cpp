@@ -81,37 +81,40 @@ void Tier::transfer_files(void){
 		}
 		fs::path old_path = fptr->full_path();
 		fs::path new_path = path_ / fptr->relative_path();
-		fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier");
-		Tier::copy_file(old_path, new_tmp_path);
-		fs::remove(old_path);
-		fs::rename(new_tmp_path, new_path);
-		fptr->transfer_to_tier(this);
-		fptr->overwrite_times();
+		bool copy_success = Tier::move_file(old_path, new_path);
+		if(copy_success){
+			fptr->transfer_to_tier(this);
+			fptr->overwrite_times();
+		}
 	}
 	incoming_files_.clear();
 	usage_ = 0;
 }
 
-void Tier::copy_file(const fs::path &old_path, const fs::path &new_path) const{
+bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
+	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier");
 	if(!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
 	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
 	bool copy_success = true;
 	try{
-		fs::copy_file(old_path, new_path); // move item to slow tier
+		fs::copy_file(old_path, new_tmp_path); // move item to slow tier
 	}catch(boost::filesystem::filesystem_error const & e){
 		copy_success = false;
 		Logging::log.error("Copy failed: " + std::string(e.what()), false);
 		if(e.code() == boost::system::errc::file_exists){
-			Logging::log.error("User intervention required to delete duplicate file.", false);
+			Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string(), false);
 		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			Logging::log.error("No action required.", false);
+			Logging::log.error("No action required, file was deleted by another process.", false);
 		}
 	}
 	if(copy_success){
 		copy_ownership_and_perms(old_path, new_path);
+		fs::remove(old_path);
+		fs::rename(new_tmp_path, new_path);
 		Logging::log.message("Copy succeeded.\n", 2);
 	}
+	return copy_success;
 }
 
 void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{

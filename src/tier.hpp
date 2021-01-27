@@ -36,7 +36,7 @@ private:
 	fs::path path_;
 	void get_capacity_and_usage(void);
 	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
-	void copy_file(const fs::path &old_path, const fs::path &new_path) const;
+	bool move_file(const fs::path &old_path, const fs::path &new_path) const;
 	std::vector<File *> incoming_files_;
 public:
 	Tier(std::string id);
