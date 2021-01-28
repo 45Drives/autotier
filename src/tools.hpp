@@ -32,6 +32,8 @@ int get_command_index(const char *cmd);
  * each entry in command_list
  */
 
+void sanitize_paths(std::vector<std::string> &paths);
+
 void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &run_path);
 
 void get_fifo_payload(std::vector<std::string> &payload, const fs::path &run_path);

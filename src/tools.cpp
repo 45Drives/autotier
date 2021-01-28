@@ -19,6 +19,7 @@
 
 #include "tools.hpp"
 #include "alert.hpp"
+#include "file.hpp"
 #include <iostream>
 #include <regex>
 #include <vector>
@@ -49,6 +50,34 @@ int get_command_index(const char *cmd){
 			return itr;
 	}
 	return MOUNTPOINT;
+}
+
+void sanitize_paths(std::vector<std::string> &paths){
+	std::vector<std::string> non_existing_args, directories;
+	for(std::vector<std::string>::iterator itr = paths.begin(); itr != paths.end(); ++itr){
+		fs::path path = (fs::current_path() / *itr).string();
+		if(!fs::exists(path))
+			non_existing_args.push_back(*itr);
+		else if(fs::is_directory(path))
+			directories.push_back(*itr);
+		else
+			itr->assign(fs::canonical(path).string());
+	}
+	if(!non_existing_args.empty()){
+		std::string err_msg = "Some files passed for pinning do not exist. Offender(s):";
+		for(const std::string &str : non_existing_args)
+			err_msg += " " + str;
+		Logging::log.error(err_msg, false);
+	}
+	if(!directories.empty()){
+		std::string err_msg = "autotier cannot pin entire directories. Pass files instead. Offender(s):";
+		for(const std::string &str : directories)
+			err_msg += " " + str;
+		Logging::log.error(err_msg, false);
+	}
+	if(!non_existing_args.empty() || !directories.empty()){
+		exit(EXIT_FAILURE);
+	}
 }
 
 void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &pipe_path){

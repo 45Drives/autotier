@@ -309,35 +309,29 @@ void TierEngine::process_adhoc_requests(void){
 	while(!stop_flag_){
 		get_fifo_payload(payload, run_path_ / "request.pipe");
 		AdHoc work(payload);
+		payload.clear();
 		switch(work.cmd_){
 			case ONESHOT:
 				if(!work.args_.empty()){
-					payload.clear();
 					payload.emplace_back("ERR");
-					std::string err_msg = "autotier oneshot takes no arguments. Offenders:";
+					std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
 					for(std::string &str : work.args_)
 						err_msg += " " + str;
 					payload.emplace_back(err_msg);
 					send_fifo_payload(payload, run_path_ / "response.pipe");
-				}else{
-					adhoc_work_.push(work);
-					payload.clear();
-					payload.emplace_back("OK");
-					payload.emplace_back("Work queued.");
-					send_fifo_payload(payload, run_path_ / "response.pipe");
+					continue;
 				}
+				adhoc_work_.push(work);
+				payload.emplace_back("OK");
+				payload.emplace_back("Work queued.");
+				send_fifo_payload(payload, run_path_ / "response.pipe");
 				break;
 			case PIN:
+			case UNPIN:
 				adhoc_work_.push(work);
 				payload.clear();
 				payload.emplace_back("OK");
-				payload.emplace_back("Received PIN");
-				send_fifo_payload(payload, run_path_ / "response.pipe");
-				break;
-			case UNPIN:
-				payload.clear();
-				payload.emplace_back("OK");
-				payload.emplace_back("Received UNPIN");
+				payload.emplace_back("Work queued.");
 				send_fifo_payload(payload, run_path_ / "response.pipe");
 				break;
 			default:
@@ -361,9 +355,13 @@ void TierEngine::execute_queued_work(void){
 				break;
 			case PIN:
 				Logging::log.message("PIN", 1);
+				for(const std::string &path : work.args_)
+					Logging::log.message(path, 1);
 				break;
 			case UNPIN:
 				Logging::log.message("UNPIN", 1);
+				for(const std::string &path : work.args_)
+					Logging::log.message(path, 1);
 				break;
 			default:
 				Logging::log.warning("Trying to execute bad ad hoc command.");

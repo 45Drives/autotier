@@ -103,8 +103,18 @@ int main(int argc, char *argv[]){
 			case UNPIN:
 				{
 					std::vector<std::string> payload;
-					while(optind < argc)
-						payload.push_back(argv[optind++]);
+					payload.push_back(argv[optind++]); // push command name
+					if(cmd == PIN) payload.push_back(argv[optind++]); // push tier name
+					if(cmd == PIN || cmd == UNPIN){
+						std::vector<std::string> paths;
+						while(optind < argc)
+							paths.push_back(argv[optind++]);
+						if(paths.empty())
+							Logging::log.error("No arguments passed.");
+						sanitize_paths(paths);
+						for(const std::string &path : paths)
+							payload.emplace_back(path);
+					}
 					
 					fs::path run_path = pick_run_path(config_path);
 					
