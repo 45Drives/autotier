@@ -47,6 +47,7 @@ namespace FuseGlobal{
 	static rocksdb::DB *db_;
 	static std::vector<Tier *> tiers_;
 	static std::thread tier_worker_;
+	static std::thread adhoc_server_;
 }
 
 fs::path _mountpoint_;
@@ -508,6 +509,8 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	FuseGlobal::db_ = FuseGlobal::autotier_->get_db();
 	
 	FuseGlobal::tier_worker_ = std::thread(&TierEngine::begin, FuseGlobal::autotier_, true);
+	
+	FuseGlobal::adhoc_server_ = std::thread(&TierEngine::process_adhoc_requests, FuseGlobal::autotier_);
 	
 	return NULL;
 }

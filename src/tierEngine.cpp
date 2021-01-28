@@ -64,8 +64,6 @@ TierEngine::~TierEngine(){
 	delete db_;
 }
 
-
-
 std::list<Tier> &TierEngine::get_tiers(void){
 	return tiers;
 }
@@ -300,4 +298,36 @@ void TierEngine::stop(void){
 	std::lock_guard<std::mutex> lk(sleep_mt_);
 	stop_flag_ = true;
 	sleep_cv_.notify_one();
+}
+
+void TierEngine::process_adhoc_requests(void){
+	std::vector<std::string> payload;
+	while(!stop_flag_){
+		get_fifo_payload(payload, run_path_ / "request.pipe");
+		AdHoc work(payload);
+		switch(work.cmd_){
+			case ONESHOT:
+				payload.clear();
+				payload.emplace_back("Received ONESHOT");
+				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+			case PIN:
+				payload.clear();
+				payload.emplace_back("Received PIN");
+				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+			case UNPIN:
+				payload.clear();
+				payload.emplace_back("Received UNPIN");
+				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+			default:
+				Logging::log.warning("Received bad ad hoc command.");
+				payload.clear();
+				payload.emplace_back("ERR");
+				payload.emplace_back("Not a command.");
+				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+		}
+	}
 }

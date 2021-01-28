@@ -22,6 +22,8 @@
 #include "config.hpp"
 #include "tier.hpp"
 #include "file.hpp"
+#include "tools.hpp"
+#include "concurrentQueue.hpp"
 #include <rocksdb/db.h>
 #include <string>
 #include <mutex>
@@ -75,6 +77,7 @@ private:
 	Config config_;
 	/* configuration goes here, read in from file in TierEngine::TierEngine()
 	 */
+	ConcurrentQueue<AdHoc> adhoc_work_;
 public:
 	TierEngine(const fs::path &config_path, bool read_only = false);
 	/* attaches signal handlers, loads config, picks run path for mutex lock and
@@ -165,4 +168,5 @@ public:
 	/* call File::calc_popularity() for each file in files
 	 */
 	void stop(void);
+	void process_adhoc_requests(void);
 };
