@@ -123,8 +123,8 @@ void TierEngine::begin(bool daemon_mode){
 		tier();
 		// don't wait for oneshot execution
 		while(daemon_mode && std::chrono::steady_clock::now() < wake_time){
-			sleep_until(wake_time);
 			execute_queued_work();
+			sleep_until(wake_time);
 		}
 	}while(daemon_mode && !stop_flag_);
 }
@@ -328,6 +328,15 @@ void TierEngine::process_adhoc_requests(void){
 				break;
 			case PIN:
 			case UNPIN:
+				{
+					std::string tier_id = work.args_.front();
+					if(tier_lookup(tier_id) == nullptr){
+						payload.emplace_back("ERR");
+						payload.emplace_back("Tier does not exist: \"" + tier_id);
+						send_fifo_payload(payload, run_path_ / "response.pipe");
+						continue;
+					}
+				}
 				adhoc_work_.push(work);
 				payload.clear();
 				payload.emplace_back("OK");
