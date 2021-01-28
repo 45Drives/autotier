@@ -43,14 +43,13 @@ extern "C"{
 
 namespace FuseGlobal{
 	static fs::path config_path_;
+	static fs::path mount_point_;
 	static TierEngine *autotier_;
 	static rocksdb::DB *db_;
 	static std::vector<Tier *> tiers_;
 	static std::thread tier_worker_;
 	static std::thread adhoc_server_;
 }
-
-fs::path _mountpoint_;
 
 FusePassthrough::FusePassthrough(const fs::path &config_path){
 	FuseGlobal::config_path_ = config_path;
@@ -503,6 +502,8 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	
 	FuseGlobal::autotier_ = new TierEngine(FuseGlobal::config_path_);
 	
+	FuseGlobal::autotier_->mount_point(FuseGlobal::mount_point_);
+	
 	for(std::list<Tier>::iterator tptr = FuseGlobal::autotier_->get_tiers().begin(); tptr != FuseGlobal::autotier_->get_tiers().end(); ++tptr){
 		FuseGlobal::tiers_.push_back(&(*tptr));
 	}
@@ -659,7 +660,7 @@ static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_
 
 
 int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
-	_mountpoint_ = mountpoint; // global
+	FuseGlobal::mount_point_ = mountpoint; // global
 	Logging::log.message("Mounting filesystem", 2);
 	static const struct fuse_operations at_oper = {
 		.getattr					= at_getattr,

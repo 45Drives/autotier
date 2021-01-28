@@ -20,6 +20,7 @@
 #include "tierEngine.hpp"
 #include "alert.hpp"
 #include "fusePassthrough.hpp"
+#include <algorithm>
 #include <chrono>
 #include <sstream>
 #include <cmath>
@@ -329,10 +330,29 @@ void TierEngine::process_adhoc_requests(void){
 			case PIN:
 			case UNPIN:
 				{
-					std::string tier_id = work.args_.front();
-					if(tier_lookup(tier_id) == nullptr){
+					std::vector<std::string>::iterator itr = work.args_.begin();
+					if(work.cmd_ == PIN){
+						std::string tier_id = work.args_.front();
+						if(tier_lookup(tier_id) == nullptr){
+							payload.emplace_back("ERR");
+							payload.emplace_back("Tier does not exist: \"" + tier_id + "\"");
+							send_fifo_payload(payload, run_path_ / "response.pipe");
+							continue;
+						}
+						++itr;
+					}
+					std::vector<std::string> not_in_fs;
+					for( ; itr != work.args_.end(); ++itr){
+						if(!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())){
+							not_in_fs.push_back(*itr);
+						}
+					}
+					if(!not_in_fs.empty()){
 						payload.emplace_back("ERR");
-						payload.emplace_back("Tier does not exist: \"" + tier_id);
+						std::string err_msg = "Files are not in autotier filesystem:";
+						for(const std::string &str : not_in_fs)
+							err_msg += " " + str;
+						payload.emplace_back(err_msg);
 						send_fifo_payload(payload, run_path_ / "response.pipe");
 						continue;
 					}
@@ -377,4 +397,8 @@ void TierEngine::execute_queued_work(void){
 				break;
 		}
 	}
+}
+
+void TierEngine::mount_point(const fs::path &mount_point){
+	mount_point_ = mount_point;
 }

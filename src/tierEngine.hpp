@@ -49,6 +49,9 @@ private:
 	fs::path run_path_;
 	/* path to mutex lock file
 	 */
+	fs::path mount_point_;
+	/* where autotier filesystem is mounted
+	 */
 	fs::path get_mutex_name(const fs::path &config_path);
 	/* returns RUN_PATH/<hash of config file path>.autotier.lock
 	 */
@@ -171,4 +174,5 @@ public:
 	void stop(void);
 	void process_adhoc_requests(void);
 	void execute_queued_work(void);
+	void mount_point(const fs::path &mount_point);
 };
