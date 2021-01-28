@@ -41,7 +41,6 @@ int main(int argc, char *argv[]){
 	int option_ind = 0;
 	int cmd;
 	int log_lvl = 1;
-	bool daemon_mode = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
@@ -94,7 +93,6 @@ int main(int argc, char *argv[]){
 			usage();
 			exit(EXIT_FAILURE);
 		}
-		daemon_mode = true;
 		Logging::log = Logger(log_lvl, SYSLOG);
 		FusePassthrough at_filesystem(config_path);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
@@ -107,36 +105,18 @@ int main(int argc, char *argv[]){
 					std::vector<std::string> payload;
 					while(optind < argc)
 						payload.push_back(argv[optind++]);
-					WorkPipe *pipe;
-					try{
-						pipe = new WorkPipe(pick_run_path(config_path), O_WRONLY | O_NONBLOCK);
-					}catch(const int &errno_){
-						switch(errno_){
-							case EACCES:
-								Logging::log.error("No permission to create pipe.");
-								break;
-							case EEXIST:
-								Logging::log.error("Pipe already exists!");
-								break;
-							case ENOTDIR:
-								Logging::log.error("Path to create pipe in is not a directory.");
-								break;
-							case ENXIO:
-								Logging::log.error("Pipe is not connected, autotier seems to not be mounted.");
-								break;
-							default:
-								Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
-								break;
-						}
+					
+					fs::path run_path = pick_run_path(config_path);
+					
+					send_fifo_payload(payload, run_path / "request.pipe");
+					
+					Logging::log.message("Waiting for filesystem response...", 1);
+					
+					get_fifo_payload(payload, run_path / "response.pipe");
+					
+					for(std::string &str : payload){
+						Logging::log.message(str, 1);
 					}
-					if(pipe->put(payload) == -1)
-						Logging::log.error("Writing to pipe failed.");
-			// 		if(pipe->get(payload) == -1)
-			// 			Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
-			// 		for(std::string &str : payload){
-			// 			Logging::log.message(str, 1);
-			// 		}
-					delete pipe;
 				}
 				break;
 			case STATUS:

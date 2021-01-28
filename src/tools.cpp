@@ -19,7 +19,6 @@
 
 #include "tools.hpp"
 #include "alert.hpp"
-#include "tierEngine.hpp"
 #include <iostream>
 #include <regex>
 #include <vector>
@@ -52,8 +51,75 @@ int get_command_index(const char *cmd){
 	return MOUNTPOINT;
 }
 
-WorkPipe::WorkPipe(fs::path run_path, int flags){
-	fs::path pipe_path = run_path / "work.pipe";
+void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &pipe_path){
+	WorkPipe *request_pipe;
+	
+	try{
+		request_pipe = new WorkPipe(pipe_path, O_WRONLY | O_NONBLOCK);
+	}catch(const int &errno_){
+		switch(errno_){
+			case EACCES:
+				Logging::log.error("No permission to create pipe.");
+				break;
+			case EEXIST:
+				Logging::log.error("Pipe already exists!");
+				break;
+			case ENOTDIR:
+				Logging::log.error("Path to create pipe in is not a directory.");
+				break;
+			case ENXIO:
+				Logging::log.error(
+					"Pipe is not connected, autotier seems to not be mounted.\n"
+					"If it is mounted, make sure to run this command as the user who mounted."
+				);
+				break;
+			default:
+				Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
+				break;
+		}
+	}
+
+	if(request_pipe->put(payload) == -1)
+		Logging::log.error("Writing to pipe failed.");
+	
+	delete request_pipe;
+}
+
+void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_path){
+	WorkPipe *response_pipe;
+	
+	try{
+		response_pipe = new WorkPipe(pipe_path, O_RDONLY);
+	}catch(const int &errno_){
+		switch(errno_){
+			case EACCES:
+				Logging::log.error("No permission to create pipe.");
+				break;
+			case EEXIST:
+				Logging::log.error("Pipe already exists!");
+				break;
+			case ENOTDIR:
+				Logging::log.error("Path to create pipe in is not a directory.");
+				break;
+			case ENXIO:
+				Logging::log.error(
+					"Pipe is not connected, autotier seems to not be mounted.\n"
+					"If it is mounted, make sure to run this command as the user who mounted."
+				);
+				break;
+			default:
+				Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
+				break;
+		}
+	}
+	
+	if(response_pipe->get(payload) == -1)
+		Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
+	
+	delete response_pipe;
+}
+
+WorkPipe::WorkPipe(fs::path pipe_path, int flags){
 	int res = mkfifo(pipe_path.c_str(), 0755);
 	if(res == -1){
 		if(errno != EEXIST) throw errno; // allow fail if exists

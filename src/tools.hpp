@@ -32,6 +32,10 @@ int get_command_index(const char *cmd);
  * each entry in command_list
  */
 
+void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &run_path);
+
+void get_fifo_payload(std::vector<std::string> &payload, const fs::path &run_path);
+
 class AdHoc{
 public:
 	int cmd_;
@@ -56,7 +60,7 @@ class WorkPipe{
 private:
 	int fd_;
 public:
-	WorkPipe(fs::path run_path, int flags);
+	WorkPipe(fs::path pipe_path, int flags);
 	~WorkPipe(void);
 	int get(std::vector<std::string> &payload) const;
 	int put(const std::vector<std::string> &payload) const;
