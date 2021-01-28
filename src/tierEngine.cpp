@@ -325,11 +325,13 @@ void TierEngine::process_adhoc_requests(void){
 				break;
 			case PIN:
 				payload.clear();
+				payload.emplace_back("OK");
 				payload.emplace_back("Received PIN");
 				send_fifo_payload(payload, run_path_ / "response.pipe");
 				break;
 			case UNPIN:
 				payload.clear();
+				payload.emplace_back("OK");
 				payload.emplace_back("Received UNPIN");
 				send_fifo_payload(payload, run_path_ / "response.pipe");
 				break;
