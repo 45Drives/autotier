@@ -73,7 +73,7 @@ private:
 	/* ensures all config options are legal
 	 * returns true if no errors found, false otherwise
 	 */
-	int load_global(std::fstream &config_file, std::string &id);
+	int load_global(std::ifstream &config_file, std::string &id);
 	/* called by load() when [global] config header is found
 	 */
 	void init_config_file(const fs::path &config_path) const;

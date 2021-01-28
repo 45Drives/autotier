@@ -47,7 +47,7 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 	std::string line, key, value;
 	
 	// open file
-	std::fstream config_file(config_path.string());
+	std::ifstream config_file(config_path.string());
 	if(!config_file){
 		config_file.close();
 		init_config_file(config_path);
@@ -104,7 +104,7 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 	verify(config_path, tiers);
 }
 
-int Config::load_global(std::fstream &config_file, std::string &id){
+int Config::load_global(std::ifstream &config_file, std::string &id){
 	std::string line, key, value;
 	while(config_file){
 		getline(config_file, line);
