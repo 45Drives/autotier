@@ -110,12 +110,20 @@ int main(int argc, char *argv[]){
 					
 					send_fifo_payload(payload, run_path / "request.pipe");
 					
-					Logging::log.message("Waiting for filesystem response...", 1);
+					Logging::log.message("Waiting for filesystem response...", 2);
 					
 					get_fifo_payload(payload, run_path / "response.pipe");
 					
-					for(std::string &str : payload){
-						Logging::log.message(str, 1);
+					if(payload.front() == "OK"){
+						Logging::log.message("Response OK.", 2);
+						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+							Logging::log.message(*itr, 1);
+						}
+					}else{
+						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+							Logging::log.error(*itr, false);
+						}
+						exit(EXIT_FAILURE);
 					}
 				}
 				break;

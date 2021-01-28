@@ -147,7 +147,7 @@ int WorkPipe::get(std::vector<std::string> &payload) const{
 	}
 	while(ss){
 		getline(ss, token);
-		payload.push_back(token);
+		if(!token.empty() && token[0] != '\0') payload.push_back(token);
 	}
 	return 0;
 }

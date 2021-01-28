@@ -307,9 +307,21 @@ void TierEngine::process_adhoc_requests(void){
 		AdHoc work(payload);
 		switch(work.cmd_){
 			case ONESHOT:
-				payload.clear();
-				payload.emplace_back("Received ONESHOT");
-				send_fifo_payload(payload, run_path_ / "response.pipe");
+				if(!work.args_.empty()){
+					payload.clear();
+					payload.emplace_back("ERR");
+					std::string err_msg = "autotier oneshot takes no arguments. Offenders:";
+					for(std::string &str : work.args_)
+						err_msg += " " + str;
+					payload.emplace_back(err_msg);
+					send_fifo_payload(payload, run_path_ / "response.pipe");
+				}else{
+					adhoc_work_.push(work);
+					payload.clear();
+					payload.emplace_back("OK");
+					payload.emplace_back("Work queued.");
+					send_fifo_payload(payload, run_path_ / "response.pipe");
+				}
 				break;
 			case PIN:
 				payload.clear();
