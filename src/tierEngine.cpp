@@ -119,20 +119,19 @@ Config *TierEngine::get_config(void){
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
 	do{
-		auto start = std::chrono::steady_clock::now();
+		auto wake_time = std::chrono::steady_clock::now() + config_.tier_period_s();
 		tier();
-		auto end = std::chrono::steady_clock::now();
-		auto duration = end - start;
 		// don't wait for oneshot execution
-		if(daemon_mode && duration < config_.tier_period_s())
-			sleep(config_.tier_period_s() - duration);
-		execute_queued_work();
+		while(daemon_mode && std::chrono::steady_clock::now() < wake_time){
+			sleep_until(wake_time);
+			execute_queued_work();
+		}
 	}while(daemon_mode && !stop_flag_);
 }
 
-void TierEngine::sleep(std::chrono::steady_clock::duration t){
+void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
+	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }
 
 void TierEngine::tier(void){
@@ -329,6 +328,7 @@ void TierEngine::process_adhoc_requests(void){
 				}
 				break;
 			case PIN:
+				adhoc_work_.push(work);
 				payload.clear();
 				payload.emplace_back("OK");
 				payload.emplace_back("Received PIN");
@@ -360,10 +360,10 @@ void TierEngine::execute_queued_work(void){
 				tier();
 				break;
 			case PIN:
-				
+				Logging::log.message("PIN", 1);
 				break;
 			case UNPIN:
-				
+				Logging::log.message("UNPIN", 1);
 				break;
 			default:
 				Logging::log.warning("Trying to execute bad ad hoc command.");

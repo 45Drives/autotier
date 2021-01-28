@@ -113,7 +113,7 @@ public:
 	 * END IF
 	 */
 	void tier(void);
-	void sleep(std::chrono::steady_clock::duration t);
+	void sleep_until(std::chrono::steady_clock::time_point t);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	/* crawl() for each tier in tiers
 	 */
