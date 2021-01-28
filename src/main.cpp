@@ -24,6 +24,8 @@
 #include "fusePassthrough.hpp"
 #include <sstream>
 #include <cstring>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
 
 extern "C" {
 	#include <getopt.h>
