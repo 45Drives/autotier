@@ -120,27 +120,37 @@ void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
 	do{
 		auto start = std::chrono::steady_clock::now();
-		launch_crawlers(&TierEngine::emplace_file);
-		// one popularity calculation per loop
-		calc_popularity();
-		// mutex lock
-		if(lock_mutex() == -1){
-			Logging::log.warning("autotier already moving files.");
-		}else{
-			// mutex locked
-			sort();
-			simulate_tier();
-			move_files();
-			Logging::log.message("Tiering complete.", 1);
-			unlock_mutex();
-		}
-		files.clear();
+		tier();
 		auto end = std::chrono::steady_clock::now();
 		auto duration = end - start;
 		// don't wait for oneshot execution
 		if(daemon_mode && duration < config_.tier_period_s())
 			sleep(config_.tier_period_s() - duration);
+		execute_queued_work();
 	}while(daemon_mode && !stop_flag_);
+}
+
+void TierEngine::sleep(std::chrono::steady_clock::duration t){
+	std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
+}
+
+void TierEngine::tier(void){
+	launch_crawlers(&TierEngine::emplace_file);
+	// one popularity calculation per loop
+	calc_popularity();
+	// mutex lock
+	if(lock_mutex() == -1){
+		Logging::log.warning("autotier already moving files.");
+	}else{
+		// mutex locked
+		sort();
+		simulate_tier();
+		move_files();
+		Logging::log.message("Tiering complete.", 1);
+		unlock_mutex();
+	}
+	files.clear();
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
@@ -167,11 +177,6 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 		tptr->add_file_size(files.back().size());
 		files.pop_back();
 	}
-}
-
-void TierEngine::sleep(std::chrono::steady_clock::duration t){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_for(lk, t, [this](){ return this->stop_flag_; });
 }
 
 void TierEngine::print_file_pins(){
@@ -341,6 +346,27 @@ void TierEngine::process_adhoc_requests(void){
 				payload.emplace_back("ERR");
 				payload.emplace_back("Not a command.");
 				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+		}
+		sleep_cv_.notify_one();
+	}
+}
+
+void TierEngine::execute_queued_work(void){
+	while(!adhoc_work_.empty()){
+		AdHoc work = adhoc_work_.pop();
+		switch(work.cmd_){
+			case ONESHOT:
+				tier();
+				break;
+			case PIN:
+				
+				break;
+			case UNPIN:
+				
+				break;
+			default:
+				Logging::log.warning("Trying to execute bad ad hoc command.");
 				break;
 		}
 	}

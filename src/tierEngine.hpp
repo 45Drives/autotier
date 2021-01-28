@@ -112,6 +112,7 @@ public:
 	 * tiers files once
 	 * END IF
 	 */
+	void tier(void);
 	void sleep(std::chrono::steady_clock::duration t);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	/* crawl() for each tier in tiers
@@ -169,4 +170,5 @@ public:
 	 */
 	void stop(void);
 	void process_adhoc_requests(void);
+	void execute_queued_work(void);
 };

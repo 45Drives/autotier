@@ -23,23 +23,27 @@
 #include <mutex>
 
 template<class T>
-class ConcurrentQueue : std::queue<T>{
+class ConcurrentQueue{
 private:
 	std::mutex mt_;
+	std::queue<T> queue_;
 public:
-	ConcurrentQueue() : std::queue<T>(), mt_() {}
+	ConcurrentQueue() : mt_(), queue_() {}
+	bool empty(void) const{
+		return queue_.empty();
+	}
 	void push(const T &val){
 		std::lock_guard<std::mutex> lk(mt_);
-		std::queue<T>::push(val);
+		queue_.push(val);
 	}
 	void emplace(const T &val){
 		std::lock_guard<std::mutex> lk(mt_);
-		std::queue<T>::emplace(val);
+		queue_.emplace(val);
 	}
 	T pop(void){
 		std::lock_guard<std::mutex> lk(mt_);
-		T val = std::queue<T>::front();
-		std::queue<T>::pop();
+		T val = queue_.front();
+		queue_.pop();
 		return val;
 	}
 };
