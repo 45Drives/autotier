@@ -182,19 +182,16 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 	}
 }
 
-void TierEngine::print_file_pins(){
-	for(std::list<File>::iterator fptr = files.begin(); fptr != files.end(); ++fptr){
-		if(fptr->is_pinned()){
-			Logging::log.message(fptr->relative_path().string() + " is pinned to " + fptr->tier_ptr()->id() , 1);
-		}
+void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr){
+	File f(file, db_, tptr);
+	if(f.is_pinned()){
+		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 1);
 	}
-	files.clear();
 }
 
-void TierEngine::print_file_popularity(){
-	for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
-		Logging::log.message(f->relative_path().string() + " popularity: " + std::to_string(f->popularity()), 1);
-	}
+void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr){
+	File f(file, db_, tptr);
+	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 1);
 	files.clear();
 }
 

@@ -127,10 +127,10 @@ public:
 	void emplace_file(fs::directory_entry &file, Tier *tptr);
 	/* place file into std::list<File> files, constructing with fs::path, Tier*, and db
 	 */
-	void print_file_pins(void);
+	void print_file_pins(fs::directory_entry &file, Tier *tptr);
 	/* iterate through list of files, printing old_path and pinnned_to to std::cout
 	 */
-	void print_file_popularity(void);
+	void print_file_popularity(fs::directory_entry &file, Tier *tptr);
 	/* iterate through list of files, printing popularity
 	 */
 	void sort(void);

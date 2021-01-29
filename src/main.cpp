@@ -161,8 +161,7 @@ int main(int argc, char *argv[]){
 				{
 					bool read_only = true;
 					TierEngine autotier(config_path, read_only);
-					autotier.launch_crawlers(&TierEngine::emplace_file);
-					autotier.print_file_pins();
+					autotier.launch_crawlers(&TierEngine::print_file_pins);
 				}
 				break;
 			case LPOP:
@@ -170,9 +169,7 @@ int main(int argc, char *argv[]){
 				{
 					bool read_only = true;
 					TierEngine autotier(config_path, read_only);
-					autotier.launch_crawlers(&TierEngine::emplace_file);
-					autotier.sort();
-					autotier.print_file_popularity();
+					autotier.launch_crawlers(&TierEngine::print_file_popularity);
 				}
 				break;
 		}
