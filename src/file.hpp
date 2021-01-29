@@ -69,7 +69,10 @@ public:
 	~Metadata(void) = default;
 	void touch(void);
 	std::string tier_path(void) const;
+	void tier_path(const std::string &path);
 	bool not_found(void) const;
+	bool pinned(void) const;
+	void pinned(bool val);
 	std::string dump_stats(void) const;
 };
 

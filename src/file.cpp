@@ -63,6 +63,18 @@ std::string Metadata::tier_path(void) const{
 	return tier_path_;
 }
 
+void Metadata::tier_path(const std::string &path){
+	tier_path_ = path;
+}
+
+bool Metadata::pinned(void) const{
+	return pinned_;
+}
+
+void Metadata::pinned(bool val){
+	pinned_ = val;
+}
+
 void Metadata::touch(void){
 	access_count_++;
 }
@@ -112,6 +124,8 @@ File::~File(){
 }
 
 void File::calc_popularity(double period_seconds){
+	if(period_seconds == 0.0)
+		return;
 	double usage_frequency;
 	if(metadata.access_count_){
 		usage_frequency = double(metadata.access_count_) / period_seconds;
