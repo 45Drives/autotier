@@ -88,6 +88,6 @@ public:
 	std::chrono::seconds tier_period_s(void) const;
 	void dump(const std::list<Tier> &tiers) const;
 	/* print out loaded options from config file for the global section
-	 * and for each tier to os
+	 * and for each tier
 	 */
 };

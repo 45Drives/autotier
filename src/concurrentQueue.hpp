@@ -17,6 +17,11 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/* Simple concurrent queue implementation. No guard against popping from empty queue.
+ * Check empty() before popping. Intended only for multiple producer, single consumer use.
+ */
+
+
 #pragma once
 
 #include <queue>

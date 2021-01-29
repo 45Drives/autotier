@@ -31,22 +31,27 @@ private:
 	 * If the message's level is higher, it is printed.
 	 */
 	output_t output_;
+	/* Whether to output to stdout (STD) or syslog (SYSLOG)
+	 */
 public:
 	explicit Logger(int log_level, output_t output = STD);
 	/* Constructs Logger, assigning log_level to the
-	 * internal log_level_.
+	 * internal log_level_. Defaults to stdout output.
+	 * Syslog output set by passing SYSLOG for output.
 	 */
 	~Logger(void);
+	/* Close syslog if output_ == SYSLOG
+	 */
 	void message(const std::string &msg, int lvl) const;
-	/* Print message to stdout if lvl >= log_level_.
+	/* Print message if lvl >= log_level_.
 	 * Use this for regular informational log messages.
 	 */
 	void warning(const std::string &msg) const;
-	/* Print message to stderr prepended with "Warning: ".
+	/* Print message (to stderr if output_ == STD) prepended with "Warning: ".
 	 * Use this for non-fatal errors.
 	 */
 	void error(const std::string &msg, bool exit_ = true) const;
-	/* Print message to stderr prepended with "Error: ".
+	/* Print message (to stderr if output_ == STD) prepended with "Error: ".
 	 * Exits with EXIT_FAILURE if exit_ is left as true.
 	 * exit_ is used to delay exiting until later if there are
 	 * multiple errors to print.

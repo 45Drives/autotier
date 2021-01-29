@@ -39,24 +39,24 @@ Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
 		this->serialize(ia, 0);
 	}else if(tptr){
 		tier_path_ = tptr->path().string();
-		put_info(path, db);
+		update(path, db);
 	}else{
 		not_found_ = true;
 	}
 }
 
-void Metadata::put_info(const char *key, rocksdb::DB* db){
-	if(key[0] == '/') key++;
+void Metadata::update(const char *relative_path, rocksdb::DB *db){
+	if(relative_path[0] == '/') relative_path++;
 	std::stringstream ss;
 	{
 		boost::archive::text_oarchive oa(ss);
 		this->serialize(oa, 0);
 	}
-	rocksdb::Status s = db->Put(rocksdb::WriteOptions(), key, ss.str());
+	rocksdb::Status s = db->Put(rocksdb::WriteOptions(), relative_path, ss.str());
 }
 
-void Metadata::update(const char *relative_path, rocksdb::DB *db){
-	put_info(relative_path, db);
+void Metadata::touch(void){
+	access_count_++;
 }
 
 std::string Metadata::tier_path(void) const{
@@ -75,10 +75,6 @@ void Metadata::pinned(bool val){
 	pinned_ = val;
 }
 
-void Metadata::touch(void){
-	access_count_++;
-}
-
 bool Metadata::not_found(void) const{
 	return not_found_;
 }
@@ -93,7 +89,7 @@ std::string Metadata::dump_stats(void) const{
 }
 
 File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
-		: relative_path_(fs::relative(full_path, tptr->path())), metadata(relative_path_.c_str(), db, tptr){
+		: relative_path_(fs::relative(full_path, tptr->path())), metadata_(relative_path_.c_str(), db, tptr){
 	tier_ptr_ = tptr;
 	struct stat info;
 	stat(full_path.c_str(), &info);
@@ -106,37 +102,24 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 	db_ = db;
 }
 
-File::File(fs::path rel_path, rocksdb::DB *db)
-		: relative_path_(rel_path), metadata(relative_path_.c_str(), db){
-	struct stat info;
-	stat((metadata.tier_path_ / rel_path).c_str(), &info);
-	size_ = (uintmax_t)info.st_size;
-	times_[0].tv_sec = info.st_atim.tv_sec;
-	times_[0].tv_usec = info.st_atim.tv_nsec / 1000;
-	times_[1].tv_sec = info.st_mtim.tv_sec;
-	times_[1].tv_usec = info.st_mtim.tv_nsec / 1000;
-	atime_ = times_[0].tv_sec;
-	db_ = db;
-}
-
 File::~File(){
-	metadata.update(relative_path_.c_str(), db_);
+	metadata_.update(relative_path_.c_str(), db_);
 }
 
 void File::calc_popularity(double period_seconds){
 	if(period_seconds == 0.0)
 		return;
 	double usage_frequency;
-	if(metadata.access_count_){
-		usage_frequency = double(metadata.access_count_) / period_seconds;
+	if(metadata_.access_count_){
+		usage_frequency = double(metadata_.access_count_) / period_seconds;
 	}else{
 		double diff = time(NULL) - atime_;
 		if(diff < 1.0)
 			diff = 1.0;
 		usage_frequency = 1.0 / diff;
 	}
-	metadata.popularity_ = MULTIPLIER * usage_frequency / DAMPING + (1.0 - 1.0 / DAMPING) * metadata.popularity_;
-	metadata.access_count_ = 0;
+	metadata_.popularity_ = MULTIPLIER * usage_frequency / DAMPING + (1.0 - 1.0 / DAMPING) * metadata_.popularity_;
+	metadata_.access_count_ = 0;
 }
 
 bool File::is_open(void){
@@ -200,7 +183,7 @@ fs::path File::full_path(void) const{
 	if(tier_ptr_)
 		return tier_ptr_->path() / relative_path_;
 	else
-		return metadata.tier_path_ / relative_path_;
+		return metadata_.tier_path_ / relative_path_;
 }
 
 fs::path File::relative_path(void) const{
@@ -212,7 +195,7 @@ Tier *File::tier_ptr(void) const{
 }
 
 double File::popularity(void) const{
-	return metadata.popularity_;
+	return metadata_.popularity_;
 }
 
 struct timeval File::atime(void) const{
@@ -224,21 +207,13 @@ uintmax_t File::size(void) const{
 }
 
 bool File::is_pinned(void) const{
-	return metadata.pinned_;
-}
-
-void File::pin(void){
-	metadata.pinned_ = true;
-}
-
-void File::unpin(void){
-	metadata.pinned_ = false;
+	return metadata_.pinned_;
 }
 
 void File::transfer_to_tier(Tier *tptr){
 	tier_ptr_ = tptr;
-	metadata.tier_path_ = tptr->path().string();
-	metadata.update(relative_path_.c_str(), db_);
+	metadata_.tier_path_ = tptr->path().string();
+	metadata_.update(relative_path_.c_str(), db_);
 }
 
 void File::overwrite_times(void) const{
