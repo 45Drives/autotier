@@ -28,6 +28,7 @@
 
 #define FUSE_USE_VERSION 30
 extern "C"{
+	#include <signal.h>
 	#include <syslog.h>
 	#include <string.h>
 	#include <fuse.h>
@@ -519,8 +520,23 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 void at_destroy(void *private_data){
 	(void) private_data;
 	FuseGlobal::autotier_->stop();
-	
 	FuseGlobal::tier_worker_.join();
+	
+	if(pthread_kill(FuseGlobal::adhoc_server_.native_handle(), SIGUSR1) == -1){
+		switch(errno){
+			case EINVAL:
+				Logging::log.warning("Invalid signal sent to adhoc_server_ thread. `killall -9 autotier` before remounting.");
+				break;
+			case ESRCH:
+				Logging::log.warning("No thread with given ID while trying to kill adhoc_server_");
+				break;
+			default:
+				Logging::log.warning("Could not kill adhoc_server_ thread. `killall -9 autotier` before remounting.");
+				break;
+		}
+		return;
+	}
+	
 	FuseGlobal::adhoc_server_.join();
 	
 	delete FuseGlobal::autotier_;
