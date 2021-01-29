@@ -165,6 +165,7 @@ void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entr
 }
 
 void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
+	// TODO: Replace this with multithreaded BFS
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
 		if(is_directory(*itr)){
 			crawl(*itr, tptr, function);
@@ -197,6 +198,8 @@ void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr){
 
 void TierEngine::sort(){
 	Logging::log.message("Sorting files.", 2);
+	// TODO: use std::execution::par for parallel sort after changing files_ to vector
+	// NOTE: std::execution::par requires C++17
 	files.sort(
 		[](const File &a, const File &b){
 			if(a.popularity() == b.popularity()){
@@ -236,6 +239,7 @@ void TierEngine::move_files(){
 	 */
 	Logging::log.message("Moving files.",2);
 	for(std::list<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
+		// Maybe multithread this if fs::copy_file is thread-safe?
 		titr->transfer_files();
 	}
 }
