@@ -40,7 +40,8 @@ Logger::Logger(int log_level, output_t output){
 }
 
 Logger::~Logger(void){
-	closelog();
+	if(output_ == SYSLOG)
+		closelog();
 }
 
 void Logger::message(const std::string &msg, int lvl) const{
