@@ -55,7 +55,9 @@ int get_command_index(const char *cmd){
 void sanitize_paths(std::vector<std::string> &paths){
 	std::vector<std::string> non_existing_args, directories;
 	for(std::vector<std::string>::iterator itr = paths.begin(); itr != paths.end(); ++itr){
-		fs::path path = (fs::current_path() / *itr).string();
+		fs::path path = *itr;
+		if(path.is_relative())
+			path = (fs::current_path() / *itr);
 		if(!fs::exists(path))
 			non_existing_args.push_back(*itr);
 		else if(fs::is_directory(path))
