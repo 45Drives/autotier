@@ -115,7 +115,7 @@ public:
 	 * tiers files once
 	 * END IF
 	 */
-	void tier(void);
+	void tier(std::chrono::steady_clock::duration period);
 	void sleep_until(std::chrono::steady_clock::time_point t);
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
 	/* crawl() for each tier in tiers
@@ -158,17 +158,17 @@ public:
 	/* iterate through list of tiers, printing ID, path, current usage, and watermark
 	 * uses format_bytes() for printing current usage and watermark
 	 */
-	void pin_files(std::string tier_name, std::vector<fs::path> &files_);
+	void pin_files(const std::vector<std::string> &args);
 	/* pin each file in files_ to tier referenced by tier_name
 	 * TODO: remove non-existant files from db
 	 * possibly just use SQL directly to accomplish this
 	 */
-	void unpin(int optind, int argc, char *argv[]);
+	void unpin_files(const std::vector<std::string> &args);
 	/* remove pinned_to path from each file passed
 	 * TODO: remove non-existant files from db
 	 * possibly just use SQL directly to accomplish this
 	 */
-	void calc_popularity(void);
+	void calc_popularity(std::chrono::steady_clock::duration period);
 	/* call File::calc_popularity() for each file in files
 	 */
 	void stop(void);

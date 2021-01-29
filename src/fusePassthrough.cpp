@@ -521,6 +521,8 @@ void at_destroy(void *private_data){
 	FuseGlobal::autotier_->stop();
 	
 	FuseGlobal::tier_worker_.join();
+	FuseGlobal::adhoc_server_.join();
+	
 	delete FuseGlobal::autotier_;
 }
 
@@ -706,7 +708,6 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		#endif
 		.lseek						= at_lseek,
 	};
-	//std::cerr << std::string("\"") + std::string(mountpoint_) + std::string("\"") << std::endl;
 	std::vector<char *>argv = {strdup("autotier"), strdup(mountpoint.c_str())};
 	if(fuse_opts){
 		argv.push_back(strdup("-o"));

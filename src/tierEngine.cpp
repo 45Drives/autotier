@@ -119,9 +119,12 @@ Config *TierEngine::get_config(void){
 
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
+	auto last_tier_time = std::chrono::steady_clock::now() - config_.tier_period_s();
 	do{
-		auto wake_time = std::chrono::steady_clock::now() + config_.tier_period_s();
-		tier();
+		auto tier_time = std::chrono::steady_clock::now();
+		auto wake_time = tier_time + config_.tier_period_s();
+		tier(tier_time - last_tier_time);
+		last_tier_time = std::chrono::steady_clock::now();
 		// don't wait for oneshot execution
 		while(daemon_mode && std::chrono::steady_clock::now() < wake_time){
 			execute_queued_work();
@@ -135,10 +138,10 @@ void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }
 
-void TierEngine::tier(void){
+void TierEngine::tier(std::chrono::steady_clock::duration period){
 	launch_crawlers(&TierEngine::emplace_file);
 	// one popularity calculation per loop
-	calc_popularity();
+	calc_popularity(period);
 	// mutex lock
 	if(lock_mutex() == -1){
 		Logging::log.warning("autotier already moving files.");
@@ -258,44 +261,55 @@ void TierEngine::print_tier_info(void){
 	}
 }
 
-void TierEngine::pin_files(std::string tier_name, std::vector<fs::path> &files_){
+void TierEngine::pin_files(const std::vector<std::string> &args){
 	Tier *tptr;
-	Logging::log.message("Tier name: " + tier_name, 2);
-	if((tptr = tier_lookup(tier_name)) == nullptr){
-		Logging::log.error("Tier does not exist.");
+	std::string tier_id = args.front();
+	if((tptr = tier_lookup(tier_id)) == nullptr){
+		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
+		return;
 	}
-	for(std::vector<fs::path>::iterator fptr = files_.begin(); fptr != files_.end(); ++fptr){
-		File f(*fptr, db_);
-		if(!exists(f.full_path())){
-			Logging::log.warning("File does not exist! " + fptr->string());
+	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
+		fs::path mounted_path = *fptr;
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.c_str(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
 			continue;
 		}
-		if(f.full_path() != tptr->path() / f.relative_path()){
-			tptr->enqueue_file_ptr(&f);
-			tptr->transfer_files();
+		fs::path old_path = f.tier_path() / relative_path;
+		fs::path new_path = tptr->path() / relative_path;
+		if(!fs::exists(old_path)){
+			Logging::log.warning("File does not exist in tier while trying to pin: " + old_path.string());
+			continue;
 		}
-		f.pin();
+		bool move_success = tptr->move_file(old_path, new_path);
+		if(move_success){
+			f.tier_path(tptr->path().string());
+			f.pinned(true);
+			f.update(relative_path.c_str(), db_);
+		}
 	}
 }
 
-void TierEngine::unpin(int optind, int argc, char *argv[]){
-	// argv = {"unpin", file(s), ...}
-	while(optind < argc){
-		fs::path temp(argv[optind++]);
-		File f(temp, db_);
-		if(!exists(f.full_path())){
-			Logging::log.warning("File does not exist! " + f.relative_path().string());
+void TierEngine::unpin_files(const std::vector<std::string> &args){
+	for(const std::string &mounted_path : args){
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.c_str(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
 			continue;
 		}
-		f.unpin();
+		f.pinned(false);
+		f.update(relative_path.c_str(), db_);
 	}
 }
 
-void TierEngine::calc_popularity(void){
+void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
 	Logging::log.message("Calculating file popularity.", 2);
-	double tier_period_s = config_.tier_period_s().count();
+	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
+	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
 	for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
-		f->calc_popularity(tier_period_s);
+		f->calc_popularity(period_d);
 	}
 }
 
@@ -309,6 +323,8 @@ void TierEngine::process_adhoc_requests(void){
 	std::vector<std::string> payload;
 	while(!stop_flag_){
 		get_fifo_payload(payload, run_path_ / "request.pipe");
+		if(stop_flag_)
+			return;
 		AdHoc work(payload);
 		payload.clear();
 		switch(work.cmd_){
@@ -380,17 +396,13 @@ void TierEngine::execute_queued_work(void){
 		AdHoc work = adhoc_work_.pop();
 		switch(work.cmd_){
 			case ONESHOT:
-				tier();
+				tier(std::chrono::seconds(-1)); // don't affect period
 				break;
 			case PIN:
-				Logging::log.message("PIN", 1);
-				for(const std::string &path : work.args_)
-					Logging::log.message(path, 1);
+				pin_files(work.args_);
 				break;
 			case UNPIN:
-				Logging::log.message("UNPIN", 1);
-				for(const std::string &path : work.args_)
-					Logging::log.message(path, 1);
+				unpin_files(work.args_);
 				break;
 			default:
 				Logging::log.warning("Trying to execute bad ad hoc command.");

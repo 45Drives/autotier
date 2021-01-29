@@ -36,7 +36,6 @@ private:
 	fs::path path_;
 	void get_capacity_and_usage(void);
 	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
-	bool move_file(const fs::path &old_path, const fs::path &new_path) const;
 	std::vector<File *> incoming_files_;
 public:
 	Tier(std::string id);
@@ -52,6 +51,7 @@ public:
 	bool full_test(const File &file) const;
 	void enqueue_file_ptr(File *fptr);
 	void transfer_files(void);
+	bool move_file(const fs::path &old_path, const fs::path &new_path) const;
 	double usage_percent(void) const;
 	uintmax_t usage_bytes(void) const;
 	void calc_watermark_bytes(void);

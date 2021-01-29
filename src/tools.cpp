@@ -136,14 +136,24 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 					"If it is mounted, make sure to run this command as the user who mounted."
 				);
 				break;
+			case EINTR:
+				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
+				return;
 			default:
 				Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
 				break;
 		}
 	}
 	
-	if(response_pipe->get(payload) == -1)
-		Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
+	if(response_pipe->get(payload) == -1){
+		switch(errno){
+			case EINTR:
+				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
+				return;
+			default:
+				Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
+		}
+	}
 	
 	delete response_pipe;
 }
