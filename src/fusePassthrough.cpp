@@ -17,8 +17,6 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define HAVE_UTIMENSAT
-
 #include "fusePassthrough.hpp"
 #include "tier.hpp"
 #include "tierEngine.hpp"
@@ -437,6 +435,8 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 }
 
 #ifdef HAVE_SETXATTR
+/* TODO: Implement these.
+ */
 static int at_setxattr(const char *path, const char *name, const char *value, size_t size, int flags){
 	
 }
@@ -452,8 +452,8 @@ static int at_listxattr(const char *path, char *list, size_t size){
 static int at_removexattr(const char *path, const char *name){
 	
 }
-
 #endif
+
 static int at_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi,
 	enum fuse_readdir_flags flags
@@ -579,7 +579,6 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	return 0;
 }
 
-#ifdef HAVE_UTIMENSAT
 static int at_utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi){
 	int res;
 	(void) fi;
@@ -596,8 +595,6 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 		return -errno;
 	return res;
 }
-
-#endif
 
 static int at_write_buf(const char *path, struct fuse_bufvec *buf, off_t offset, struct fuse_file_info *fi){
 	struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
@@ -640,8 +637,8 @@ static int at_fallocate(const char *path, int mode, off_t offset, off_t length, 
 	
 	return -posix_fallocate(fi->fh, offset, length);
 }
-
 #endif
+
 #ifdef HAVE_COPY_FILE_RANGE
 static ssize_t at_copy_file_range(
 	const char *path_in, struct fuse_file_info *fi_in, off_t offset_in, const char *path_out,
@@ -649,8 +646,8 @@ static ssize_t at_copy_file_range(
 ){
 	
 }
-
 #endif
+
 static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_info *fi){
 	int fd;
 	off_t res;
@@ -689,38 +686,36 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.rmdir						= at_rmdir,
 		.symlink					= at_symlink,
 		.rename						= at_rename,
-		.link							= at_link,
+		.link						= at_link,
 		.chmod						= at_chmod,
 		.chown						= at_chown,
 		.truncate					= at_truncate,
-		.open							= at_open,
-		.read							= at_read,
+		.open						= at_open,
+		.read						= at_read,
 		.write						= at_write,
 		.statfs						= at_statfs,
-		.flush            = at_flush,
+		.flush						= at_flush,
 		.release					= at_release,
 		.fsync						= at_fsync,
 		#ifdef HAVE_SETXATTR
 		.setxattr					= at_setxattr,
 		.getxattr					= at_getxattr,
-		.listxattr				= at_listxattr,
-		.removexattr			= at_removexattr,
+		.listxattr					= at_listxattr,
+		.removexattr				= at_removexattr,
 		#endif
 		.readdir					= at_readdir,
-		.init			 				= at_init,
+		.init		 				= at_init,
 		.destroy					= at_destroy,
 		.access						= at_access,
 		.create 					= at_create,
-		#ifdef HAVE_UTIMENSAT
 		.utimens					= at_utimens,
-		#endif
-		.write_buf        = at_write_buf,
-		.read_buf         = at_read_buf,
+		.write_buf					= at_write_buf,
+		.read_buf					= at_read_buf,
 		#ifdef HAVE_POSIX_FALLOCATE
-		.fallocate				= at_fallocate,
+		.fallocate					= at_fallocate,
 		#endif
 		#ifdef HAVE_COPY_FILE_RANGE
-		.copy_file_range 	= at_copy_file_range,
+		.copy_file_range 			= at_copy_file_range,
 		#endif
 		.lseek						= at_lseek,
 	};

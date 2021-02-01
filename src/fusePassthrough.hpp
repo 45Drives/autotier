@@ -17,6 +17,12 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/* fusePassthrough.cpp contains all the fuse filesystem calls needed to
+ * implement the filesystem. It creates a TierEngine object pointer and runs
+ * begin() and process_adhoc_requests() as threads in the at_init() method, and
+ * joins the threads in the at_destroy() method.
+ */
+
 #pragma once
 
 #include <list>
