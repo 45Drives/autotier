@@ -33,15 +33,28 @@ int get_command_index(const char *cmd);
  */
 
 void sanitize_paths(std::vector<std::string> &paths);
+/* Make sure file exists and is in the autotier filesystem.
+ */
 
 void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &run_path);
+/* Open FIFO non-blocking and try to send a payload to the ad hoc server.
+ */
 
 void get_fifo_payload(std::vector<std::string> &payload, const fs::path &run_path);
+/* Open FIFO with blocking IO and wait for a command to be sent.
+ */
 
 class AdHoc{
+	/* Representation of an ad hoc command with the command index and
+	 * arguments.
+	 */
 public:
 	int cmd_;
+	/* Index of command in comman_enum.
+	 */
 	std::vector<std::string> args_;
+	/* Arguments passed to command
+	 */
 	AdHoc(int cmd, const std::vector<std::string> &args){
 		cmd_ = cmd;
 		for(const std::string &s : args){
@@ -59,15 +72,33 @@ public:
 
 
 class WorkPipe{
+	/* Object to represent the named FIFO through which
+	 * ad hoc work is passed.
+	 */
 private:
 	int fd_;
+	/* File descriptor of the FIFO.
+	 */
 public:
 	WorkPipe(fs::path pipe_path, int flags);
+	/* Create the FIFO with mkfifo(), then open it
+	 * with the provided flags.
+	 */
 	~WorkPipe(void);
+	/* Close fd_.
+	 */
 	int get(std::vector<std::string> &payload) const;
+	/* Get work payload.
+	 */
 	int put(const std::vector<std::string> &payload) const;
+	/* Put work payload.
+	 */
 	int set_flags(int flags) const;
+	/* Use fcntl to set flags to curr_flags | flags.
+	 */
 	int clear_flags(int flags) const;
+	/* Use fcntl to set flags to curr_flags & ~flags.
+	 */
 };
 
 void usage(void);
