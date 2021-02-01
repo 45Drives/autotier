@@ -34,14 +34,19 @@ clean-build:
 	-rm -f src/*.o
 
 install: all
-	install -m 755 autotier $(DESTDIR)$(PREFIX)/bin
-	cp autotier.service /usr/lib/systemd/system/autotier.service
+	mkdir -p $(DESTDIR)$(PREFIX)
+	mkdir -p $(DESTDIR)/lib/systemd/system
+	mkdir -p $(DESTDIR)/usr/bin
+	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)
+	ln -sf $(PREFIX)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
+	cp autotier.service $(DESTDIR)/lib/systemd/system/autotier.service
 	systemctl daemon-reload
 
 uninstall:
 	-systemctl disable --now autotier
-	-rm -f $(DESTDIR)$(PREFIX)/bin/$(TARGET)
-	-rm -f /usr/lib/systemd/system/autotier.service
+	-rm -f $(DESTDIR)$(PREFIX)/$(TARGET)
+	-rm -f $(DESTDIR)/lib/systemd/system/autotier.service
+	-rm -f $(DESTDIR)/usr/bin/$(TARGET)
 	systemctl daemon-reload
 
 tests: $(TEST_OBJECTS)
