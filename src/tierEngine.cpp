@@ -30,7 +30,7 @@ extern "C" {
 }
 
 fs::path pick_run_path(const fs::path &config_path){
-	fs::path run_path = "/run/autotier";
+	fs::path run_path = "/var/lib/autotier";
 	if(!fs::is_directory(run_path)){
 		try{
 			fs::create_directories(run_path);
@@ -39,7 +39,7 @@ fs::path pick_run_path(const fs::path &config_path){
 			if(home == NULL){
 				Logging::log.error("$HOME not exported.");
 			}
-			run_path = fs::path(home) / ".local/run/autotier";
+			run_path = fs::path(home) / ".local/autotier";
 			fs::create_directories(run_path);
 		}
 	}else if(access(run_path.c_str(), R_OK | W_OK) != 0){
@@ -47,7 +47,7 @@ fs::path pick_run_path(const fs::path &config_path){
 		if(home == NULL){
 			Logging::log.error("$HOME not exported.");
 		}
-		run_path = fs::path(home) / ".local/run/autotier";
+		run_path = fs::path(home) / ".local/autotier";
 		fs::create_directories(run_path);
 	}
 	run_path /= std::to_string(std::hash<std::string>{}(config_path.string()));
