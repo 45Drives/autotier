@@ -26,6 +26,22 @@ extern "C" {
 	#include <sys/statvfs.h>
 }
 
+void Tier::get_capacity_and_usage(void){
+	struct statvfs fs_stats;
+	if((statvfs(path_.c_str(), &fs_stats) == -1))
+		Logging::log.error("statvfs() failed on " + path_.string());
+	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
+	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
+	sim_usage_ = 0;
+}
+
+void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
+	struct stat info;
+	stat(old_path.c_str(), &info);
+	chown(new_path.c_str(), info.st_uid, info.st_gid);
+	chmod(new_path.c_str(), info.st_mode);
+}
+
 Tier::Tier(std::string id){
 	id_ = id;
 }
@@ -125,20 +141,4 @@ double Tier::usage_percent(void) const{
 
 uintmax_t Tier::usage_bytes(void) const{
 	return usage_;
-}
-
-void Tier::get_capacity_and_usage(void){
-	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1))
-		Logging::log.error("statvfs() failed on " + path_.string());
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
-	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
-	sim_usage_ = 0;
-}
-
-void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
-	struct stat info;
-	stat(old_path.c_str(), &info);
-	chown(new_path.c_str(), info.st_uid, info.st_gid);
-	chmod(new_path.c_str(), info.st_mode);
 }

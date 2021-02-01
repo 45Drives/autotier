@@ -57,17 +57,17 @@ private:
 	fs::path path_;
 	/* Backend path to tier.
 	 */
+	std::vector<File *> incoming_files_;
+	/* Queue of files to be placed into the tier, filled
+	 * during the simulation of tiering and used while actually
+	 * tiering.
+	 */
 	void get_capacity_and_usage(void);
 	/* Find capacity_ from statvfs() call and set usage to 0.
 	 */
 	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
 	/* Copy ownership and permissions from old_path to new_path,
 	 * called after copying a file to a different tier.
-	 */
-	std::vector<File *> incoming_files_;
-	/* Queue of files to be placed into the tier, filled
-	 * during the simulation of tiering and used while actually
-	 * tiering.
 	 */
 public:
 	Tier(std::string id);
