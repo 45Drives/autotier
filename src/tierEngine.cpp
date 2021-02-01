@@ -55,22 +55,14 @@ fs::path pick_run_path(const fs::path &config_path){
 	return run_path;
 }
 
-TierEngine::TierEngine(const fs::path &config_path, bool read_only)
-		: stop_flag_(false), tiers(), config_(config_path, std::ref(tiers)){;
-	run_path_ = pick_run_path(config_path);
-	open_db(read_only);
+int TierEngine::lock_mutex(void){
+	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL);
+	close(result);
+	return result;
 }
 
-TierEngine::~TierEngine(){
-	delete db_;
-}
-
-std::list<Tier> &TierEngine::get_tiers(void){
-	return tiers;
-}
-
-rocksdb::DB *TierEngine::get_db(void){
-	return db_;
+void TierEngine::unlock_mutex(void){
+	fs::remove(run_path_ / "autotier.lock");
 }
 
 void TierEngine::open_db(bool read_only){
@@ -87,18 +79,26 @@ void TierEngine::open_db(bool read_only){
 	}
 }
 
-int TierEngine::lock_mutex(void){
-	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL);
-	close(result);
-	return result;
+TierEngine::TierEngine(const fs::path &config_path, bool read_only)
+		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_)){;
+	run_path_ = pick_run_path(config_path);
+	open_db(read_only);
 }
 
-void TierEngine::unlock_mutex(void){
-	fs::remove(run_path_ / "autotier.lock");
+TierEngine::~TierEngine(){
+	delete db_;
+}
+
+std::list<Tier> &TierEngine::get_tiers(void){
+	return tiers_;
+}
+
+rocksdb::DB *TierEngine::get_db(void){
+	return db_;
 }
 
 Tier *TierEngine::tier_lookup(fs::path p){
-	for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
 		if(t->path() == p)
 			return &(*t);
 	}
@@ -106,15 +106,11 @@ Tier *TierEngine::tier_lookup(fs::path p){
 }
 
 Tier *TierEngine::tier_lookup(std::string id){
-	for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
 		if(t->id() == id)
 			return &(*t);
 	}
 	return nullptr;
-}
-
-Config *TierEngine::get_config(void){
-	return &config_;
 }
 
 void TierEngine::begin(bool daemon_mode){
@@ -133,11 +129,6 @@ void TierEngine::begin(bool daemon_mode){
 	}while(daemon_mode && !stop_flag_);
 }
 
-void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
-}
-
 void TierEngine::tier(std::chrono::steady_clock::duration period){
 	launch_crawlers(&TierEngine::emplace_file);
 	// one popularity calculation per loop
@@ -153,13 +144,13 @@ void TierEngine::tier(std::chrono::steady_clock::duration period){
 		Logging::log.message("Tiering complete.", 1);
 		unlock_mutex();
 	}
-	files.clear();
+	files_.clear();
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
-	for(std::list<Tier>::iterator t = tiers.begin(); t != tiers.end(); ++t){
+	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
 		crawl(t->path(), &(*t), function);
 	}
 }
@@ -176,10 +167,10 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 }
 
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
-	files.emplace_back(file.path(), db_, tptr);
-	if(files.back().is_pinned()){
-		tptr->add_file_size(files.back().size());
-		files.pop_back();
+	files_.emplace_back(file.path(), db_, tptr);
+	if(files_.back().is_pinned()){
+		tptr->add_file_size(files_.back().size());
+		files_.pop_back();
 	}
 }
 
@@ -193,14 +184,23 @@ void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr){
 void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr){
 	File f(file, db_, tptr);
 	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 1);
-	files.clear();
+	files_.clear();
+}
+
+void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
+	Logging::log.message("Calculating file popularity.", 2);
+	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
+	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
+	for(std::vector<File>::iterator f = files_.begin(); f != files_.end(); ++f){
+		f->calc_popularity(period_d);
+	}
 }
 
 void TierEngine::sort(){
 	Logging::log.message("Sorting files.", 2);
 	// TODO: use std::execution::par for parallel sort after changing files_ to vector
 	// NOTE: std::execution::par requires C++17
-	files.sort(
+	std::sort(files_.begin(), files_.end(),
 		[](const File &a, const File &b){
 			if(a.popularity() == b.popularity()){
 				struct timeval a_t = a.atime();
@@ -216,11 +216,11 @@ void TierEngine::sort(){
 
 void TierEngine::simulate_tier(){
 	Logging::log.message("Finding files' tiers.", 2);
-	std::list<File>::iterator fptr = files.begin();
-	std::list<Tier>::iterator tptr = tiers.begin();
-	while(fptr != files.end()){
+	std::vector<File>::iterator fptr = files_.begin();
+	std::list<Tier>::iterator tptr = tiers_.begin();
+	while(fptr != files_.end()){
 		if(tptr->full_test(*fptr)){
-			if(std::next(tptr) != tiers.end()){
+			if(std::next(tptr) != tiers_.end()){
 				// move to next tier
 				++tptr;
 			} // else: out of space!
@@ -238,10 +238,15 @@ void TierEngine::move_files(){
 	 * a tier by doing them one at a time.
 	 */
 	Logging::log.message("Moving files.",2);
-	for(std::list<Tier>::reverse_iterator titr = tiers.rbegin(); titr != tiers.rend(); titr++){
+	for(std::list<Tier>::reverse_iterator titr = tiers_.rbegin(); titr != tiers_.rend(); titr++){
 		// Maybe multithread this if fs::copy_file is thread-safe?
 		titr->transfer_files();
 	}
+}
+
+void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
+	std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }
 
 void TierEngine::print_tier_info(void){
@@ -249,7 +254,7 @@ void TierEngine::print_tier_info(void){
 	
 	Logging::log.message("Tiers from fastest to slowest:", 1);
 	Logging::log.message("", 1);
-	for(std::list<Tier>::iterator tptr = tiers.begin(); tptr != tiers.end(); ++tptr){
+	for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 		std::stringstream ss;
 		ss <<
 		"Tier " << i++ << ":" << std::endl <<
@@ -259,58 +264,6 @@ void TierEngine::print_tier_info(void){
 		"watermark: " << tptr->watermark() << "% (" << Logging::log.format_bytes(tptr->watermark_bytes()) << ")" << std::endl <<
 		std::endl;
 		Logging::log.message(ss.str(), 1);
-	}
-}
-
-void TierEngine::pin_files(const std::vector<std::string> &args){
-	Tier *tptr;
-	std::string tier_id = args.front();
-	if((tptr = tier_lookup(tier_id)) == nullptr){
-		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
-		return;
-	}
-	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
-		fs::path mounted_path = *fptr;
-		fs::path relative_path = fs::relative(mounted_path, mount_point_);
-		Metadata f(relative_path.c_str(), db_);
-		if(f.not_found()){
-			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
-			continue;
-		}
-		fs::path old_path = f.tier_path() / relative_path;
-		fs::path new_path = tptr->path() / relative_path;
-		if(!fs::exists(old_path)){
-			Logging::log.warning("File does not exist in tier while trying to pin: " + old_path.string());
-			continue;
-		}
-		bool move_success = tptr->move_file(old_path, new_path);
-		if(move_success){
-			f.tier_path(tptr->path().string());
-			f.pinned(true);
-			f.update(relative_path.c_str(), db_);
-		}
-	}
-}
-
-void TierEngine::unpin_files(const std::vector<std::string> &args){
-	for(const std::string &mounted_path : args){
-		fs::path relative_path = fs::relative(mounted_path, mount_point_);
-		Metadata f(relative_path.c_str(), db_);
-		if(f.not_found()){
-			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
-			continue;
-		}
-		f.pinned(false);
-		f.update(relative_path.c_str(), db_);
-	}
-}
-
-void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
-	Logging::log.message("Calculating file popularity.", 2);
-	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
-	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
-	for(std::list<File>::iterator f = files.begin(); f != files.end(); ++f){
-		f->calc_popularity(period_d);
 	}
 }
 
@@ -409,6 +362,49 @@ void TierEngine::execute_queued_work(void){
 				Logging::log.warning("Trying to execute bad ad hoc command.");
 				break;
 		}
+	}
+}
+
+void TierEngine::pin_files(const std::vector<std::string> &args){
+	Tier *tptr;
+	std::string tier_id = args.front();
+	if((tptr = tier_lookup(tier_id)) == nullptr){
+		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
+		return;
+	}
+	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
+		fs::path mounted_path = *fptr;
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.c_str(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
+			continue;
+		}
+		fs::path old_path = f.tier_path() / relative_path;
+		fs::path new_path = tptr->path() / relative_path;
+		if(!fs::exists(old_path)){
+			Logging::log.warning("File does not exist in tier while trying to pin: " + old_path.string());
+			continue;
+		}
+		bool move_success = tptr->move_file(old_path, new_path);
+		if(move_success){
+			f.tier_path(tptr->path().string());
+			f.pinned(true);
+			f.update(relative_path.c_str(), db_);
+		}
+	}
+}
+
+void TierEngine::unpin_files(const std::vector<std::string> &args){
+	for(const std::string &mounted_path : args){
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.c_str(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
+			continue;
+		}
+		f.pinned(false);
+		f.update(relative_path.c_str(), db_);
 	}
 }
 
