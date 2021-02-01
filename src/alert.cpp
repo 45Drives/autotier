@@ -66,7 +66,7 @@ void Logger::error(const std::string &msg, bool exit_) const{
 	if(output_ == STD){
 		std::cerr << "Error: " << msg << std::endl;
 	}else{
-		syslog(LOG_ERR, "%s", msg.c_str());
+		syslog(LOG_ALERT, "%s", msg.c_str());
 	}
 	if(exit_) exit(EXIT_FAILURE);
 }
