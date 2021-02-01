@@ -26,26 +26,36 @@ extern "C" {
 	#include <sys/statvfs.h>
 }
 
-void Tier::get_capacity_and_usage(void){
-	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1))
-		Logging::log.error("statvfs() failed on " + path_.string());
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
-	usage_ = 0;
-}
-void Tier::add_file_size(uintmax_t size){
-	usage_ += size;
-}
-void Tier::subtract_file_size(uintmax_t size){
-	usage_ += size;
-}
-
 Tier::Tier(std::string id){
 	id_ = id;
 }
 
+void Tier::add_file_size(uintmax_t size){
+	sim_usage_ += size;
+}
+
+void Tier::subtract_file_size(uintmax_t size){
+	sim_usage_ += size;
+}
+
 void Tier::watermark(int watermark){
 	watermark_ = watermark;
+}
+
+int Tier::watermark(void) const{
+	return watermark_;
+}
+
+void Tier::calc_watermark_bytes(void){
+	watermark_bytes_ = capacity_ * watermark_ / 100;
+}
+
+uintmax_t Tier::watermark_bytes(void) const{
+	return watermark_bytes_;
+}
+
+bool Tier::full_test(const File &file) const{
+	return sim_usage_ + file.size() > watermark_bytes_;
 }
 
 void Tier::path(const fs::path &path){
@@ -53,20 +63,12 @@ void Tier::path(const fs::path &path){
 	get_capacity_and_usage();
 }
 
-const std::string &Tier::id(void) const{
-	return id_;
-}
-
-int Tier::watermark(void) const{
-	return watermark_;
-}
-
 const fs::path &Tier::path(void) const{
 	return path_;
 }
 
-bool Tier::full_test(const File &file) const{
-	return usage_ + file.size() > watermark_bytes_;
+const std::string &Tier::id(void) const{
+	return id_;
 }
 
 void Tier::enqueue_file_ptr(File *fptr){
@@ -88,7 +90,7 @@ void Tier::transfer_files(void){
 		}
 	}
 	incoming_files_.clear();
-	usage_ = 0;
+	sim_usage_ = 0;
 }
 
 bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
@@ -117,13 +119,6 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 	return copy_success;
 }
 
-void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
-	struct stat info;
-	stat(old_path.c_str(), &info);
-	chown(new_path.c_str(), info.st_uid, info.st_gid);
-	chmod(new_path.c_str(), info.st_mode);
-}
-
 double Tier::usage_percent(void) const{
 	return double(usage_) / double(capacity_) * 100.0;
 }
@@ -132,10 +127,18 @@ uintmax_t Tier::usage_bytes(void) const{
 	return usage_;
 }
 
-uintmax_t Tier::watermark_bytes(void) const{
-	return watermark_bytes_;
+void Tier::get_capacity_and_usage(void){
+	struct statvfs fs_stats;
+	if((statvfs(path_.c_str(), &fs_stats) == -1))
+		Logging::log.error("statvfs() failed on " + path_.string());
+	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
+	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
+	sim_usage_ = 0;
 }
 
-void Tier::calc_watermark_bytes(void){
-	watermark_bytes_ = capacity_ * watermark_ / 100;
+void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
+	struct stat info;
+	stat(old_path.c_str(), &info);
+	chown(new_path.c_str(), info.st_uid, info.st_gid);
+	chmod(new_path.c_str(), info.st_mode);
 }
