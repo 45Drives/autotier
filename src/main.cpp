@@ -33,10 +33,6 @@ extern "C" {
 }
 
 int main(int argc, char *argv[]){
-	/* parse flags, get command,
-	 * construct TierEngine,
-	 * execute command.
-	 */
 	int opt;
 	int option_ind = 0;
 	int cmd;
@@ -54,6 +50,8 @@ int main(int argc, char *argv[]){
 		{0, 0, 0, 0}
 	};
 	
+	/* Get CLI options.
+	 */
 	while((opt = getopt_long(argc, argv, "c:ho:BS", long_options, &option_ind)) != -1){
 		switch(opt){
 		case 0:
@@ -76,8 +74,12 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	/* Initialize logger.
+	 */
 	Logging::log = Logger(log_lvl);
 	
+	/* Grab command or mountpoint.
+	 */
 	if(optind < argc){
 		cmd = get_command_index(argv[optind]);
 	}else{
@@ -87,6 +89,9 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(cmd == MOUNTPOINT){
+		/* Initialize filesystem and mount
+		 * it to the mountpoint if it exists.
+		 */
 		mountpoint = argv[optind];
 		if(!is_directory(mountpoint)){
 			Logging::log.error("Invalid mountpoint or command: " + mountpoint.string(), false);
@@ -97,10 +102,15 @@ int main(int argc, char *argv[]){
 		FusePassthrough at_filesystem(config_path);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	}else{
+		/* Process ad hoc command.
+		 */
 		switch(cmd){
 			case ONESHOT:
 			case PIN:
 			case UNPIN:
+				/* Pass command through to the filesystem
+				 * tier engine through a named FIFO pipe.
+				 */
 				{
 					std::vector<std::string> payload;
 					payload.push_back(argv[optind++]); // push command name
@@ -137,6 +147,9 @@ int main(int argc, char *argv[]){
 					}
 				}
 				break;
+				/* Other commands can just execute in the calling process
+				 * by opening the database as read-only.
+				 */
 			case STATUS:
 				{
 					bool read_only = true;
