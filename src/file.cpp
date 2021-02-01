@@ -155,7 +155,8 @@ bool File::is_open(void){
 		close(stderr_copy);
 		
 		Logging::log.error("Error executing lsof! Is it installed?");
-		// error exits
+		// error exits, ignore following:
+		// fall through
 	default:
 		// parent
 		if((waitpid(pid, &status, 0)) < 0)
