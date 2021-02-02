@@ -33,7 +33,7 @@ clean-target:
 clean-build:
 	-rm -f src/*.o
 
-install: all
+install: all inst-man-pages
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/lib/systemd/system
 	mkdir -p $(DESTDIR)/usr/bin
@@ -42,7 +42,7 @@ install: all
 	cp autotier.service $(DESTDIR)/lib/systemd/system/autotier.service
 	systemctl daemon-reload
 
-uninstall:
+uninstall: rm-man-pages
 	-systemctl disable --now autotier
 	-rm -f $(DESTDIR)$(PREFIX)/$(TARGET)
 	-rm -f $(DESTDIR)/lib/systemd/system/autotier.service
@@ -51,3 +51,11 @@ uninstall:
 
 tests: $(TEST_OBJECTS)
 	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o test_db
+
+inst-man-pages:
+	mkdir -p $(DESTDIR)/usr/share/man/man8
+	gzip -k doc/man/autotier.8
+	mv doc/man/autotier.8.gz $(DESTDIR)/usr/share/man/man8/
+
+rm-man-pages:
+	-rm -f $(DESTDIR)/usr/share/man/man8/autotier.8.gz
