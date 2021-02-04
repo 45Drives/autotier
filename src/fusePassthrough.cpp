@@ -1,6 +1,10 @@
 /*
  *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
- *    
+ * 
+ *    Original FUSE passthrough_fh.c authors:
+ *    Copyright (C) 2001-2007 Miklos Szeredi <miklos@szeredi.hu>
+ *    Copyright (C) 2011      Sebastian Pipping <sebastian@pipping.org>
+ * 
  *    This file is part of autotier.
  * 
  *    autotier is free software: you can redistribute it and/or modify
