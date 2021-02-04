@@ -36,47 +36,47 @@ int main(int argc, char *argv[]){
 	int opt;
 	int option_ind = 0;
 	int cmd;
-	int log_lvl = 1;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
+	
+	ConfigOverrides config_overrides;
 	
 	static struct option long_options[] = {
 		{"config",		     required_argument, 0, 'c'},
 		{"help",           no_argument,       0, 'h'},
 		{"fuse-options",   required_argument, 0, 'o'},
-		{"verbose",        no_argument,       &log_lvl, 2},
-		{"quiet",          no_argument,       &log_lvl, 0},
+		{"verbose",        no_argument,       0, 'v'},
+		{"quiet",          no_argument,       0, 'q'},
 		{0, 0, 0, 0}
 	};
 	
 	/* Get CLI options.
 	 */
-	while((opt = getopt_long(argc, argv, "c:ho:BS", long_options, &option_ind)) != -1){
+	while((opt = getopt_long(argc, argv, "c:ho:vq", long_options, &option_ind)) != -1){
 		switch(opt){
-		case 0:
-			// flag set
-			break;
-		case 'c':
-			config_path = optarg;
-			break;
-		case 'h':
-			usage();
-			exit(EXIT_SUCCESS);
-			break;
-		case 'o':
-			fuse_opts = optarg;
-			break;
-		case '?':
-			break; // getopt_long prints errors
-		default:
-			abort();
+			case 'c':
+				config_path = optarg;
+				break;
+			case 'h':
+				usage();
+				exit(EXIT_SUCCESS);
+				break;
+			case 'o':
+				fuse_opts = optarg;
+				break;
+			case 'v':
+				config_overrides.log_level_override = ConfigOverride<int>(2);
+				break;
+			case 'q':
+				config_overrides.log_level_override = ConfigOverride<int>(0);
+				break;
+			case '?':
+				break; // getopt_long prints errors
+			default:
+				abort();
 		}
 	}
-	
-	/* Initialize logger.
-	 */
-	Logging::log = Logger(log_lvl);
 	
 	/* Grab command or mountpoint.
 	 */
@@ -98,8 +98,8 @@ int main(int argc, char *argv[]){
 			usage();
 			exit(EXIT_FAILURE);
 		}
-		FusePassthrough at_filesystem(config_path);
-		Logging::log = Logger(log_lvl, SYSLOG);
+		FusePassthrough at_filesystem(config_path, config_overrides);
+		Logging::log.set_output(SYSLOG);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	}else{
 		/* Process ad hoc command.
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]){
 			case STATUS:
 				{
 					bool read_only = true;
-					TierEngine autotier(config_path, read_only);
+					TierEngine autotier(config_path, config_overrides, read_only);
 					autotier.print_tier_info();
 				}
 				break;
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]){
 				Logging::log.message("Pinned files:", 1);
 				{
 					bool read_only = true;
-					TierEngine autotier(config_path, read_only);
+					TierEngine autotier(config_path, config_overrides, read_only);
 					autotier.launch_crawlers(&TierEngine::print_file_pins);
 				}
 				break;
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]){
 				Logging::log.message("File popularity:", 1);
 				{
 					bool read_only = true;
-					TierEngine autotier(config_path, read_only);
+					TierEngine autotier(config_path, config_overrides, read_only);
 					autotier.launch_crawlers(&TierEngine::print_file_popularity);
 				}
 				break;

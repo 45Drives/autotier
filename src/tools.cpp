@@ -254,8 +254,8 @@ void usage(){
 		"  -h, --help  - display this message and cancel current command\n"
 		"  -o, --fuse-options <comma,separated,list>\n"
 		"              - mount options to pass to fuse (see man mount.fuse)\n"
-		"  --quiet     - set log level to 0 (no output)\n"
-		"  --verbose   - set log level to 2\n",
+		"  -q, --quiet     - set log level to 0 (no output)\n"
+		"  -v, --verbose   - set log level to 2 (debug output)\n",
 		1
 	);
 }

@@ -26,6 +26,7 @@
 #include "tierEngine.hpp"
 #include "file.hpp"
 #include "alert.hpp"
+#include "config.hpp"
 #include <thread>
 
 #define FUSE_USE_VERSION 30
@@ -54,8 +55,8 @@ namespace FuseGlobal{
 	static std::thread adhoc_server_;
 }
 
-FusePassthrough::FusePassthrough(const fs::path &config_path){
-	FuseGlobal::autotier_ = new TierEngine(config_path);
+FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
+	FuseGlobal::autotier_ = new TierEngine(config_path, config_overrides);
 }
 
 // helpers

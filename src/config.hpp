@@ -58,6 +58,10 @@ public:
 	}
 };
 
+struct ConfigOverrides{
+	ConfigOverride<int> log_level_override;
+};
+
 class Tier;
 
 class Config{
@@ -80,7 +84,7 @@ private:
 	/* When config file DNE, this is called to create and initialize one.
 	 */
 public:
-	Config(const fs::path &config_path, std::list<Tier> &tiers);
+	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides);
 	/* open config file at config_path, parse global and tier options,
 	 * populate list of tiers
 	 */

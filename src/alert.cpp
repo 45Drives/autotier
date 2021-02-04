@@ -90,6 +90,14 @@ void Logger::error(const std::string &msg, bool exit_) const{
 	if(exit_) exit(EXIT_FAILURE);
 }
 
+void Logger::set_level(int log_level){
+	log_level_ = log_level;
+}
+
+void Logger::set_output(output_t output){
+	output_ = output;
+}
+
 #define N_INDEX 9
 std::string Logger::format_bytes(uintmax_t bytes) const{
 	if(bytes == 0) return "0 B";

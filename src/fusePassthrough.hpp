@@ -30,10 +30,12 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+struct ConfigOverrides;
+
 class FusePassthrough{
 private:
 public:
-	FusePassthrough(const fs::path &config_path);
+	FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides);
 	/* calls open_db and saves pointers to each tier of tiers_
 	 */
 	~FusePassthrough(void) = default;

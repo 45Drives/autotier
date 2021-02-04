@@ -89,7 +89,7 @@ private:
 	/* Opens RocksDB database, if read_only is true, opened read-only.
 	 */
 public:
-	TierEngine(const fs::path &config_path, bool read_only = false);
+	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only = false);
 	/* Loads config, picks run
 	 * path with pick_run_path(), constructs mutex_path,
 	 * opens database with open_db()

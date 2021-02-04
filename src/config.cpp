@@ -43,7 +43,7 @@ inline void strip_whitespace(std::string &str){
 	str = str.substr(strItr, str.length() - strItr);
 }
 
-Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
+Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides){
 	std::string line, key, value;
 	
 	// open file
@@ -97,7 +97,13 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 		}
 	}
 	
+	if(config_overrides.log_level_override.overridden()){
+		log_level_ = config_overrides.log_level_override.value();
+	}
+	
 	verify(config_path, tiers);
+	
+	Logging::log.set_level(log_level_);
 	
 	for(Tier & t: tiers){
 		t.calc_watermark_bytes();

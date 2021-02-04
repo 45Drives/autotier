@@ -79,8 +79,8 @@ void TierEngine::open_db(bool read_only){
 	}
 }
 
-TierEngine::TierEngine(const fs::path &config_path, bool read_only)
-		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_)){;
+TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only)
+		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides){
 	run_path_ = pick_run_path(config_path);
 	open_db(read_only);
 }

@@ -56,6 +56,12 @@ public:
 	 * exit_ is used to delay exiting until later if there are
 	 * multiple errors to print.
 	 */
+	void set_level(int log_level_);
+	/* Set log level.
+	 */
+	void set_output(output_t output);
+	/* Set which type of logging to do.
+	 */
 	std::string format_bytes(uintmax_t bytes) const;
 	/* Return bytes as string in base-1024 SI units.
 	 */
