@@ -55,7 +55,7 @@ namespace FuseGlobal{
 }
 
 FusePassthrough::FusePassthrough(const fs::path &config_path){
-	FuseGlobal::config_path_ = config_path;
+	FuseGlobal::autotier_ = new TierEngine(config_path);
 }
 
 // helpers
@@ -504,8 +504,6 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	cfg->entry_timeout = 0;
 	cfg->attr_timeout = 0;
 	cfg->negative_timeout = 0;
-	
-	FuseGlobal::autotier_ = new TierEngine(FuseGlobal::config_path_);
 	
 	FuseGlobal::autotier_->mount_point(FuseGlobal::mount_point_);
 	

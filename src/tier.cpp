@@ -26,15 +26,6 @@ extern "C" {
 	#include <sys/statvfs.h>
 }
 
-void Tier::get_capacity_and_usage(void){
-	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1))
-		Logging::log.error("statvfs() failed on " + path_.string());
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
-	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
-	sim_usage_ = 0;
-}
-
 void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
 	struct stat info;
 	stat(old_path.c_str(), &info);
@@ -62,6 +53,15 @@ int Tier::watermark(void) const{
 	return watermark_;
 }
 
+void Tier::get_capacity_and_usage(void){
+	struct statvfs fs_stats;
+	if((statvfs(path_.c_str(), &fs_stats) == -1))
+		Logging::log.error("statvfs() failed on " + path_.string());
+	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
+	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
+	sim_usage_ = 0;
+}
+
 void Tier::calc_watermark_bytes(void){
 	watermark_bytes_ = capacity_ * watermark_ / 100;
 }
@@ -76,7 +76,6 @@ bool Tier::full_test(const File &file) const{
 
 void Tier::path(const fs::path &path){
 	path_ = path;
-	get_capacity_and_usage();
 }
 
 const fs::path &Tier::path(void) const{

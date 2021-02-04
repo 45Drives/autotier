@@ -98,8 +98,8 @@ int main(int argc, char *argv[]){
 			usage();
 			exit(EXIT_FAILURE);
 		}
-		Logging::log = Logger(log_lvl, SYSLOG);
 		FusePassthrough at_filesystem(config_path);
+		Logging::log = Logger(log_lvl, SYSLOG);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	}else{
 		/* Process ad hoc command.

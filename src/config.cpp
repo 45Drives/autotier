@@ -97,11 +97,12 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers){
 		}
 	}
 	
+	verify(config_path, tiers);
+	
 	for(Tier & t: tiers){
 		t.calc_watermark_bytes();
+		t.get_capacity_and_usage();
 	}
-	
-	verify(config_path, tiers);
 }
 
 int Config::load_global(std::ifstream &config_file, std::string &id){
@@ -174,6 +175,17 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) c
 	}else if(tiers.size() == 1){
 		Logging::log.error("Only one tier is defined. Two or more are needed.", false);
 		errors = true;
+	}else{
+		for(const Tier &tier : tiers){
+			if(!fs::is_directory(tier.path())){
+				Logging::log.error(tier.id() + ": Not a directory: " + tier.path().string(), false);
+				errors = true;
+			}
+			if(tier.watermark() > 100 || tier.watermark() < 0){
+				Logging::log.error(tier.id() + ": Invalid watermark: " + std::to_string(tier.watermark()), false);
+				errors = true;
+			}
+		}
 	}
 	if(log_level_ == -1){
 		Logging::log.error("Invalid log level. (Log Level)", false);
@@ -182,16 +194,6 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) c
 	if(tier_period_s_ == std::chrono::seconds(-1)){
 		Logging::log.error("Invalid tier period. (Tier Period)", false);
 		errors = true;
-	}
-	for(const Tier &t : tiers){
-		if(!is_directory(t.path())){
-			Logging::log.error(t.id() + ": Tier directory does not exist. (Path)", false);
-			errors = true;
-		}
-		if(t.watermark() > 100 || t.watermark() < 0){
-			Logging::log.error(t.id() + ": Invalid watermark. (Watermark)", false);
-			errors = true;
-		}
 	}
 	if(errors){
 		Logging::log.error("Please fix these mistakes in " + config_path.string());

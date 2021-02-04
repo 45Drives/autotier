@@ -62,9 +62,6 @@ private:
 	 * during the simulation of tiering and used while actually
 	 * tiering.
 	 */
-	void get_capacity_and_usage(void);
-	/* Find capacity_ from statvfs() call and set usage to 0.
-	 */
 	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
 	/* Copy ownership and permissions from old_path to new_path,
 	 * called after copying a file to a different tier.
@@ -87,6 +84,9 @@ public:
 	 */
 	int watermark(void) const;
 	/* Get watermark_.
+	 */
+	void get_capacity_and_usage(void);
+	/* Find capacity_ from statvfs() call and set usage to 0.
 	 */
 	void calc_watermark_bytes(void);
 	/* Determine watermark_bytes_ from watermark_ and capacity_.
