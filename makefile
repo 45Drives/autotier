@@ -33,7 +33,7 @@ clean-target:
 clean-build:
 	-rm -f src/*.o
 
-install: all inst-man-pages
+install: all inst-man-pages inst-config
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/lib/systemd/system
 	mkdir -p $(DESTDIR)/usr/bin
@@ -59,3 +59,7 @@ inst-man-pages:
 
 rm-man-pages:
 	-rm -f $(DESTDIR)/usr/share/man/man8/autotier.8.gz
+
+inst-config:
+	mkdir -p $(DESTDIR)/etc
+	-cp doc/autotier.conf.template $(DESTDIR)/etc/autotier.conf

@@ -1,0 +1,14 @@
+# autotier config
+[Global]                       # global settings
+Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
+Tier Period = 1000             # number of seconds between file move batches
+
+[Tier 1]                       # tier name (can be anything)
+Path =                         # full path to tier storage pool
+Watermark =                    # % usage at which to stop filling tier
+
+[Tier 2]
+Path =
+Watermark =
+
+# ... (add as many tiers as you like)
