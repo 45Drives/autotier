@@ -25,6 +25,7 @@
 
 extern "C"{
 	#include <syslog.h>
+	#include <fuse_log.h>
 }
 
 namespace Logging{
@@ -46,27 +47,45 @@ Logger::~Logger(void){
 
 void Logger::message(const std::string &msg, int lvl) const{
 	if(log_level_ >= lvl){
-		if(output_ == STD){
-			std::cout << msg << std::endl;
-		}else{
-			syslog(LOG_INFO, "%s", msg.c_str());
+		switch(output_){
+			case STD:
+				std::cout << msg << std::endl;
+				break;
+			case SYSLOG:
+				syslog(LOG_INFO, "%s", msg.c_str());
+				break;
+			case FUSELOG:
+				fuse_log(FUSE_LOG_INFO, "%s", msg.c_str());
+				break;
 		}
 	}
 }
 
 void Logger::warning(const std::string &msg) const{
-	if(output_ == STD){
-		std::cerr << "Warning: " << msg << std::endl;
-	}else{
-		syslog(LOG_WARNING, "%s", msg.c_str());
+	switch(output_){
+		case STD:
+			std::cerr << "Warning: " << msg << std::endl;
+			break;
+		case SYSLOG:
+			syslog(LOG_WARNING, "%s", msg.c_str());
+			break;
+		case FUSELOG:
+			fuse_log(FUSE_LOG_WARNING, "%s", msg.c_str());
+			break;
 	}
 }
 
 void Logger::error(const std::string &msg, bool exit_) const{
-	if(output_ == STD){
-		std::cerr << "Error: " << msg << std::endl;
-	}else{
-		syslog(LOG_ALERT, "%s", msg.c_str());
+	switch(output_){
+		case STD:
+			std::cerr << "Error: " << msg << std::endl;
+			break;
+		case SYSLOG:
+			syslog(LOG_ALERT, "%s", msg.c_str());
+			break;
+		case FUSELOG:
+			fuse_log(FUSE_LOG_ALERT, "%s", msg.c_str());
+			break;
 	}
 	if(exit_) exit(EXIT_FAILURE);
 }
