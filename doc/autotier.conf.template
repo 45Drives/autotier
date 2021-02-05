@@ -5,10 +5,12 @@ Tier Period = 1000             # number of seconds between file move batches
 
 [Tier 1]                       # tier name (can be anything)
 Path =                         # full path to tier storage pool
-Watermark =                    # % usage at which to stop filling tier
+Quota =                        # absolute or % usage to keep tier under
+# Quota format: x (%|B|MB|MiB|KB|KiB|MB|MiB|...)
+# Example: Quota = 5.3 TiB
 
 [Tier 2]
 Path =
-Watermark =
+Quota =
 
 # ... (add as many tiers as you like)

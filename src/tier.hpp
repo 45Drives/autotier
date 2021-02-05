@@ -34,7 +34,7 @@ private:
 	/* Percent fullness at which to stop
 	 * filling tier and move to next one.
 	 */
-	uintmax_t watermark_bytes_;
+	uintmax_t watermark_bytes_ = (uintmax_t)-1;
 	/* Number of bytes to stop filling at,
 	 * calculated from watermark_ and capacity_.
 	 */
@@ -91,6 +91,9 @@ public:
 	void calc_watermark_bytes(void);
 	/* Determine watermark_bytes_ from watermark_ and capacity_.
 	 */
+	void watermark_bytes(uintmax_t watermark_bytes);
+	/* Set watermark_bytes_.
+	 */
 	uintmax_t watermark_bytes(void) const;
 	/* Get watermark_bytes_.
 	 */
@@ -122,5 +125,8 @@ public:
 	 */
 	uintmax_t usage_bytes(void) const;
 	/* Return real current usage in bytes.
+	 */
+	uintmax_t capacity(void) const;
+	/* Return capacity in bytes.
 	 */
 };

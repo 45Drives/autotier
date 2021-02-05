@@ -146,8 +146,14 @@ The following parameters are to be put in each tier section.
 .IP "Path = /full/path/to/tier"
 The path to the tier mountpoint/directory. Keep in mind that each tier should be in a
 separate filesystem for intended functionality.
-.IP "Watermark = n"
-The tier's quota. Must be an integer in the range [0, 100]. While moving files around, 
+.IP "Quota = n [unit]"
+The tier's quota. Tier usage is kept under this value.
+It can either be a percent of the tier's capacity, or an absolute value.
+To set it to a percent, use
+.IR Quota = "n %" ", where" n "is a positive integer."
+To use an absolute value, use
+.IR Quota = "n [prefix][i]B" ", where" n " is a positive real number and" prefix = K|M|G|T|P|E|Z|Y .
+Must be an integer in the range [0, 100]. While moving files around, 
 .B autotier
 attemptes to keep the percent usage of each tier below this level.
 
@@ -165,19 +171,19 @@ Tier Period = 10       # number of seconds between file move batches
 .br
 Path = /mnt/ssd_pool   # full path to tier storage pool
 .br
-Watermark = 33         # % usage at which to stop filling tier
+Quota = 15 TiB         # abs usage at which to stop filling tier
 .PP
 [HDDs]
 .br
 Path = /mnt/hdd_pool
 .br
-Watermark = 33
+Quota = 70 %       # % usage at which to stop filling tier
 .PP
 [Cold Storage]
 .br
 Path = /mnt/cold_storage
 .br
-Watermark = 100
+Quota = 100 %
 .br
 
 .SH AUTHOR

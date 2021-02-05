@@ -63,7 +63,14 @@ void Tier::get_capacity_and_usage(void){
 }
 
 void Tier::calc_watermark_bytes(void){
-	watermark_bytes_ = capacity_ * watermark_ / 100;
+	if(watermark_bytes_ == (uintmax_t)-1)
+		watermark_bytes_ = capacity_ * watermark_ / 100;
+	else if(watermark_ == -1)
+		watermark_ = watermark_bytes_ * 100 / capacity_;
+}
+
+void Tier::watermark_bytes(uintmax_t watermark_bytes){
+	watermark_bytes_ = watermark_bytes;
 }
 
 uintmax_t Tier::watermark_bytes(void) const{
@@ -140,4 +147,8 @@ double Tier::usage_percent(void) const{
 
 uintmax_t Tier::usage_bytes(void) const{
 	return usage_;
+}
+
+uintmax_t Tier::capacity(void) const{
+	return capacity_;
 }

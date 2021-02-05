@@ -22,6 +22,7 @@
 #include "tier.hpp"
 #include <sstream>
 #include <regex>
+#include <cmath>
 
 inline void strip_whitespace(std::string &str){
 	std::size_t strItr;
@@ -41,6 +42,69 @@ inline void strip_whitespace(std::string &str){
 		strItr++;
 	} // strItr points to first character
 	str = str.substr(strItr, str.length() - strItr);
+}
+
+void parse_quota(const std::string &value, Tier *tptr){
+	std::smatch m;
+	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
+		try{
+			tptr->watermark(std::stoi(m.str(1)));
+		}catch(const std::invalid_argument &){
+			tptr->watermark(-1);
+		}
+	}else if(regex_search(value, m, std::regex("^(\\d+)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
+		double num;
+		try{
+			num = std::stod(m[1]);
+		}catch(const std::invalid_argument &){
+			tptr->watermark_bytes((uintmax_t)-1);
+			return;
+		}
+		char prefix = (m.str(2).empty())? 0 : m.str(2).front();
+		double base = (m.str(3).empty())? 1000.0 : 1024.0;
+		double exp;
+		switch(prefix){
+			case 0:
+				exp = 0.0;
+				break;
+			case 'k':
+			case 'K':
+				exp = 1.0;
+				break;
+			case 'm':
+			case 'M':
+				exp = 2.0;
+				break;
+			case 'g':
+			case 'G':
+				exp = 3.0;
+				break;
+			case 't':
+			case 'T':
+				exp = 4.0;
+				break;
+			case 'p':
+			case 'P':
+				exp = 5.0;
+				break;
+			case 'e':
+			case 'E':
+				exp = 6.0;
+				break;
+			case 'z':
+			case 'Z':
+				exp = 7.0;
+				break;
+			case 'y':
+			case 'Y':
+				exp = 8.0;
+				break;
+			default:
+				tptr->watermark_bytes((uintmax_t)-1);
+				return;
+		}
+		tptr->watermark_bytes(num * pow(base, exp));
+	}
 }
 
 Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides){
@@ -64,8 +128,8 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 			continue; // ignore comments
 		
 		if(line.front() == '['){
-			std::string id = line.substr(1,line.find(']')-1);
-			if(regex_match(id,std::regex("^\\s*[Gg]lobal\\s*$"))){
+			std::string id = line.substr(1, line.find(']')-1);
+			if(regex_match(id, std::regex("^\\s*[Gg]lobal\\s*$"))){
 				if(load_global(config_file, id) == EOF) break;
 			}
 			Logging::log.message("ID: \"" + id + "\"", 2);
@@ -84,16 +148,12 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 				continue; // ignore unassigned fields
 			
 			if(key == "Path"){
-				Logging::log.message("Found Path: \"" + value + "\"", 2);
 				tptr->path(value);
-			}else if(key == "Watermark"){
-				Logging::log.message("Found Watermark: \"" + value + "\"", 2);
-				try{
-					tptr->watermark(stoi(value));
-				}catch(const std::invalid_argument &){
-					tptr->watermark(-1);
-				}
-			} // else ignore
+			}else if(key == "Quota"){
+				parse_quota(value, tptr);
+			}else{ // else if ...
+				Logging::log.warning(tptr->id() + ": Unknown field: " + key + " = " + value);
+			}
 		}
 	}
 	
@@ -106,8 +166,8 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 	Logging::log.set_level(log_level_);
 	
 	for(Tier & t: tiers){
-		t.calc_watermark_bytes();
 		t.get_capacity_and_usage();
+		t.calc_watermark_bytes();
 	}
 }
 
@@ -144,7 +204,9 @@ int Config::load_global(std::ifstream &config_file, std::string &id){
 			}catch(const std::invalid_argument &){
 				tier_period_s_ = std::chrono::seconds(-1);
 			}
-		} // else if ...
+		}else{ // else if ...
+			Logging::log.warning("Unknown global field: " + key + " = " + value);
+		}
 	}
 	// if here, EOF reached
 	return EOF;
@@ -164,11 +226,13 @@ void Config::init_config_file(const fs::path &config_path) const{
 	"\n"
 	"[Tier 1]                       # tier name\n"
 	"Path =                         # full path to tier storage pool\n"
-	"Watermark =                    # % usage at which to stop filling tier\n"
+	"Quota =                        # absolute or % usage to keep tier under\n"
+	"# Quota format: x (%|B|MB|MiB|KB|KiB|MB|MiB|...)\n"
+	"# Example: Quota = 5.3 TiB\n"
 	"\n"
 	"[Tier 2]\n"
 	"Path =\n"
-	"Watermark =\n"
+	"Quota =\n"
 	"# ... (add as many tiers as you like)\n";
 	f.close();
 }
@@ -187,8 +251,8 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) c
 				Logging::log.error(tier.id() + ": Not a directory: " + tier.path().string(), false);
 				errors = true;
 			}
-			if(tier.watermark() > 100 || tier.watermark() < 0){
-				Logging::log.error(tier.id() + ": Invalid watermark: " + std::to_string(tier.watermark()), false);
+			if(tier.watermark_bytes() == (uintmax_t)-1 && (tier.watermark() > 100 || tier.watermark() < 0)){
+				Logging::log.error(tier.id() + ": Invalid quota: " + std::to_string(tier.watermark()), false);
 				errors = true;
 			}
 		}
@@ -218,7 +282,7 @@ void Config::dump(const std::list<Tier> &tiers) const{
 	for(const Tier &t : tiers){
 		Logging::log.message("[" + t.id() + "]", 1);
 		Logging::log.message("Path = " + t.path().string(), 1);
-		Logging::log.message("Watermark = " + std::to_string(t.watermark()), 1);
+		Logging::log.message("Quota = " + std::to_string(t.watermark()) + " % (" + Logging::log.format_bytes(t.watermark_bytes()) + ")", 1);
 		Logging::log.message("", 1);
 	}
 }
