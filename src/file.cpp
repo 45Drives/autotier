@@ -119,8 +119,9 @@ void File::calc_popularity(double period_seconds){
 			diff = 1.0;
 		usage_frequency = 1.0 / diff;
 	}
-	double damping = std::min((double)(time(NULL) - ctime_), (double)DAMPING); // dynamically change damping as file ages
-	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
+	//double damping = std::min((double)(time(NULL) - ctime_), DAMPING); // dynamically change damping as file ages
+	//metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
+	metadata_.popularity_ = MULTIPLIER * usage_frequency / DAMPING + (1.0 - 1.0 / DAMPING) * metadata_.popularity_;
 	metadata_.access_count_ = 0;
 }
 
