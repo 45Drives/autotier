@@ -92,14 +92,14 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 		: relative_path_(fs::relative(full_path, tptr->path())), metadata_(relative_path_.c_str(), db, tptr){
 	tier_ptr_ = tptr;
 	struct stat info;
-	stat(full_path.c_str(), &info);
+	lstat(full_path.c_str(), &info);
 	size_ = (uintmax_t)info.st_size;
 	times_[0].tv_sec = info.st_atim.tv_sec;
 	times_[0].tv_usec = info.st_atim.tv_nsec / 1000;
 	times_[1].tv_sec = info.st_mtim.tv_sec;
 	times_[1].tv_usec = info.st_mtim.tv_nsec / 1000;
 	atime_ = times_[0].tv_sec;
-	ctime_ = times_[1].tv_sec;
+	ctime_ = info.st_ctim.tv_sec;
 	db_ = db;
 }
 
@@ -119,9 +119,9 @@ void File::calc_popularity(double period_seconds){
 			diff = 1.0;
 		usage_frequency = 1.0 / diff;
 	}
-	//double damping = std::min((double)(time(NULL) - ctime_), DAMPING); // dynamically change damping as file ages
-	//metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
-	metadata_.popularity_ = MULTIPLIER * usage_frequency / DAMPING + (1.0 - 1.0 / DAMPING) * metadata_.popularity_;
+	double damping = std::min((double)(time(NULL) - ctime_), DAMPING); // dynamically change damping as file ages
+	damping = std::max(damping, 1.0);
+	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
 	metadata_.access_count_ = 0;
 }
 
