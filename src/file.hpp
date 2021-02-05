@@ -23,8 +23,9 @@
  * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
  * where x is file usage frequency
  */
-#define DAMPING 1000000.0
-#define MULTIPLIER 3600.0
+#define START_DAMPING  100.0
+#define DAMPING    1000000.0
+#define MULTIPLIER    3600.0
 /* DAMPING is how slowly popularity changes.
  * MULTIPLIER is to scale values to accesses per hour.
  */
