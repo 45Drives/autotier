@@ -131,6 +131,9 @@ private:
 	time_t atime_;
 	/* Just the atime of the file.
 	 */
+	time_t ctime_;
+	/* Just the ctime of the file.
+	 */
 	fs::path relative_path_;
 	/* Location of file relative to the tier and the filesystem mountpoint.
 	 */

@@ -99,6 +99,7 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 	times_[1].tv_sec = info.st_mtim.tv_sec;
 	times_[1].tv_usec = info.st_mtim.tv_nsec / 1000;
 	atime_ = times_[0].tv_sec;
+	ctime_ = times_[1].tv_sec;
 	db_ = db;
 }
 
@@ -118,7 +119,8 @@ void File::calc_popularity(double period_seconds){
 			diff = 1.0;
 		usage_frequency = 1.0 / diff;
 	}
-	metadata_.popularity_ = MULTIPLIER * usage_frequency / DAMPING + (1.0 - 1.0 / DAMPING) * metadata_.popularity_;
+	double damping = std::min((double)ctime_, (double)DAMPING); // dynamically change damping as file ages
+	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
 	metadata_.access_count_ = 0;
 }
 
