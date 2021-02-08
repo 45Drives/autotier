@@ -468,6 +468,7 @@ static int at_readdir(
 	
 	(void) offset;
 	(void) fi;
+	(void) flags;
 	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		dp = opendir((tptr->path() / path).c_str());
