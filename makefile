@@ -1,7 +1,7 @@
 TARGET = autotier
 LIBS =  -l:libfuse3.so -l:libpthread.so -l:libboost_system.a -l:libboost_filesystem.a -l:libstdc++.a -lrocksdb -lboost_serialization
 CC = g++
-CFLAGS = -g -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64 
+CFLAGS = -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64 
 
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
 HEADERS = $(wildcard src/*.hpp)
@@ -12,10 +12,14 @@ ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
 endif
 
-.PHONY: default all clean clean-build clean-target install uninstall
+.PHONY: default all clean clean-build clean-target install uninstall debug
 
+default: CFLAGS := -O2 $(CFLAGS)
 default: $(TARGET)
 all: default
+
+debug: CFLAGS := -g $(CFLAGS)
+debug: $(TARGET)
 
 %.o: %.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
