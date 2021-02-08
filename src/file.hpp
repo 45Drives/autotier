@@ -55,6 +55,9 @@ private:
 	/* Number of times the file was accessed since last tiering.
 	 * Resets to 0 after each popularity calculation.
 	 */
+	time_t last_popularity_calc_ = 0;
+	/* For finding period to use to calculate access frequency.
+	 */
 	double popularity_ = MULTIPLIER*AVG_USAGE;
 	/* Moving average of file usage frequency in accesses per hour.
 	 * Used to sort list of files to determine which tiers
@@ -77,6 +80,7 @@ private:
 		(void) version;
 		ar & tier_path_;
 		ar & access_count_;
+		ar & last_popularity_calc_;
 		ar & popularity_;
 		ar & pinned_;
 	}

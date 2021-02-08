@@ -111,10 +111,16 @@ void File::calc_popularity(double period_seconds){
 	if(period_seconds == 0.0)
 		return;
 	double usage_frequency;
-	if(metadata_.access_count_){
+	time_t now = time(NULL);
+	if(metadata_.access_count_ == 1 && metadata_.last_popularity_calc_){
+		// access period slower than tier period
+		usage_frequency = double(metadata_.access_count_) / double(now - metadata_.last_popularity_calc_);
+	}else if(metadata_.access_count_){
+		// access period faster than tier period
 		usage_frequency = double(metadata_.access_count_) / period_seconds;
 	}else{
-		double diff = time(NULL) - atime_;
+		// access period slower than two tier periods
+		double diff = now - atime_;
 		if(diff < 1.0)
 			diff = 1.0;
 		usage_frequency = 1.0 / diff;
@@ -123,6 +129,7 @@ void File::calc_popularity(double period_seconds){
 	damping = std::max(damping, 1.0);
 	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
 	metadata_.access_count_ = 0;
+	metadata_.last_popularity_calc_ = now;
 }
 
 bool File::is_open(void){
