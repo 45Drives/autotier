@@ -45,40 +45,40 @@ void Tier::subtract_file_size(uintmax_t size){
 	sim_usage_ += size;
 }
 
-void Tier::watermark(int watermark){
-	watermark_ = watermark;
+void Tier::quota_percent(double quota_percent){
+	quota_percent_ = quota_percent;
 }
 
-int Tier::watermark(void) const{
-	return watermark_;
+double Tier::quota_percent(void) const{
+	return quota_percent_;
 }
 
 void Tier::get_capacity_and_usage(void){
 	struct statvfs fs_stats;
 	if((statvfs(path_.c_str(), &fs_stats) == -1))
 		Logging::log.error("statvfs() failed on " + path_.string());
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_bsize);
-	usage_ = capacity_ - (fs_stats.f_bfree * fs_stats.f_bsize);
+	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
+	usage_ = capacity_ - (fs_stats.f_bavail * fs_stats.f_frsize);
 	sim_usage_ = 0;
 }
 
-void Tier::calc_watermark_bytes(void){
-	if(watermark_bytes_ == (uintmax_t)-1)
-		watermark_bytes_ = capacity_ * watermark_ / 100;
-	else if(watermark_ == -1)
-		watermark_ = watermark_bytes_ * 100 / capacity_;
+void Tier::calc_quota_bytes(void){
+	if(quota_bytes_ == (uintmax_t)-1)
+		quota_bytes_ = (double)capacity_ * quota_percent_ / 100.0;
+	else if(quota_percent_ == -1.0)
+		quota_percent_ = (double)quota_bytes_ * 100.0 / (double)capacity_;
 }
 
-void Tier::watermark_bytes(uintmax_t watermark_bytes){
-	watermark_bytes_ = watermark_bytes;
+void Tier::quota_bytes(uintmax_t quota_bytes){
+	quota_bytes_ = quota_bytes;
 }
 
-uintmax_t Tier::watermark_bytes(void) const{
-	return watermark_bytes_;
+uintmax_t Tier::quota_bytes(void) const{
+	return quota_bytes_;
 }
 
 bool Tier::full_test(const File &file) const{
-	return sim_usage_ + file.size() > watermark_bytes_;
+	return sim_usage_ + file.size() > quota_bytes_;
 }
 
 void Tier::path(const fs::path &path){

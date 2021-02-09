@@ -24,6 +24,7 @@
 #include <chrono>
 #include <sstream>
 #include <cmath>
+#include <iomanip>
 
 extern "C" {
 	#include <fcntl.h>
@@ -256,12 +257,12 @@ void TierEngine::print_tier_info(void){
 	Logging::log.message("", 1);
 	for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 		std::stringstream ss;
-		ss <<
+		ss << std::fixed << std::setprecision(2) <<
 		"Tier " << i++ << ":" << std::endl <<
 		"tier name: \"" << tptr->id() << "\"" << std::endl <<
 		"tier path: " << tptr->path().string() << std::endl <<
 		"current usage: " << tptr->usage_percent() << " % (" << Logging::log.format_bytes(tptr->usage_bytes()) << ")" << std::endl <<
-		"quota: " << tptr->watermark() << " % (" << Logging::log.format_bytes(tptr->watermark_bytes()) << ")" << std::endl <<
+		"quota: " << tptr->quota_percent() << " % (" << Logging::log.format_bytes(tptr->quota_bytes()) << ")" << std::endl <<
 		"capacity: " << Logging::log.format_bytes(tptr->capacity()) << std::endl <<
 		std::endl;
 		Logging::log.message(ss.str(), 1);

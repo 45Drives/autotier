@@ -30,11 +30,11 @@ class Tier{
 	/* Class to represent each tier in the filesystem.
 	 */
 private:
-	int watermark_ = -1;
+	double quota_percent_ = -1.0;
 	/* Percent fullness at which to stop
 	 * filling tier and move to next one.
 	 */
-	uintmax_t watermark_bytes_ = (uintmax_t)-1;
+	uintmax_t quota_bytes_ = (uintmax_t)-1;
 	/* Number of bytes to stop filling at,
 	 * calculated from watermark_ and capacity_.
 	 */
@@ -79,26 +79,26 @@ public:
 	void subtract_file_size(uintmax_t size);
 	/* Subtract size bytes from usage.
 	 */
-	void watermark(int watermark);
-	/* Set watermark_.
+	void quota_percent(double quota_percent);
+	/* Set  quota_percent_.
 	 */
-	int watermark(void) const;
-	/* Get watermark_.
+	double quota_percent(void) const;
+	/* Get quota_percent_.
 	 */
 	void get_capacity_and_usage(void);
 	/* Find capacity_ from statvfs() call and set usage to 0.
 	 */
-	void calc_watermark_bytes(void);
-	/* Determine watermark_bytes_ from watermark_ and capacity_.
+	void calc_quota_bytes(void);
+	/* Determine quota_bytes_ from quota_percent_ and capacity_.
 	 */
-	void watermark_bytes(uintmax_t watermark_bytes);
-	/* Set watermark_bytes_.
+	void quota_bytes(uintmax_t watermark_bytes);
+	/* Set quota_bytes_.
 	 */
-	uintmax_t watermark_bytes(void) const;
-	/* Get watermark_bytes_.
+	uintmax_t quota_bytes(void) const;
+	/* Get quota_bytes_.
 	 */
 	bool full_test(const File &file) const;
-	/* returns usage_ + file.size() > watermark_bytes_.
+	/* returns usage_ + file.size() > quota_bytes_.
 	 */
 	void path(const fs::path &path);
 	/* Set path_ and call get_capacity_and_usage().

@@ -48,16 +48,16 @@ void parse_quota(const std::string &value, Tier *tptr){
 	std::smatch m;
 	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
 		try{
-			tptr->watermark(std::stoi(m.str(1)));
+			tptr->quota_percent(std::stoi(m.str(1)));
 		}catch(const std::invalid_argument &){
-			tptr->watermark(-1);
+			tptr->quota_percent(-1.0);
 		}
 	}else if(regex_search(value, m, std::regex("^(\\d+)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
 		double num;
 		try{
 			num = std::stod(m[1]);
 		}catch(const std::invalid_argument &){
-			tptr->watermark_bytes((uintmax_t)-1);
+			tptr->quota_bytes((uintmax_t)-1);
 			return;
 		}
 		char prefix = (m.str(2).empty())? 0 : m.str(2).front();
@@ -100,10 +100,10 @@ void parse_quota(const std::string &value, Tier *tptr){
 				exp = 8.0;
 				break;
 			default:
-				tptr->watermark_bytes((uintmax_t)-1);
+				tptr->quota_bytes((uintmax_t)-1);
 				return;
 		}
-		tptr->watermark_bytes(num * pow(base, exp));
+		tptr->quota_bytes(num * pow(base, exp));
 	}
 }
 
@@ -167,7 +167,7 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 	
 	for(Tier & t: tiers){
 		t.get_capacity_and_usage();
-		t.calc_watermark_bytes();
+		t.calc_quota_bytes();
 	}
 }
 
@@ -248,11 +248,11 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) c
 	}else{
 		for(const Tier &tier : tiers){
 			if(!fs::is_directory(tier.path())){
-				Logging::log.error(tier.id() + ": Not a directory: " + tier.path().string(), false);
+				Logging::log.error(tier.id() + ": Not a directory: " + tier.path().string() + ". (Path)", false);
 				errors = true;
 			}
-			if(tier.watermark_bytes() == (uintmax_t)-1 && (tier.watermark() > 100 || tier.watermark() < 0)){
-				Logging::log.error(tier.id() + ": Invalid quota: " + std::to_string(tier.watermark()), false);
+			if(tier.quota_bytes() == (uintmax_t)-1 && (tier.quota_percent() > 100.0 || tier.quota_percent() < 0.0)){
+				Logging::log.error(tier.id() + ": Invalid quota. (Quota)");
 				errors = true;
 			}
 		}
@@ -282,7 +282,7 @@ void Config::dump(const std::list<Tier> &tiers) const{
 	for(const Tier &t : tiers){
 		Logging::log.message("[" + t.id() + "]", 1);
 		Logging::log.message("Path = " + t.path().string(), 1);
-		Logging::log.message("Quota = " + std::to_string(t.watermark()) + " % (" + Logging::log.format_bytes(t.watermark_bytes()) + ")", 1);
+		Logging::log.message("Quota = " + std::to_string(t.quota_percent()) + " % (" + Logging::log.format_bytes(t.quota_bytes()) + ")", 1);
 		Logging::log.message("", 1);
 	}
 }
