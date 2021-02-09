@@ -17,6 +17,8 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define VERS "1.0.0"
+
 #include "alert.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
@@ -36,6 +38,7 @@ int main(int argc, char *argv[]){
 	int opt;
 	int option_ind = 0;
 	int cmd;
+	bool print_version = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
@@ -43,17 +46,18 @@ int main(int argc, char *argv[]){
 	ConfigOverrides config_overrides;
 	
 	static struct option long_options[] = {
-		{"config",		     required_argument, 0, 'c'},
+		{"config",         required_argument, 0, 'c'},
 		{"help",           no_argument,       0, 'h'},
 		{"fuse-options",   required_argument, 0, 'o'},
 		{"verbose",        no_argument,       0, 'v'},
 		{"quiet",          no_argument,       0, 'q'},
+		{"version",        no_argument,       0, 'V'},
 		{0, 0, 0, 0}
 	};
 	
 	/* Get CLI options.
 	 */
-	while((opt = getopt_long(argc, argv, "c:ho:vq", long_options, &option_ind)) != -1){
+	while((opt = getopt_long(argc, argv, "c:ho:vqV", long_options, &option_ind)) != -1){
 		switch(opt){
 			case 'c':
 				config_path = optarg;
@@ -61,7 +65,6 @@ int main(int argc, char *argv[]){
 			case 'h':
 				usage();
 				exit(EXIT_SUCCESS);
-				break;
 			case 'o':
 				fuse_opts = optarg;
 				break;
@@ -71,11 +74,29 @@ int main(int argc, char *argv[]){
 			case 'q':
 				config_overrides.log_level_override = ConfigOverride<int>(0);
 				break;
+			case 'V':
+				print_version = true;
+				break;
 			case '?':
 				break; // getopt_long prints errors
 			default:
 				abort();
 		}
+	}
+	
+	if(print_version){
+		Logging::log.message("autotier " VERS, 0);
+		if(!config_overrides.log_level_override.overridden() || config_overrides.log_level_override.value() >= 1){
+			Logging::log.message(
+				u8"   ┓\n"
+				u8"└─ ┃ ├─\n"
+				u8"└─ ┣ ├─\n"
+				u8"└─ ┃ └─\n"
+				u8"   ┛",
+				1
+			);
+		}
+		exit(EXIT_SUCCESS);
 	}
 	
 	/* Grab command or mountpoint.
