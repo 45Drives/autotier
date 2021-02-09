@@ -297,7 +297,8 @@ void TierEngine::status(bool json){
 				"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
 				"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
 				"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\""
+				"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
+				"\"path\":\"" + tptr->path().string() + "\""
 			"}";
 			if(std::next(tptr) != tiers_.end())
 				ss << ",";
