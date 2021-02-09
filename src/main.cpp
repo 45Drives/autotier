@@ -17,8 +17,7 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define VERS "1.0.0"
-
+#include "version.hpp"
 #include "alert.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
@@ -39,6 +38,7 @@ int main(int argc, char *argv[]){
 	int option_ind = 0;
 	int cmd;
 	bool print_version = false;
+	bool json = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
@@ -48,6 +48,7 @@ int main(int argc, char *argv[]){
 	static struct option long_options[] = {
 		{"config",         required_argument, 0, 'c'},
 		{"help",           no_argument,       0, 'h'},
+		{"json",           no_argument,       0, 'j'},
 		{"fuse-options",   required_argument, 0, 'o'},
 		{"verbose",        no_argument,       0, 'v'},
 		{"quiet",          no_argument,       0, 'q'},
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]){
 	
 	/* Get CLI options.
 	 */
-	while((opt = getopt_long(argc, argv, "c:ho:vqV", long_options, &option_ind)) != -1){
+	while((opt = getopt_long(argc, argv, "c:hjo:vqV", long_options, &option_ind)) != -1){
 		switch(opt){
 			case 'c':
 				config_path = optarg;
@@ -65,6 +66,9 @@ int main(int argc, char *argv[]){
 			case 'h':
 				usage();
 				exit(EXIT_SUCCESS);
+			case 'j':
+				json = true;
+				break;
 			case 'o':
 				fuse_opts = optarg;
 				break;
@@ -175,7 +179,7 @@ int main(int argc, char *argv[]){
 				{
 					bool read_only = true;
 					TierEngine autotier(config_path, config_overrides, read_only);
-					autotier.print_tier_info();
+					autotier.status(json);
 				}
 				break;
 			case CONFIG:
