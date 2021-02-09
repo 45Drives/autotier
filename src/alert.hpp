@@ -65,6 +65,10 @@ public:
 	std::string format_bytes(uintmax_t bytes) const;
 	/* Return bytes as string in base-1024 SI units.
 	 */
+	double format_bytes(uintmax_t bytes, std::string &unit) const;
+	/* Return bytes as double with unit returned
+	 * by reference in base-1024 SI units.
+	 */
 };
 
 namespace Logging{

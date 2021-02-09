@@ -99,13 +99,26 @@ void Logger::set_output(output_t output){
 }
 
 #define N_INDEX 9
+const char *units[N_INDEX] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"};
+
 std::string Logger::format_bytes(uintmax_t bytes) const{
 	if(bytes == 0) return "0 B";
 	std::stringstream formatted_ss;
-	std::string units[N_INDEX] = {" B", " KiB", " MiB", " GiB", " TiB", " PiB", " EiB", " ZiB", " YiB"};
 	int i = std::min(int(log(bytes) / log(1024.0)), N_INDEX - 1);
 	double p = pow(1024.0, i);
 	double formatted = double(bytes) / p;
-	formatted_ss << std::fixed << std::setprecision(2) << formatted << units[i];
+	formatted_ss << std::fixed << std::setprecision(2) << formatted << " " << units[i];
 	return formatted_ss.str();
+}
+
+double Logger::format_bytes(uintmax_t bytes, std::string &unit) const{
+	if(bytes == 0){
+		unit = units[0];
+		return 0.0;
+	}
+	int i = std::min(int(log(bytes) / log(1024.0)), N_INDEX - 1);
+	double p = pow(1024.0, i);
+	double formatted = double(bytes) / p;
+	unit = units[i];
+	return formatted;
 }
