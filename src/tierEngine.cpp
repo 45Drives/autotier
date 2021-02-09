@@ -86,7 +86,7 @@ TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &confi
 	open_db(read_only);
 }
 
-TierEngine::~TierEngine(){
+TierEngine::~TierEngine(void){
 	delete db_;
 }
 
@@ -198,7 +198,7 @@ void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
 	}
 }
 
-void TierEngine::sort(){
+void TierEngine::sort(void){
 	Logging::log.message("Sorting files.", 2);
 	// TODO: use std::execution::par for parallel sort after changing files_ to vector
 	// NOTE: std::execution::par requires C++17
@@ -216,7 +216,7 @@ void TierEngine::sort(){
 	);
 }
 
-void TierEngine::simulate_tier(){
+void TierEngine::simulate_tier(void){
 	Logging::log.message("Finding files' tiers.", 2);
 	for(Tier &t : tiers_)
 		t.get_capacity_and_usage();
@@ -235,7 +235,7 @@ void TierEngine::simulate_tier(){
 	}
 }
 
-void TierEngine::move_files(){
+void TierEngine::move_files(void){
 	/*  Currently, this starts at the lowest tier, assuming it has the most free space, and
 	 * moves all incoming files from their current tiers before moving on to the next lowest
 	 * tier. There should be a better way to shuffle all the files around to avoid over-filling
@@ -261,7 +261,7 @@ void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 #define PERCENTW 6
 #define PERCENTU 1 + UNIT_GAP
 
-void TierEngine::print_tier_info(void){
+void TierEngine::status(void){
 	uintmax_t total_capacity = 0;
 	uintmax_t total_quota_capacity = 0;
 	uintmax_t total_usage = 0;

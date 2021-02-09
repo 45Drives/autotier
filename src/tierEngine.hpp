@@ -166,7 +166,7 @@ public:
 	/* call wait_until on the condition variable. Puts thread
 	 * to sleep until time reaches t or woken by sleep_cv_.notify_one()
 	 */
-	void print_tier_info(void);
+	void status(void);
 	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
 	 * uses Logger::format_bytes() for printing current usage and watermark.
 	 */
