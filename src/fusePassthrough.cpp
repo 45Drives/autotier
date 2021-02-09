@@ -28,6 +28,7 @@
 #include "alert.hpp"
 #include "config.hpp"
 #include <thread>
+#include <regex>
 
 #define FUSE_USE_VERSION 30
 extern "C"{
@@ -465,6 +466,7 @@ static int at_readdir(
  					){
 	DIR *dp;
 	struct dirent *de;
+	std::regex temp_file_re("^\\..*\\.autotier\\.mv$");
 	
 	(void) offset;
 	(void) fi;
@@ -477,6 +479,8 @@ static int at_readdir(
 		
 		while ((de = readdir(dp)) != NULL) {
 			if(de->d_type == DT_DIR && tptr != FuseGlobal::tiers_.front())
+				continue;
+			if(de->d_type != DT_DIR && std::regex_match(de->d_name, temp_file_re))
 				continue;
 			struct stat st;
 			memset(&st, 0, sizeof(st));
