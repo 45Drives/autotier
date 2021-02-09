@@ -42,7 +42,7 @@ void Tier::add_file_size(uintmax_t size){
 }
 
 void Tier::subtract_file_size(uintmax_t size){
-	sim_usage_ += size;
+	sim_usage_ -= size;
 }
 
 void Tier::quota_percent(double quota_percent){
@@ -59,7 +59,7 @@ void Tier::get_capacity_and_usage(void){
 		Logging::log.error("statvfs() failed on " + path_.string());
 	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
 	usage_ = capacity_ - (fs_stats.f_bavail * fs_stats.f_frsize);
-	sim_usage_ = 0;
+	sim_usage_ = usage_;
 }
 
 void Tier::calc_quota_bytes(void){

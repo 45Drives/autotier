@@ -170,8 +170,9 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 	files_.emplace_back(file.path(), db_, tptr);
 	if(files_.back().is_pinned()){
-		tptr->add_file_size(files_.back().size());
 		files_.pop_back();
+	}else{
+		tptr->subtract_file_size(files_.back().size()); // remove file size from current usage
 	}
 }
 
@@ -217,6 +218,8 @@ void TierEngine::sort(){
 
 void TierEngine::simulate_tier(){
 	Logging::log.message("Finding files' tiers.", 2);
+	for(Tier &t : tiers_)
+		t.get_capacity_and_usage();
 	std::vector<File>::iterator fptr = files_.begin();
 	std::list<Tier>::iterator tptr = tiers_.begin();
 	while(fptr != files_.end()){
@@ -250,21 +253,94 @@ void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }
 
+#define TABLE_HEADER_LINE
+#define UNIT_GAP 1
+#define NAMEW   10
+#define ABSW     7
+#define ABSU     3 + UNIT_GAP
+#define PERCENTW 6
+#define PERCENTU 1 + UNIT_GAP
+
 void TierEngine::print_tier_info(void){
-	int i = 1;
-	
-	Logging::log.message("Tiers from fastest to slowest:", 1);
-	Logging::log.message("", 1);
+	uintmax_t total_capacity = 0;
+	uintmax_t total_quota_capacity = 0;
+	uintmax_t total_usage = 0;
+	std::string unit("");
+	for(const Tier &t : tiers_){
+		total_capacity += t.capacity();
+		total_quota_capacity += t.quota_bytes();
+		total_usage += t.usage_bytes();
+	}
+	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
+	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
+	{
+		std::stringstream heading;
+		heading << std::setw(NAMEW) << std::left << "";
+		heading << " ";
+		heading << std::setw(ABSW) << std::right << "Size";
+		heading << std::setw(ABSU) << ""; // unit
+		heading << " ";
+		heading << std::setw(ABSW) << std::right << "Quota";
+		heading << std::setw(ABSU) << ""; // unit
+		heading << " ";
+		heading << std::setw(PERCENTW) << std::right << "Quota";
+		heading << std::setw(PERCENTU) << "%"; // unit
+		heading << " ";
+		heading << std::setw(ABSW) << std::right << "Use";
+		heading << std::setw(ABSU) << ""; // unit
+		heading << " ";
+		heading << std::setw(PERCENTW) << std::right << "Use";
+		heading << std::setw(PERCENTU) << "%"; // unit
+		heading << " ";
+		heading << std::left << "Path";
+#ifdef TABLE_HEADER_LINE
+		heading << std::endl;
+		auto fill = heading.fill();
+		heading << std::setw(80) << std::setfill('-') << "";
+		heading.fill(fill);
+#endif
+		Logging::log.message(heading.str(), 1);
+	}
+	{
+		std::stringstream ss;
+		ss << std::setw(NAMEW) << std::left << "combined:"; // tier
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity, unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << overall_quota;
+		ss << std::setw(PERCENTU) << "%"; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage, unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
+		ss << std::setw(PERCENTU) << "%"; // unit
+		Logging::log.message(ss.str(), 1);
+	}
 	for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 		std::stringstream ss;
-		ss << std::fixed << std::setprecision(2) <<
-		"Tier " << i++ << ":" << std::endl <<
-		"tier name: \"" << tptr->id() << "\"" << std::endl <<
-		"tier path: " << tptr->path().string() << std::endl <<
-		"current usage: " << tptr->usage_percent() << " % (" << Logging::log.format_bytes(tptr->usage_bytes()) << ")" << std::endl <<
-		"quota: " << tptr->quota_percent() << " % (" << Logging::log.format_bytes(tptr->quota_bytes()) << ")" << std::endl <<
-		"capacity: " << Logging::log.format_bytes(tptr->capacity()) << std::endl <<
-		std::endl;
+		ss << std::setw(NAMEW) << std::left << tptr->id() + ":"; // tier
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota_bytes(), unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->quota_percent();
+		ss << std::setw(PERCENTU) << "%"; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes(), unit);
+		ss << std::setw(ABSU) << unit; // unit
+		ss << " ";
+		ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->usage_percent();
+		ss << std::setw(PERCENTU) << "%"; // unit
+		ss << " ";
+		ss << std::left << tptr->path().string();
 		Logging::log.message(ss.str(), 1);
 	}
 }
