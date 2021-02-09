@@ -66,4 +66,4 @@ rm-man-pages:
 
 inst-config:
 	mkdir -p $(DESTDIR)/etc
-	-cp doc/autotier.conf.template $(DESTDIR)/etc/autotier.conf
+	cp -n doc/autotier.conf.template $(DESTDIR)/etc/autotier.conf
