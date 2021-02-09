@@ -39,19 +39,13 @@ clean-build:
 
 install: all inst-man-pages inst-config
 	mkdir -p $(DESTDIR)$(PREFIX)
-	mkdir -p $(DESTDIR)/lib/systemd/system
 	mkdir -p $(DESTDIR)/usr/bin
 	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)
 	ln -sf $(PREFIX)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
-	cp autotier.service $(DESTDIR)/lib/systemd/system/autotier.service
-	systemctl daemon-reload
 
 uninstall: rm-man-pages
-	-systemctl disable --now autotier
 	-rm -f $(DESTDIR)$(PREFIX)/$(TARGET)
-	-rm -f $(DESTDIR)/lib/systemd/system/autotier.service
 	-rm -f $(DESTDIR)/usr/bin/$(TARGET)
-	systemctl daemon-reload
 
 tests: $(TEST_OBJECTS)
 	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o test_db
