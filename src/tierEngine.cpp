@@ -256,11 +256,19 @@ void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 
 #define TABLE_HEADER_LINE
 #define UNIT_GAP 1
-#define NAMEW   10
 #define ABSW     7
 #define ABSU     3 + UNIT_GAP
 #define PERCENTW 6
 #define PERCENTU 1 + UNIT_GAP
+
+inline int find_max_width(const std::vector<std::string> &names){
+	int res = -1;
+	for(const std::string &name : names){
+		int length = name.length();
+		if(length > res) res = length;
+	}
+	return res;
+}
 
 void TierEngine::status(bool json){
 	uintmax_t total_capacity = 0;
@@ -308,9 +316,15 @@ void TierEngine::status(bool json){
 		"}";
 		Logging::log.message(ss.str(), 1);
 	}else{
+		std::vector<std::string> names;
+		names.push_back("combined");
+		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+			names.push_back(tptr->id());
+		}
+		int namew = find_max_width(names);
 		{
 			std::stringstream heading;
-			heading << std::setw(NAMEW) << std::left << "";
+			heading << std::setw(namew) << std::left << "Tier";
 			heading << " ";
 			heading << std::setw(ABSW) << std::right << "Size";
 			heading << std::setw(ABSU) << ""; // unit
@@ -338,7 +352,7 @@ void TierEngine::status(bool json){
 		}
 		{
 			std::stringstream ss;
-			ss << std::setw(NAMEW) << std::left << "combined:"; // tier
+			ss << std::setw(namew) << std::left << "combined"; // tier
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
 			ss << std::setw(ABSU) << unit; // unit
@@ -358,7 +372,7 @@ void TierEngine::status(bool json){
 		}
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 			std::stringstream ss;
-			ss << std::setw(NAMEW) << std::left << tptr->id() + ":"; // tier
+			ss << std::setw(namew) << std::left << tptr->id(); // tier
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
 			ss << std::setw(ABSU) << unit; // unit
