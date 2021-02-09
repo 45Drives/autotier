@@ -261,7 +261,7 @@ void TierEngine::print_tier_info(void){
 		"tier name: \"" << tptr->id() << "\"" << std::endl <<
 		"tier path: " << tptr->path().string() << std::endl <<
 		"current usage: " << tptr->usage_percent() << " % (" << Logging::log.format_bytes(tptr->usage_bytes()) << ")" << std::endl <<
-		"watermark: " << tptr->watermark() << " % (" << Logging::log.format_bytes(tptr->watermark_bytes()) << ")" << std::endl <<
+		"quota: " << tptr->watermark() << " % (" << Logging::log.format_bytes(tptr->watermark_bytes()) << ")" << std::endl <<
 		"capacity: " << Logging::log.format_bytes(tptr->capacity()) << std::endl <<
 		std::endl;
 		Logging::log.message(ss.str(), 1);
