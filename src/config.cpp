@@ -277,6 +277,46 @@ void Config::init_config_file(const fs::path &config_path) const{
 	f.close();
 }
 
+inline void validate_backend_path(const fs::path &path, const std::string &prefix, const std::string &path_desc, bool &errors, bool read_only = false, bool create = false){
+	bool is_directory = false;
+	bool no_perm = false;
+	if(path.is_relative()){
+		Logging::log.error(prefix + ": " + path_desc + " must be an absolute path: \"" + path.string() + "\"", false);
+		errors = true;
+		return;
+	}
+	try{
+		is_directory = fs::is_directory(path);
+	}catch(const fs::filesystem_error &e){
+		Logging::log.error(prefix + ": Failed to check " + path_desc + ": " + std::string(e.what()), false);
+		errors = true;
+		no_perm = true;
+	}
+	if(!is_directory && !no_perm && !read_only && create){
+		try{
+			is_directory = fs::create_directories(path);
+		}catch(const fs::filesystem_error &e){
+			Logging::log.error(prefix + ": Failed to create " + path_desc + ": " + std::string(e.what()), false);
+			errors = true;
+			no_perm = true;
+		}
+	}
+	if(is_directory && !no_perm){
+		int mode = R_OK;
+		if(!read_only)
+			mode |= W_OK;
+		if(access(path.c_str(), mode) != 0){
+			int err = errno;
+			Logging::log.error(prefix + ": Cannot access " + path_desc + ": " + std::string(strerror(err)) + ": \"" + path.string() + "\"", false);
+			errors = true;
+		}
+	}
+	if(!is_directory && !no_perm){
+		Logging::log.error(prefix + ": " + path_desc + " is not a directory: " + path.string(), false);
+		errors = true;
+	}
+}
+
 void Config::verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only) const{
 	bool errors = false;
 	verify_global(read_only, errors);
@@ -296,38 +336,8 @@ void Config::verify_global(bool read_only, bool &errors) const{
 		Logging::log.error("Invalid tier period. (Tier Period)", false);
 		errors = true;
 	}
-	if(run_path_.is_relative()){
-		Logging::log.error("Metadata Path must be an absolute path.", false);
-		errors = true;
-	}else{
-		bool is_directory = false;
-		bool no_perm = false;
-		try{
-			is_directory = fs::is_directory(run_path_);
-		}catch(const fs::filesystem_error &e){
-			Logging::log.error("Failed to check Metadata Directory path: " + std::string(e.what()), false);
-			errors = true;
-			no_perm = true;
-		}
-		if(!is_directory && !no_perm){
-			try{
-				fs::create_directories(run_path_);
-			}catch(const fs::filesystem_error &e){
-				Logging::log.error("Failed to create Metadata Directory path: " + std::string(e.what()), false);
-				errors = true;
-			}
-		}
-		if(is_directory && !no_perm){
-			int mode = R_OK;
-			if(!read_only)
-				mode |= W_OK;
-			if(access(run_path_.c_str(), mode) != 0){
-				int err = errno;
-				Logging::log.error("Cannot access Metadata Path: " + std::string(strerror(err)), false);
-				errors = true;
-			}
-		}
-	}
+	bool create_if_missing = true;
+	validate_backend_path(run_path_, "Global", "Metadata Path", errors, read_only, create_if_missing);
 }
 
 void Config::verify_tiers(const std::list<Tier> &tiers, bool &errors) const{
@@ -339,10 +349,7 @@ void Config::verify_tiers(const std::list<Tier> &tiers, bool &errors) const{
 		errors = true;
 	}else{
 		for(const Tier &tier : tiers){
-			if(!fs::is_directory(tier.path())){
-				Logging::log.error(tier.id() + ": Not a directory: " + tier.path().string() + ". (Path)", false);
-				errors = true;
-			}
+			validate_backend_path(tier.path(), tier.id(), "Path", errors);
 			if(tier.quota_bytes() == (uintmax_t)-1 && (tier.quota_percent() > 100.0 || tier.quota_percent() < 0.0)){
 				Logging::log.error(tier.id() + ": Invalid quota. (Quota)");
 				errors = true;
