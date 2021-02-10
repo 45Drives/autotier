@@ -138,6 +138,14 @@ and
 flags.
 .IP "Tier Period = n"
 Number of seconds between each tiering of files. Must be an integer in the range [0, INT64_MAX].
+.IP "Metadata Path = /full/path/to/metadata"
+Optional. If undefined,
+.B autotier
+defaults to using
+.I /var/lib/autotier
+as the path to store metadata in. To mount
+.B autotier
+as an unprivilaged user, set this path to somewhere with write permissions for that user.
 
 .SS TIER DEFINITIONS
 Pick a friendly name for the tier and use that as the header name.
@@ -146,14 +154,14 @@ The following parameters are to be put in each tier section.
 .IP "Path = /full/path/to/tier"
 The path to the tier mountpoint/directory. Keep in mind that each tier should be in a
 separate filesystem for intended functionality.
-.IP "Quota = n [unit]"
+.IP "Quota = n unit"
 The tier's quota. Tier usage is kept under this value.
 It can either be a percent of the tier's capacity, or an absolute value.
 To set it to a percent, use
 .IR Quota = "n %" ", where" n "is a positive integer."
 To use an absolute value, use
 .IR Quota = "n [prefix][i]B" ", where" n " is a positive real number and" prefix = K|M|G|T|P|E|Z|Y .
-Must be an integer in the range [0, 100]. While moving files around, 
+Must be an integer in the range [0, 100]. While moving files around,
 .B autotier
 attemptes to keep the percent usage of each tier below this level.
 
