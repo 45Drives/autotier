@@ -3,7 +3,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH AUTOTIER 8 "February 02 2021" "autotier 1.0.0"
+.TH AUTOTIER 8 "February 10 2021" "autotier 1.0.0"
 .\" Please adjust this date whenever revising the manpage.
 
 .SH NAME
@@ -51,19 +51,24 @@ below the
 .IR watermark .
 
 .SH OPTIONS
-.IP "-c, --config <path/to/config/file>"
+.TP
+.BI "\-c\fR,\fP \-\^\-config " "path/to/config/file"
 Override configuration file path (default /etc/autotier.conf).
-.IP "-h, --help"
+.TP
+.B "\-h\fR,\fP \-\^\-help"
 Display usage message and cancel current command.
-.IP "-o, --fuse-options <comma,separated,list>"
+.TP
+.BI "\-o\fR,\fP \-\^\-fuse-options " "comma,separated,list"
 Options for fuse filsystem. See
 .B fuse(8)
 for details.
-.IP "-q, --quiet"
+.TP 
+.B "\-q\fR,\fP \-\^\-quiet"
 Mute log output, other than warnings and errors. Overrides
 .I Log Level
 in the configuration file to 0.
-.IP "-v, --verbose"
+.TP
+.B "\-v\fR,\fP \-\^\-verbose"
 Print debug level output. Overrides
 .I Log Level
 in the configuration file to 2.
@@ -81,25 +86,33 @@ in the configuration file to 2.
 .SS IN FSTAB
 .B autotier
 .I mountpoint
-.IR fuse , options , list
+.IR fuse , options , ...
 0 0
 
 .SH AD HOC COMMANDS
-.IP config
+.TP
+.B config
 Print current configuration file.
-.IP help
+.TP
+.B help
 Display usage message and cancel current command.
-.IP list-pins
+.TP
+.B list-pins
 Show all pinned files along with the tier they are pinned to.
-.IP list-popularity
+.TP
+.B list-popularity
 Print all files in filesystem along with their popularity scores (accesses per hour).
-.IP oneshot
+.TP
+.B oneshot
 Execute tiering of files immediately.
-.IP "pin <tier name> <path/to/file path/to/file ...>"
+.TP
+.BI "pin \fR\*(lq\fP" "tier name" "\fR\*(rq\fP " "path/to/file " \fR[\fP "path/to/file ..." \fR]
 Move files into the given tier and keep them there regardless of their popularity scores.
-.IP status
+.TP
+.B status
 Print info about each tier, including the tier name, path, usage, and watermark.
-.IP "unpin <path/to/file path/to/file ...>"
+.TP
+.BI "unpin " "path/to/file \fR[\fPpath/to/file ...\fR]"
 Remove the "pinned" flag from each file to allow the tiering process to move it.
 
 .SH CONFIGURATION
@@ -116,7 +129,7 @@ other than
 are
 .IR tiers .
 The parameters of each section take the form of
-.I Key
+.B Key
 =
 .IR value .
 
@@ -124,21 +137,24 @@ The parameters of each section take the form of
 The following parameters are to be put under the
 .B [Global]
 header.
-.IP "Log Level = 0|1|2"
+.TP
+.BI "Log Level \fR=\fP " "0\fR|\fP1\fR|\fP2"
 The level at which to print log messages. If the value is
-.BR 0 ,
+.IR 0 ,
 all informational messages are muted and only warnings and errors are printed. If the value is
-.BR 1 ,
+.IR 1 ,
 normal informational log messages are printed. If the value is
-.BR 2 ,
+.IR 2 ,
 debug messages will also be printed. This value is overridden by the
 .I --verbose
 and
 .I --quiet
 flags.
-.IP "Tier Period = n"
+.TP
+.BI "Tier Period \fR=\fP " "n"
 Number of seconds between each tiering of files. Must be an integer in the range [0, INT64_MAX].
-.IP "Metadata Path = /full/path/to/metadata"
+.TP
+.BI "Metadata Path \fR=\fP " "/full/path/to/metadata"
 Optional. If undefined,
 .B autotier
 defaults to using
@@ -151,17 +167,36 @@ as an unprivilaged user, set this path to somewhere with write permissions for t
 Pick a friendly name for the tier and use that as the header name.
 There needs to be at least two tiers, however there is no upper limit. That said, keep the number of tiers reasonable.
 The following parameters are to be put in each tier section.
-.IP "Path = /full/path/to/tier"
+.TP
+.BI "Path \fR=\fP " "/full/path/to/tier"
 The path to the tier mountpoint/directory. Keep in mind that each tier should be in a
 separate filesystem for intended functionality.
-.IP "Quota = n unit"
+.TP 
+.BI "Quota \fR=\fP " "n unit"
 The tier's quota. Tier usage is kept under this value.
 It can either be a percent of the tier's capacity, or an absolute value.
-To set it to a percent, use
-.IR Quota = "n %" ", where" n "is a positive integer."
+To set it to a
+.IR percent ,
+use
+.IR "Quota = n %" ,
+where
+.I n 
+is a positive integer in the range [0, 100].
 To use an absolute value, use
-.IR Quota = "n [prefix][i]B" ", where" n " is a positive real number and" prefix = K|M|G|T|P|E|Z|Y .
-Must be an integer in the range [0, 100]. While moving files around,
+.IR "Quota = n [prefix][i]B" ,
+where
+.I n
+is a positive real number and
+.I prefix = 
+.IR K | M | G | T | P | E | Z | Y .
+Include
+.I i
+between the 
+.I prefix
+and
+.I B
+to use base-1024 units instead of base-1000.
+While moving files around,
 .B autotier
 attemptes to keep the percent usage of each tier below this level.
 
