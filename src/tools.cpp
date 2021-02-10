@@ -260,7 +260,10 @@ void usage(){
 		"              - mount options to pass to fuse (see man mount.fuse)\n"
 		"  -q, --quiet - set log level to 0 (no output)\n"
 		"  -v, --verbose\n"
-		"              - set log level to 2 (debug output)\n",
+		"              - set log level to 2 (debug output)\n"
+		"  -V, --version\n"
+		"              - print version and exit\n"
+		"              - if log level >= 1, logo will also print\n",
 		0
 	);
 }

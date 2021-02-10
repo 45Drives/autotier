@@ -384,105 +384,14 @@ void TierEngine::process_adhoc_requests(void){
 		payload.clear();
 		switch(work.cmd_){
 			case ONESHOT:
-				if(!work.args_.empty()){
-					payload.emplace_back("ERR");
-					std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
-					for(std::string &str : work.args_)
-						err_msg += " " + str;
-					payload.emplace_back(err_msg);
-					send_fifo_payload(payload, run_path_ / "response.pipe");
-					continue;
-				}
-				adhoc_work_.push(work);
-				payload.emplace_back("OK");
-				payload.emplace_back("Work queued.");
-				send_fifo_payload(payload, run_path_ / "response.pipe");
+				process_oneshot(work);
 				break;
 			case PIN:
 			case UNPIN:
-				{
-					std::vector<std::string>::iterator itr = work.args_.begin();
-					if(work.cmd_ == PIN){
-						std::string tier_id = work.args_.front();
-						if(tier_lookup(tier_id) == nullptr){
-							payload.emplace_back("ERR");
-							payload.emplace_back("Tier does not exist: \"" + tier_id + "\"");
-							send_fifo_payload(payload, run_path_ / "response.pipe");
-							continue;
-						}
-						++itr;
-					}
-					std::vector<std::string> not_in_fs;
-					for( ; itr != work.args_.end(); ++itr){
-						if(!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())){
-							not_in_fs.push_back(*itr);
-						}
-					}
-					if(!not_in_fs.empty()){
-						payload.emplace_back("ERR");
-						std::string err_msg = "Files are not in autotier filesystem:";
-						for(const std::string &str : not_in_fs)
-							err_msg += " " + str;
-						payload.emplace_back(err_msg);
-						send_fifo_payload(payload, run_path_ / "response.pipe");
-						continue;
-					}
-				}
-				adhoc_work_.push(work);
-				payload.clear();
-				payload.emplace_back("OK");
-				payload.emplace_back("Work queued.");
-				send_fifo_payload(payload, run_path_ / "response.pipe");
+				process_pin_unpin(work);
 				break;
 			case WHICHTIER:
-				{
-					payload.clear();
-					payload.emplace_back("OK");
-					int namew = 0;
-					int tierw = 0;
-					std::vector<std::string> not_in_fs;
-					for(std::string &arg : work.args_){
-						if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
-							arg = fs::relative(arg, mount_point_).string();
-						}
-						int len = arg.length();
-						if(len > namew)
-							namew = len;
-					}
-					for(const Tier &tier : tiers_){
-						int len = tier.id().length() + 2; // 2 quotes
-						if(len > tierw)
-							tierw = len;
-					}
-					std::stringstream header;
-					header << std::setw(namew) << std::left << "File" << "  ";
-					header << std::setw(tierw) << std::left << "Tier" << "  ";
-					header << std::left << "Backend Path";
-#ifdef TABLE_HEADER_LINE
-					header << std::endl;
-					auto fill = header.fill();
-					header << std::setw(80) << std::setfill('-') << "";
-					header.fill(fill);
-#endif
-					payload.emplace_back(header.str());
-					for(const std::string &arg : work.args_){
-						std::stringstream record;
-						record << std::setw(namew) << std::left << arg << "  ";
-						Metadata f(arg.c_str(), db_);
-						if(f.not_found()){
-								record << "not found.";
-						}else{
-							Tier *tptr = tier_lookup(fs::path(f.tier_path()));
-							if(tptr == nullptr)
-								record << std::setw(tierw) << std::left << "UNK" << "  ";
-							else
-								record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
-							record << std::left << (fs::path(f.tier_path()) / arg).string();
-						}
-						payload.emplace_back(record.str());
-					}
-					send_fifo_payload(payload, run_path_ / "response.pipe");
-				}
+				process_which_tier(work);
 				break;
 			default:
 				Logging::log.warning("Received bad ad hoc command.");
@@ -494,6 +403,107 @@ void TierEngine::process_adhoc_requests(void){
 		}
 		sleep_cv_.notify_one();
 	}
+}
+
+void TierEngine::process_oneshot(const AdHoc &work){
+	std::vector<std::string> payload;
+	if(!work.args_.empty()){
+		payload.emplace_back("ERR");
+		std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
+		for(const std::string &str : work.args_)
+			err_msg += " " + str;
+		payload.emplace_back(err_msg);
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+		return;
+	}
+	adhoc_work_.push(work);
+	payload.emplace_back("OK");
+	payload.emplace_back("Work queued.");
+	send_fifo_payload(payload, run_path_ / "response.pipe");
+}
+
+void TierEngine::process_pin_unpin(const AdHoc &work){
+	std::vector<std::string> payload;
+	std::vector<std::string>::const_iterator itr = work.args_.begin();
+	if(work.cmd_ == PIN){
+		std::string tier_id = work.args_.front();
+		if(tier_lookup(tier_id) == nullptr){
+			payload.emplace_back("ERR");
+			payload.emplace_back("Tier does not exist: \"" + tier_id + "\"");
+			send_fifo_payload(payload, run_path_ / "response.pipe");
+			return;
+		}
+		++itr;
+	}
+	std::vector<std::string> not_in_fs;
+	for( ; itr != work.args_.end(); ++itr){
+		if(!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())){
+			not_in_fs.push_back(*itr);
+		}
+	}
+	if(!not_in_fs.empty()){
+		payload.emplace_back("ERR");
+		std::string err_msg = "Files are not in autotier filesystem:";
+		for(const std::string &str : not_in_fs)
+			err_msg += " " + str;
+		payload.emplace_back(err_msg);
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+		return;
+	}
+	adhoc_work_.push(work);
+	payload.clear();
+	payload.emplace_back("OK");
+	payload.emplace_back("Work queued.");
+	send_fifo_payload(payload, run_path_ / "response.pipe");
+}
+
+void TierEngine::process_which_tier(AdHoc &work){
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	int namew = 0;
+	int tierw = 0;
+	std::vector<std::string> not_in_fs;
+	for(std::string &arg : work.args_){
+		if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
+			arg = fs::relative(arg, mount_point_).string();
+		}
+		int len = arg.length();
+		if(len > namew)
+			namew = len;
+	}
+	for(const Tier &tier : tiers_){
+		int len = tier.id().length() + 2; // 2 quotes
+		if(len > tierw)
+			tierw = len;
+	}
+	std::stringstream header;
+	header << std::setw(namew) << std::left << "File" << "  ";
+	header << std::setw(tierw) << std::left << "Tier" << "  ";
+	header << std::left << "Backend Path";
+#ifdef TABLE_HEADER_LINE
+	header << std::endl;
+	auto fill = header.fill();
+	header << std::setw(80) << std::setfill('-') << "";
+	header.fill(fill);
+#endif
+	payload.emplace_back(header.str());
+	for(const std::string &arg : work.args_){
+		std::stringstream record;
+		record << std::setw(namew) << std::left << arg << "  ";
+		Metadata f(arg.c_str(), db_);
+		if(f.not_found()){
+				record << "not found.";
+		}else{
+			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
+			if(tptr == nullptr)
+				record << std::setw(tierw) << std::left << "UNK" << "  ";
+			else
+				record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
+			record << std::left << (fs::path(f.tier_path()) / arg).string();
+		}
+		payload.emplace_back(record.str());
+	}
+	send_fifo_payload(payload, run_path_ / "response.pipe");
 }
 
 void TierEngine::execute_queued_work(void){

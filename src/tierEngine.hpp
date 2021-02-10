@@ -181,6 +181,16 @@ public:
 	 * autotier while mounted. Grabs command and queues work as
 	 * and AdHoc object.
 	 */
+	void process_oneshot(const AdHoc &work);
+	/* Enqueue oneshot AdHoc command into adhoc_work_.
+	 */
+	void process_pin_unpin(const AdHoc &work);
+	/* Enqueue pin or unpin AdHoc command into adhoc_work_.
+	 */
+	void process_which_tier(AdHoc &work);
+	/* Return table of each argument file along with its corresponding tier name
+	 * and full backend path.
+	 */
 	void execute_queued_work(void);
 	/* Tiering thread calls this when woken to execute the queued work.
 	 */

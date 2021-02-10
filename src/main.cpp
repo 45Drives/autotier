@@ -100,6 +100,13 @@ int main(int argc, char *argv[]){
 				1
 			);
 		}
+		if(config_overrides.log_level_override.value() >= 2){
+			Logging::log.message(
+				"The logo shows three separate tiers on the left being combined into one storage space on the right.\n"
+				"The use of " u8"└─" " to represent filesystem hierarchy was inspired by the output of `tree`.",
+				1
+			);
+		}
 		exit(EXIT_SUCCESS);
 	}
 	
@@ -148,6 +155,8 @@ int main(int argc, char *argv[]){
 						if(paths.empty())
 							Logging::log.error("No arguments passed.");
 						sanitize_paths(paths);
+						if(paths.empty())
+							Logging::log.error("No remaining valid paths.");
 						for(const std::string &path : paths)
 							payload.emplace_back(path);
 					}
