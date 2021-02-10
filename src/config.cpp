@@ -305,9 +305,7 @@ void Config::verify_global(bool read_only, bool &errors) const{
 		try{
 			is_directory = fs::is_directory(run_path_);
 		}catch(const fs::filesystem_error &e){
-			std::string msg = "Failed to check Metadata Directory path: ";
-			msg += e.what();
-			Logging::log.error(msg, false);
+			Logging::log.error("Failed to check Metadata Directory path: " + std::string(e.what()), false);
 			errors = true;
 			no_perm = true;
 		}
@@ -315,9 +313,7 @@ void Config::verify_global(bool read_only, bool &errors) const{
 			try{
 				fs::create_directories(run_path_);
 			}catch(const fs::filesystem_error &e){
-				std::string msg = "Failed to create Metadata Directory path: ";
-				msg += e.what();
-				Logging::log.error(msg, false);
+				Logging::log.error("Failed to create Metadata Directory path: " + std::string(e.what()), false);
 				errors = true;
 			}
 		}
@@ -327,9 +323,7 @@ void Config::verify_global(bool read_only, bool &errors) const{
 				mode |= W_OK;
 			if(access(run_path_.c_str(), mode) != 0){
 				int err = errno;
-				std::string msg = "Cannot access Metadata Path: ";
-				msg += strerror(err);
-				Logging::log.error(msg, false);
+				Logging::log.error("Cannot access Metadata Path: " + std::string(strerror(err)), false);
 				errors = true;
 			}
 		}
