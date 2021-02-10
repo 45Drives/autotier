@@ -107,12 +107,14 @@ void parse_quota(const std::string &value, Tier *tptr){
 	}
 }
 
-Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides){
+Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides, bool read_only){
 	std::string line, key, value;
 	
 	// open file
 	std::ifstream config_file(config_path.string());
 	if(!config_file){
+		if(read_only)
+			Logging::log.error("Failed to open config file.");
 		config_file.close();
 		init_config_file(config_path);
 		config_file.open(config_path.string());
@@ -132,7 +134,6 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 			if(regex_match(id, std::regex("^\\s*[Gg]lobal\\s*$"))){
 				if(load_global(config_file, id) == EOF) break;
 			}
-			Logging::log.message("ID: \"" + id + "\"", 2);
 			tiers.emplace_back(id);
 			tptr = &tiers.back();
 		}else if(tptr){
@@ -161,7 +162,9 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 		log_level_ = config_overrides.log_level_override.value();
 	}
 	
-	verify(config_path, tiers);
+	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
+	
+	verify(config_path, &tiers, read_only);
 	
 	Logging::log.set_level(log_level_);
 	
@@ -169,6 +172,41 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 		t.get_capacity_and_usage();
 		t.calc_quota_bytes();
 	}
+}
+
+Config::Config(const fs::path &config_path, const ConfigOverrides &config_overrides){
+	std::string line, key, value;
+	
+	// open file
+	std::ifstream config_file(config_path.string());
+	if(!config_file)
+		Logging::log.error("Failed to open config file.");
+	
+	while(config_file){
+		getline(config_file, line);
+		
+		strip_whitespace(line);
+		// full line comments:
+		if(line.empty() || line.front() == '#')
+			continue; // ignore comments
+		
+		if(line.front() == '['){
+			std::string id = line.substr(1, line.find(']')-1);
+			if(regex_match(id, std::regex("^\\s*[Gg]lobal\\s*$"))){
+				if(load_global(config_file, id) == EOF) break;
+			}
+		}
+	}
+	
+	if(config_overrides.log_level_override.overridden()){
+		log_level_ = config_overrides.log_level_override.value();
+	}
+	
+	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
+	
+	verify(config_path, nullptr, true);
+	
+	Logging::log.set_level(log_level_);
 }
 
 int Config::load_global(std::ifstream &config_file, std::string &id){
@@ -204,6 +242,8 @@ int Config::load_global(std::ifstream &config_file, std::string &id){
 			}catch(const std::invalid_argument &){
 				tier_period_s_ = std::chrono::seconds(-1);
 			}
+		}else if(key == "Metadata Path"){
+			run_path_ = value;
 		}else{ // else if ...
 			Logging::log.warning("Unknown global field: " + key + " = " + value);
 		}
@@ -237,8 +277,66 @@ void Config::init_config_file(const fs::path &config_path) const{
 	f.close();
 }
 
-void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) const{
+void Config::verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only) const{
 	bool errors = false;
+	verify_global(read_only, errors);
+	if(tiers)
+		verify_tiers(*tiers, errors);
+	if(errors){
+		Logging::log.error("Please fix these mistakes in " + config_path.string());
+	}
+}
+
+void Config::verify_global(bool read_only, bool &errors) const{
+	if(log_level_ == -1){
+		Logging::log.error("Invalid log level. (Log Level)", false);
+		errors = true;
+	}
+	if(tier_period_s_ == std::chrono::seconds(-1)){
+		Logging::log.error("Invalid tier period. (Tier Period)", false);
+		errors = true;
+	}
+	if(run_path_.is_relative()){
+		Logging::log.error("Metadata Path must be an absolute path.", false);
+		errors = true;
+	}else{
+		bool is_directory = false;
+		bool no_perm = false;
+		try{
+			is_directory = fs::is_directory(run_path_);
+		}catch(const fs::filesystem_error &e){
+			std::string msg = "Failed to check Metadata Directory path: ";
+			msg += e.what();
+			Logging::log.error(msg, false);
+			errors = true;
+			no_perm = true;
+		}
+		if(!is_directory && !no_perm){
+			try{
+				fs::create_directories(run_path_);
+			}catch(const fs::filesystem_error &e){
+				std::string msg = "Failed to create Metadata Directory path: ";
+				msg += e.what();
+				Logging::log.error(msg, false);
+				errors = true;
+			}
+		}
+		if(is_directory && !no_perm){
+			int mode = R_OK;
+			if(!read_only)
+				mode |= W_OK;
+			if(access(run_path_.c_str(), mode) != 0){
+				int err = errno;
+				std::string msg = "Cannot access Metadata Path: ";
+				msg += strerror(err);
+				Logging::log.error(msg, false);
+				errors = true;
+			}
+		}
+	}
+}
+
+void Config::verify_tiers(const std::list<Tier> &tiers, bool &errors) const{
 	if(tiers.empty()){
 		Logging::log.error("No tiers defined.", false);
 		errors = true;
@@ -257,21 +355,14 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> &tiers) c
 			}
 		}
 	}
-	if(log_level_ == -1){
-		Logging::log.error("Invalid log level. (Log Level)", false);
-		errors = true;
-	}
-	if(tier_period_s_ == std::chrono::seconds(-1)){
-		Logging::log.error("Invalid tier period. (Tier Period)", false);
-		errors = true;
-	}
-	if(errors){
-		Logging::log.error("Please fix these mistakes in " + config_path.string());
-	}
 }
 
 std::chrono::seconds Config::tier_period_s(void) const{
 	return tier_period_s_;
+}
+
+fs::path Config::run_path(void) const{
+	return run_path_;
 }
 
 void Config::dump(const std::list<Tier> &tiers) const{

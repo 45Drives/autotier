@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
 							payload.emplace_back(path);
 					}
 					
-					fs::path run_path = pick_run_path(config_path);
+					fs::path run_path = Config(config_path, config_overrides).run_path();
 					
 					send_fifo_payload(payload, run_path / "request.pipe");
 					

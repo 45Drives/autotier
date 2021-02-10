@@ -73,7 +73,12 @@ private:
 	std::chrono::seconds tier_period_s_ = std::chrono::seconds(-1);
 	/* Polling period to check whether to send new files in seconds.
 	 */
-	void verify(const fs::path &config_path, const std::list<Tier> &tiers) const;
+	fs::path run_path_ = "/var/lib/autotier";
+	/* Path to database and FIFOs. Default location: /var/lib/autotier
+	 */
+	void verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only = false) const;
+	void verify_global(bool read_only, bool &errors) const;
+	void verify_tiers(const std::list<Tier> &tiers, bool &errors) const;
 	/* ensures all config options are legal
 	 * returns true if no errors found, false otherwise
 	 */
@@ -84,12 +89,22 @@ private:
 	/* When config file DNE, this is called to create and initialize one.
 	 */
 public:
-	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides);
+	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides, bool read_only = false);
 	/* open config file at config_path, parse global and tier options,
 	 * populate list of tiers
 	 */
+	Config(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/* Only read global.
+	 */
 	~Config() = default;
+	/* Default destructor.
+	 */
 	std::chrono::seconds tier_period_s(void) const;
+	/* Get tier_period_s_.
+	 */
+	fs::path run_path(void) const;
+	/* Get run_path_.
+	 */
 	void dump(const std::list<Tier> &tiers) const;
 	/* print out loaded options from config file for the global section
 	 * and for each tier

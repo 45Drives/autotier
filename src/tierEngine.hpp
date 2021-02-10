@@ -59,20 +59,20 @@ private:
 	int mutex_;
 	/* File handle for mutexing tiering of files.
 	 */
+	std::list<Tier> tiers_;
+	/* List of tiers build from configuration file.
+	 */
+	Config config_;
+	/* Cconfiguration goes here, read in from file in TierEngine::TierEngine()
+	 */
 	fs::path run_path_;
 	/* Path to mutex lock file, ad hoc FIFO, and database.
 	 */
 	fs::path mount_point_;
 	/* Where autotier filesystem is mounted.
 	 */
-	std::list<Tier> tiers_;
-	/* List of tiers build from configuration file.
-	 */
 	std::vector<File> files_;
 	/* Vector to contain every file across all tiers for sorting.
-	 */
-	Config config_;
-	/* Cconfiguration goes here, read in from file in TierEngine::TierEngine()
 	 */
 	ConcurrentQueue<AdHoc> adhoc_work_;
 	/* Single-consumer concurrentQueue for the ad hoc command server to queue work.

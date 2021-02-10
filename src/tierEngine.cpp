@@ -31,32 +31,6 @@ extern "C" {
 	#include <fcntl.h>
 }
 
-fs::path pick_run_path(const fs::path &config_path){
-	fs::path run_path = "/var/lib/autotier";
-	if(!fs::is_directory(run_path)){
-		try{
-			fs::create_directories(run_path);
-		}catch(const fs::filesystem_error &){
-			char *home = getenv("HOME");
-			if(home == NULL){
-				Logging::log.error("$HOME not exported.");
-			}
-			run_path = fs::path(home) / ".local/autotier";
-			fs::create_directories(run_path);
-		}
-	}else if(access(run_path.c_str(), R_OK | W_OK) != 0){
-		char *home = getenv("HOME");
-		if(home == NULL){
-			Logging::log.error("$HOME not exported.");
-		}
-		run_path = fs::path(home) / ".local/autotier";
-		fs::create_directories(run_path);
-	}
-	run_path /= std::to_string(std::hash<std::string>{}(config_path.string()));
-	fs::create_directory(run_path);
-	return run_path;
-}
-
 int TierEngine::lock_mutex(void){
 	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL);
 	close(result);
@@ -82,8 +56,7 @@ void TierEngine::open_db(bool read_only){
 }
 
 TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only)
-		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides){
-	run_path_ = pick_run_path(config_path);
+		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides, read_only), run_path_(config_.run_path()){
 	open_db(read_only);
 }
 
