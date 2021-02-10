@@ -133,6 +133,7 @@ int main(int argc, char *argv[]){
 			case ONESHOT:
 			case PIN:
 			case UNPIN:
+			case WHICHTIER:
 				/* Pass command through to the filesystem
 				 * tier engine through a named FIFO pipe.
 				 */
@@ -140,8 +141,8 @@ int main(int argc, char *argv[]){
 					std::vector<std::string> payload;
 					payload.push_back(argv[optind++]); // push command name
 					if(cmd == PIN) payload.push_back(argv[optind++]); // push tier name
-					if(cmd == PIN || cmd == UNPIN){
-						std::vector<std::string> paths;
+					if(cmd == PIN || cmd == UNPIN || cmd == WHICHTIER){
+						std::list<std::string> paths;
 						while(optind < argc)
 							paths.push_back(argv[optind++]);
 						if(paths.empty())
@@ -162,7 +163,7 @@ int main(int argc, char *argv[]){
 					if(payload.front() == "OK"){
 						Logging::log.message("Response OK.", 2);
 						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
-							Logging::log.message(*itr, 1);
+							Logging::log.message(*itr, 0);
 						}
 					}else{
 						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
@@ -183,19 +184,19 @@ int main(int argc, char *argv[]){
 				}
 				break;
 			case CONFIG:
-				Logging::log.message("Config file: (" + config_path.string() + ")", 1);
+				Logging::log.message("Config file: (" + config_path.string() + ")", 0);
 				{
 					std::ifstream f(config_path.string());
 					std::stringstream ss;
 					ss << f.rdbuf();
-					Logging::log.message(ss.str(), 1);
+					Logging::log.message(ss.str(), 0);
 				}
 				break;
 			case HELP:
 				usage();
 				break;
 			case LPIN:
-				Logging::log.message("Pinned files:", 1);
+				Logging::log.message("Pinned files:", 0);
 				{
 					bool read_only = true;
 					TierEngine autotier(config_path, config_overrides, read_only);
@@ -203,7 +204,7 @@ int main(int argc, char *argv[]){
 				}
 				break;
 			case LPOP:
-				Logging::log.message("File popularity:", 1);
+				Logging::log.message("File popularity:", 0);
 				{
 					bool read_only = true;
 					TierEngine autotier(config_path, config_overrides, read_only);

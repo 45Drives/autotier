@@ -43,7 +43,8 @@ int get_command_index(const char *cmd){
 		std::regex("^[Cc]onfig|CONFIG$"),
 		std::regex("^[Hh]elp|HELP$"),
 		std::regex("^[Ll]ist-[Pp]ins?|LIST-PINS?$"),
-		std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$")
+		std::regex("^[Ll]ist-[Pp]opularity|LIST-POPULARITY$"),
+		std::regex("^[Ww]hich-[Tt]ier|WHICH-TIER$")
 	};
 	for(int itr = 0; itr < NUM_COMMANDS; itr++){
 		if(regex_match(cmd, command_list[itr]))
@@ -52,33 +53,34 @@ int get_command_index(const char *cmd){
 	return MOUNTPOINT;
 }
 
-void sanitize_paths(std::vector<std::string> &paths){
-	std::vector<std::string> non_existing_args, directories;
-	for(std::vector<std::string>::iterator itr = paths.begin(); itr != paths.end(); ++itr){
+void sanitize_paths(std::list<std::string> &paths){
+	std::vector<std::list<std::string>::iterator> non_existing_args, directories;
+	for(std::list<std::string>::iterator itr = paths.begin(); itr != paths.end(); ++itr){
 		fs::path path = *itr;
 		if(path.is_relative())
 			path = (fs::current_path() / *itr);
 		if(!fs::exists(path))
-			non_existing_args.push_back(*itr);
+			non_existing_args.push_back(itr);
 		else if(fs::is_directory(path))
-			directories.push_back(*itr);
+			directories.push_back(itr);
 		else
 			itr->assign(fs::canonical(path).string());
 	}
 	if(!non_existing_args.empty()){
-		std::string err_msg = "Some files passed for pinning do not exist. Offender(s):";
-		for(const std::string &str : non_existing_args)
-			err_msg += " " + str;
-		Logging::log.error(err_msg, false);
+		std::string err_msg = "Some files passed do not exist. Offender(s):";
+		for(const std::list<std::string>::iterator &itr : non_existing_args){
+			err_msg += "\n" + *itr;
+			paths.erase(itr);
+		}
+		Logging::log.warning(err_msg);
 	}
 	if(!directories.empty()){
-		std::string err_msg = "autotier cannot pin entire directories. Pass files instead. Offender(s):";
-		for(const std::string &str : directories)
-			err_msg += " " + str;
-		Logging::log.error(err_msg, false);
-	}
-	if(!non_existing_args.empty() || !directories.empty()){
-		exit(EXIT_FAILURE);
+		std::string err_msg = "autotier cannot process entire directories. Pass files instead, or use `find <path> -type f | xargs autotier <command>`. Offender(s):";
+		for(const std::list<std::string>::iterator &itr : directories){
+			err_msg += "\n" + *itr;
+			paths.erase(itr);
+		}
+		Logging::log.warning(err_msg);
 	}
 }
 
@@ -243,19 +245,22 @@ void usage(){
 		"  list-popularity\n"
 		"              - print list of all tier files sorted by frequency of use\n"
 		"  oneshot     - execute tiering only once\n"
-		"  pin <\"tier name\"> <\"path/to/file\">...\n"
+		"  pin <\"tier name\"> <\"path/to/file\" \"path/to/file\" ...>\n"
 		"              - pin file(s) to tier using tier name in config file\n"
 		"  status      - list info about defined tiers\n"
-		"  unpin <path/to/file>...\n"
+		"  unpin <\"path/to/file\" \"path/to/file\" ...>\n"
 		"              - remove pin from file(s)\n"
+		"  which-tier <\"path/to/file\" \"path/to/file\" ...>\n"
+		"              - list which tier each argument is in\n"
 		"Flags:\n"
 		"  -c, --config <path/to/config>\n"
 		"              - override configuration file path (default /etc/autotier.conf)\n"
 		"  -h, --help  - display this message and cancel current command\n"
 		"  -o, --fuse-options <comma,separated,list>\n"
 		"              - mount options to pass to fuse (see man mount.fuse)\n"
-		"  -q, --quiet     - set log level to 0 (no output)\n"
-		"  -v, --verbose   - set log level to 2 (debug output)\n",
-		1
+		"  -q, --quiet - set log level to 0 (no output)\n"
+		"  -v, --verbose\n"
+		"              - set log level to 2 (debug output)\n",
+		0
 	);
 }

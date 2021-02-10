@@ -12,23 +12,9 @@ between storage tiers based on frequency of use, file age, and tier fullness.
 
 .SH SYNOPSIS
 .SS MOUNTING FILESYSTEM
-.B autotier 
-[
-.I flags
-]
-.I mountpoint
-[-o
-.I fuse,options,...
-]
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint \fR[\fP" "-o " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS AD HOC COMMANDS
-.B autotier
-[
-.I flags
-]
-.I command
-[
-.I arg1 arg2 ...
-]
+.BI "autotier " "\fR[\fPflags\fR]\fP command \fR[\fParg1 arg2 \fR...]\fP"
 
 .SH DESCRIPTION
 .B autotier
@@ -58,7 +44,7 @@ Override configuration file path (default /etc/autotier.conf).
 .B "\-h\fR,\fP \-\^\-help"
 Display usage message and cancel current command.
 .TP
-.BI "\-o\fR,\fP \-\^\-fuse-options " "comma,separated,list"
+.BI "\-o\fR,\fP \-\^\-fuse-options " "comma\fR,\fPseparated\fR,\fPlist"
 Options for fuse filsystem. See
 .B fuse(8)
 for details.
@@ -75,19 +61,12 @@ in the configuration file to 2.
 
 .SH MOUNTING
 .SS MANUALLY
-.B autotier
-[
-.I flags
-]
-.I mountpoint
-[-o
-.I fuse,options,...
-]
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint \fR[\fP" "-o " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS IN FSTAB
 .B autotier
 .I mountpoint
-.IR fuse , options , ...
-0 0
+.IR fuse , options ",..."
+.B 0 0
 
 .SH AD HOC COMMANDS
 .TP
@@ -114,6 +93,11 @@ Print info about each tier, including the tier name, path, usage, and watermark.
 .TP
 .BI "unpin " "path/to/file \fR[\fPpath/to/file ...\fR]"
 Remove the "pinned" flag from each file to allow the tiering process to move it.
+.TP
+.BI "which-tier " "path/to/file \fR[\fPpath/to/file ...\fR]"
+Display a table of each file passed in the argument list with the name of the tier containing the
+file and the full backend path to that file. To see where each file is in a given directory, use
+.IB \fR`\fP "find " "path/to/directory " "-type " "f \fR|\fP " "xargs autotier " "which-tier" \fR`\fP
 
 .SH CONFIGURATION
 The default location of the configuration file is
@@ -231,4 +215,4 @@ Quota = 100 %
 
 .SH AUTHOR
 .B autotier
-was created by Josh Boudreau <jboudreau@45drives.com> and is maintained by the research and development team at 45Drives.
+was created by \fBJosh Boudreau\fP <\fIjboudreau@45drives.com\fP> and is maintained by the research and development team at \fB45Drives\fP.

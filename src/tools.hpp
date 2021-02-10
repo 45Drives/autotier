@@ -24,15 +24,15 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-#define NUM_COMMANDS 8
-enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, MOUNTPOINT};
+#define NUM_COMMANDS 9
+enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER, MOUNTPOINT};
 
 int get_command_index(const char *cmd);
 /* return switchable index determined by regex match of cmd against
  * each entry in command_list
  */
 
-void sanitize_paths(std::vector<std::string> &paths);
+void sanitize_paths(std::list<std::string> &paths);
 /* Make sure file exists and is in the autotier filesystem.
  */
 

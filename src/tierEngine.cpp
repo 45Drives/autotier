@@ -153,13 +153,13 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
 void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr){
 	File f(file, db_, tptr);
 	if(f.is_pinned()){
-		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 1);
+		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 0);
 	}
 }
 
 void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr){
 	File f(file, db_, tptr);
-	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 1);
+	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 0);
 	files_.clear();
 }
 
@@ -287,7 +287,7 @@ void TierEngine::status(bool json){
 		ss <<
 			"]"
 		"}";
-		Logging::log.message(ss.str(), 1);
+		Logging::log.message(ss.str(), 0);
 	}else{
 		std::vector<std::string> names;
 		names.push_back("combined");
@@ -321,7 +321,7 @@ void TierEngine::status(bool json){
 			heading << std::setw(80) << std::setfill('-') << "";
 			heading.fill(fill);
 	#endif
-			Logging::log.message(heading.str(), 1);
+			Logging::log.message(heading.str(), 0);
 		}
 		{
 			std::stringstream ss;
@@ -341,7 +341,7 @@ void TierEngine::status(bool json){
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
 			ss << std::setw(PERCENTU) << "%"; // unit
-			Logging::log.message(ss.str(), 1);
+			Logging::log.message(ss.str(), 0);
 		}
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 			std::stringstream ss;
@@ -363,7 +363,7 @@ void TierEngine::status(bool json){
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
 			ss << std::left << tptr->path().string();
-			Logging::log.message(ss.str(), 1);
+			Logging::log.message(ss.str(), 0);
 		}
 	}
 }
@@ -433,6 +433,56 @@ void TierEngine::process_adhoc_requests(void){
 				payload.emplace_back("OK");
 				payload.emplace_back("Work queued.");
 				send_fifo_payload(payload, run_path_ / "response.pipe");
+				break;
+			case WHICHTIER:
+				{
+					payload.clear();
+					payload.emplace_back("OK");
+					int namew = 0;
+					int tierw = 0;
+					std::vector<std::string> not_in_fs;
+					for(std::string &arg : work.args_){
+						if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
+							arg = fs::relative(arg, mount_point_).string();
+						}
+						int len = arg.length();
+						if(len > namew)
+							namew = len;
+					}
+					for(const Tier &tier : tiers_){
+						int len = tier.id().length() + 2; // 2 quotes
+						if(len > tierw)
+							tierw = len;
+					}
+					std::stringstream header;
+					header << std::setw(namew) << std::left << "File" << "  ";
+					header << std::setw(tierw) << std::left << "Tier" << "  ";
+					header << std::left << "Backend Path";
+#ifdef TABLE_HEADER_LINE
+					header << std::endl;
+					auto fill = header.fill();
+					header << std::setw(80) << std::setfill('-') << "";
+					header.fill(fill);
+#endif
+					payload.emplace_back(header.str());
+					for(const std::string &arg : work.args_){
+						std::stringstream record;
+						record << std::setw(namew) << std::left << arg << "  ";
+						Metadata f(arg.c_str(), db_);
+						if(f.not_found()){
+								record << "not found.";
+						}else{
+							Tier *tptr = tier_lookup(fs::path(f.tier_path()));
+							if(tptr == nullptr)
+								record << std::setw(tierw) << std::left << "UNK" << "  ";
+							else
+								record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
+							record << std::left << (fs::path(f.tier_path()) / arg).string();
+						}
+						payload.emplace_back(record.str());
+					}
+					send_fifo_payload(payload, run_path_ / "response.pipe");
+				}
 				break;
 			default:
 				Logging::log.warning("Received bad ad hoc command.");
