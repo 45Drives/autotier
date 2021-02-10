@@ -263,7 +263,8 @@ void usage(){
 		"              - set log level to 2 (debug output)\n"
 		"  -V, --version\n"
 		"              - print version and exit\n"
-		"              - if log level >= 1, logo will also print\n",
+		"              - if log level >= 1, logo will also print\n"
+		"              - combine with -q to mute logo output",
 		0
 	);
 }
