@@ -466,7 +466,7 @@ static int at_readdir(
  					){
 	DIR *dp;
 	struct dirent *de;
-	std::regex temp_file_re("^\\..*\\.autotier\\.mv$");
+	std::regex temp_file_re("^\\..*\\.autotier\\.hide$");
 	
 	(void) offset;
 	(void) fi;

@@ -116,7 +116,7 @@ void Tier::transfer_files(void){
 }
 
 bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
-	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.mv");
+	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
 	if(!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
 	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
