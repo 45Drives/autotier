@@ -70,6 +70,6 @@ _AutotierCompleteZsh () {
 if [[ "$SHELL" == "$(which bash)" || "$SHELL" == "/bin/bash" ]]; then
 	complete -F _AutotierCompleteBash -o default autotier
 elif [[ "$SHELL" == "$(which zsh)" ]]; then
-	compctl -K _AutotierCompleteZsh autotier
+	compctl -K _AutotierCompleteZsh + -f autotier
 fi
 
