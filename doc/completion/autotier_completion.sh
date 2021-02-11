@@ -35,9 +35,20 @@ _AutotierCompleteZsh () {
 	local prev
 	local file_arg_commands
 	local before_prev
+	local conf
+	
+	conf=/etc/autotier.conf
 	
 	read -cA words
 	read -cn pos
+	
+	for i in $(seq 1 $pos); do
+		if [[ "${words[$i-1]}" == "-c" || "${words[$i-1]}" == "--config" ]]; then
+			if [[ -f "${words[$i]}" ]]; then
+				conf=${words[$i]}
+			fi
+		fi
+	done
 	
 	reply=()
 	
@@ -45,12 +56,14 @@ _AutotierCompleteZsh () {
 	
 	prev=${words[$pos-2]}
 	before_prev=${words[$pos-3]}
-# 	echo prev = $prev
-# 	echo cur = $cur
 	
 	file_arg_commands=("-c" "--config" "unpin" "which-tier")
 	if [[ " ${file_arg_commands[@]} " =~ " ${prev} "  || "$before_prev" == "pin" ]]; then
 		reply=()
+	elif [[ "$prev" == "pin" ]]; then
+		IFS=$'\n'
+		reply=($(grep '^.*\[.*\].*$' $conf | sed 's/^.*\[\(.*\)\].*$/\1/g' | grep -v '[Gg]lobal'))
+		unset IFS
 	else
 		case "$cur" in
 			-*)
