@@ -37,13 +37,13 @@ clean-target:
 clean-build:
 	-rm -f src/*.o
 
-install: all inst-man-pages inst-config
+install: all inst-man-pages inst-config inst-completion
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/usr/bin
 	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)
 	ln -sf $(PREFIX)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
 
-uninstall: rm-man-pages
+uninstall: rm-man-pages rm-completion
 	-rm -f $(DESTDIR)$(PREFIX)/$(TARGET)
 	-rm -f $(DESTDIR)/usr/bin/$(TARGET)
 
@@ -61,3 +61,10 @@ rm-man-pages:
 inst-config:
 	mkdir -p $(DESTDIR)/etc
 	cp -n doc/autotier.conf.template $(DESTDIR)/etc/autotier.conf
+
+inst-completion:
+	mkdir -p $(DESTDIR)/etc/profile.d
+	cp doc/completion/autotier_completion.sh $(DESTDIR)/etc/profile.d
+
+rm-completion:
+	-rm -f $(DESTDIR)/etc/profile.d/autotier_completion.sh

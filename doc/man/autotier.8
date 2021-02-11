@@ -12,7 +12,7 @@ between storage tiers based on frequency of use, file age, and tier fullness.
 
 .SH SYNOPSIS
 .SS MOUNTING FILESYSTEM
-.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint \fR[\fP" "-o " "fuse\fR,\fPoptions\fR,...]\fP"
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS AD HOC COMMANDS
 .BI "autotier " "\fR[\fPflags\fR]\fP command \fR[\fParg1 arg2 \fR...]\fP"
 
@@ -68,17 +68,17 @@ to mute logo output.
 
 .SH MOUNTING
 .SS MANUALLY
-.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint \fR[\fP" "-o " "fuse\fR,\fPoptions\fR,...]\fP"
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[\-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS IN FSTAB
 .B autotier
 .I mountpoint
 .IR fuse , options ",..."
-.B 0 0
+0 0
 .SS RECOMMENDED FSTAB SETTINGS
 .B autotier
 .I mountpoint
 .IR default_permissions , allow_other ",..."
-.B 0 0
+0 0
 
 .SH AD HOC COMMANDS
 .TP
@@ -97,16 +97,16 @@ Print all files in filesystem along with their popularity scores (accesses per h
 .B oneshot
 Execute tiering of files immediately.
 .TP
-.BI "pin \fR\*(lq\fP" "tier name" "\fR\*(rq\fP " "path/to/file " \fR[\fP "path/to/file ..." \fR]
+.BI "pin \fR\*(lq\fP" "tier name" "\fR\*(rq\fP " "path/to/file " \fR[\fP "path/to/file \fR...]\fP"
 Move files into the given tier and keep them there regardless of their popularity scores.
 .TP
 .B status
 Print info about each tier, including the tier name, path, usage, and watermark.
 .TP
-.BI "unpin " "path/to/file \fR[\fPpath/to/file ...\fR]"
+.BI "unpin " "path/to/file \fR[\fPpath/to/file \fR...]\fP"
 Remove the "pinned" flag from each file to allow the tiering process to move it.
 .TP
-.BI "which-tier " "path/to/file \fR[\fPpath/to/file ...\fR]"
+.BI "which-tier " "path/to/file \fR[\fPpath/to/file \fR...]\fP"
 Display a table of each file passed in the argument list with the name of the tier containing the
 file and the full backend path to that file. To see where each file is in a given directory, use
 .IB \fR`\fP "find " "path/to/directory " "-type " "f \fR|\fP " "xargs autotier " "which-tier" \fR`\fP
@@ -174,16 +174,17 @@ It can either be a percent of the tier's capacity, or an absolute value.
 To set it to a
 .IR percent ,
 use
-.IR "Quota = n %" ,
+.IR "Quota " = " n %" ,
 where
 .I n 
 is a positive integer in the range [0, 100].
 To use an absolute value, use
-.IR "Quota = n [prefix][i]B" ,
+.IR "Quota " = " n [prefix][i]B" ,
 where
 .I n
 is a positive real number and
-.I prefix = 
+.I prefix
+= 
 .IR K | M | G | T | P | E | Z | Y .
 Include
 .I i
@@ -194,7 +195,7 @@ and
 to use base-1024 units instead of base-1000.
 While moving files around,
 .B autotier
-attemptes to keep the percent usage of each tier below this level.
+attempts to keep the percent usage of each tier below this level.
 
 .SS EXAMPLE CONFIGURATION
 .br
@@ -227,4 +228,4 @@ Quota = 100 %
 
 .SH AUTHOR
 .B autotier
-was created by \fBJosh Boudreau\fP <\fIjboudreau@45drives.com\fP> and is maintained by the research and development team at \fB45Drives\fP.
+was created by \fBJosh Boudreau\fP <\fIjboudreau@45drives.com\fP> and is maintained by the \fBResearch and Development\fP team at \fB45Drives\fP.
