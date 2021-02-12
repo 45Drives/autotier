@@ -25,6 +25,7 @@ _AutotierCompleteBash () {
 	
 	tier_arg_commands=("pin")
 	file_arg_commands=("-c" "--config" "unpin" "which-tier")
+	no_arg_commands=("config" "help" "list-pins" "list-popularity" "oneshot" "status")
 	if [[ " ${tier_arg_commands[@]} " =~ " ${prev} " ]]; then
 		word_list=$(grep '^.*\[.*\].*$' $conf | sed 's/^.*\[\(.*\)\].*$/\1/g' | sed 's/ /\\\\ /g' | grep -v '[Gg]lobal')
 		cur=$(printf "$cur" | sed 's/ /\\\\ /')
@@ -45,9 +46,13 @@ _AutotierCompleteBash () {
 			)
 			;;
 			*)
-			COMPREPLY=(
-				$(compgen -W 'config help list-pins list-popularity oneshot pin status unpin which-tier' -- $cur)
-			)
+			if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
+				COMPREPLY=()
+			else
+				COMPREPLY=(
+					$(compgen -W 'config help list-pins list-popularity oneshot pin status unpin which-tier' -- $cur)
+				)
+			fi
 			;;
 		esac
 	fi
