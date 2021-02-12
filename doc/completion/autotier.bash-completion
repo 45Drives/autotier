@@ -65,7 +65,7 @@ _AutotierCompleteBash () {
 				case "$prev" in
 					-o|--fuse-options)
 						local IFS=$','
-						COMPREPLY=($(compgen -W 'allow_other default_permissions' -- $cur))
+						COMPREPLY=($(compgen -W 'allow_other,default_permissions' -- $cur))
 						return 0
 						;;
 					*)
