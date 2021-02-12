@@ -57,29 +57,38 @@ _AutotierCompleteBash () {
 	else
 		case "$cur" in
 			-*)
-			COMPREPLY=(
-				$(compgen -W '-c --config -h --help -o --fuse-options -q --quiet -v --verbose -V --version' -- $cur)
-			)
-			;;
+				COMPREPLY=(
+					$(compgen -W '-c --config -h --help -o --fuse-options -q --quiet -v --verbose -V --version' -- $cur)
+				)
+				;;
 			*)
-			if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
-				COMPREPLY=()
-			else
-				if [[ $command_used == 0 ]]; then
-					COMPREPLY=(
-						$(compgen -W '${commands[@]}' -- $cur)
-					)
-				else
-					COMPREPLY=()
-				fi
-				if [[ ($command_used == 0 && ${#COMPREPLY[@]} == 0) || ($multi_file == 1 && ${#COMPREPLY[@]} == 0) ]]; then
-					local IFS=$'\n'
-					compopt -o filenames
-					COMPREPLY=($(compgen -f -- $cur))
-					return 0
-				fi
-			fi
-			;;
+				case "$prev" in
+					-o|--fuse-options)
+						local IFS=$','
+						COMPREPLY=($(compgen -W 'allow_other default_permissions' -- $cur))
+						return 0
+						;;
+					*)
+						if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
+							COMPREPLY=()
+						else
+							if [[ $command_used == 0 ]]; then
+								COMPREPLY=(
+									$(compgen -W '${commands[@]}' -- $cur)
+								)
+							else
+								COMPREPLY=()
+							fi
+							if [[ ($command_used == 0 && ${#COMPREPLY[@]} == 0) || ($multi_file == 1 && ${#COMPREPLY[@]} == 0) ]]; then
+								local IFS=$'\n'
+								compopt -o filenames
+								COMPREPLY=($(compgen -f -- $cur))
+								return 0
+							fi
+						fi
+						;;
+				esac
+				;;
 		esac
 	fi
 	return 0
