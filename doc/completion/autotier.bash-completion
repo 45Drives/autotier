@@ -23,8 +23,9 @@ _AutotierCompleteBash () {
 	prev=${COMP_WORDS[COMP_CWORD-1]}
 	before_prev=${COMP_WORDS[COMP_CWORD-2]}
 	
+	tier_arg_commands=("pin")
 	file_arg_commands=("-c" "--config" "unpin" "which-tier")
-	if [[ "$prev" == "pin" ]]; then
+	if [[ " ${tier_arg_commands[@]} " =~ " ${prev} " ]]; then
 		word_list=$(grep '^.*\[.*\].*$' $conf | sed 's/^.*\[\(.*\)\].*$/\1/g' | sed 's/ /\\\\ /g' | grep -v '[Gg]lobal')
 		cur=$(printf "$cur" | sed 's/ /\\\\ /')
 		local IFS=$'\n'
