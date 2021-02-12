@@ -2,10 +2,14 @@ _AutotierCompleteBash () {
 	local cur
 	local prev
 	local file_arg_commands
+	local tier_arg_commands
+	local no_arg_commands
 	local before_prev
 	local conf
 	local word_list
 	local commands
+	local command_used
+	command_used=0
 	
 	commands=("config" "help" "list-pins" "list-popularity" "oneshot" "pin" "status" "unpin" "which-tier")
 	
@@ -16,6 +20,9 @@ _AutotierCompleteBash () {
 			if [[ -f "${COMP_WORDS[$i]}" ]]; then
 				conf=${COMP_WORDS[$i]}
 			fi
+		fi
+		if [[ " ${commands[@]} " =~ " ${COMP_WORDS[$i-1]} " ]]; then
+			command_used=1
 		fi
 	done
 	
@@ -57,7 +64,7 @@ _AutotierCompleteBash () {
 				COMPREPLY=(
 					$(compgen -W '${commands[@]}' -- $cur)
 				)
-				if [[ ${#COMPREPLY[@]} == 0 ]]; then
+				if [[ $command_used == 0 || ${#COMPREPLY[@]} == 0 ]]; then
 					local IFS=$'\n'
 					compopt -o filenames
 					COMPREPLY=($(compgen -f -- $cur))
