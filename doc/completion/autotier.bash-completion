@@ -23,6 +23,8 @@ _AutotierCompleteBash () {
 	prev=${COMP_WORDS[COMP_CWORD-1]}
 	before_prev=${COMP_WORDS[COMP_CWORD-2]}
 	
+	
+	
 	tier_arg_commands=("pin")
 	file_arg_commands=("-c" "--config" "unpin" "which-tier")
 	no_arg_commands=("config" "help" "list-pins" "list-popularity" "oneshot" "status")
@@ -52,6 +54,12 @@ _AutotierCompleteBash () {
 				COMPREPLY=(
 					$(compgen -W 'config help list-pins list-popularity oneshot pin status unpin which-tier' -- $cur)
 				)
+				if [[ ${#COMPREPLY[@]} == 0 ]]; then
+					local IFS=$'\n'
+					compopt -o filenames
+					COMPREPLY=($(compgen -f -- $cur))
+					return 0
+				fi
 			fi
 			;;
 		esac
