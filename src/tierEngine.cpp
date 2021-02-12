@@ -32,7 +32,7 @@ extern "C" {
 }
 
 int TierEngine::lock_mutex(void){
-	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL);
+	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL, 0700);
 	close(result);
 	return result;
 }
