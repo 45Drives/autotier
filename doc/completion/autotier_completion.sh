@@ -3,15 +3,35 @@ _AutotierCompleteBash () {
 	local prev
 	local file_arg_commands
 	local before_prev
+	local conf
+	local word_list
+	
+	conf=/etc/autotier.conf
+	
+	for i in $(seq 1 ${COMP_CWORD}); do
+		if [[ "${COMP_WORDS[$i-1]}" == "-c" || "${COMP_WORDS[$i-1]}" == "--config" ]]; then
+			if [[ -f "${COMP_WORDS[$i]}" ]]; then
+				conf=${COMP_WORDS[$i]}
+			fi
+		fi
+	done
 	
 	COMPREPLY=()
 	
 	cur=${COMP_WORDS[COMP_CWORD]}
+	
 	prev=${COMP_WORDS[COMP_CWORD-1]}
 	before_prev=${COMP_WORDS[COMP_CWORD-2]}
 	
 	file_arg_commands=("-c" "--config" "unpin" "which-tier")
-	if [[ " ${file_arg_commands[@]} " =~ " ${prev} "  || "$before_prev" == "pin" ]]; then
+	if [[ "$prev" == "pin" ]]; then
+		word_list=$(grep '^.*\[.*\].*$' $conf | sed 's/^.*\[\(.*\)\].*$/\1/g' | sed 's/ /\\\\ /g' | grep -v '[Gg]lobal')
+		cur=$(printf "$cur" | sed 's/ /\\\\ /')
+		local IFS=$'\n'
+		COMPREPLY=(
+			$(compgen -W "$word_list" -- $cur)
+		)
+	elif [[ " ${file_arg_commands[@]} " =~ " ${prev} "  || "$before_prev" == "pin" ]]; then
 		COMPREPLY=()
 	else
 		case "$cur" in
