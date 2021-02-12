@@ -64,7 +64,7 @@ _AutotierCompleteBash () {
 				COMPREPLY=(
 					$(compgen -W '${commands[@]}' -- $cur)
 				)
-				if [[ $command_used == 0 || ${#COMPREPLY[@]} == 0 ]]; then
+				if [[ $command_used == 0 && ${#COMPREPLY[@]} == 0 ]]; then
 					local IFS=$'\n'
 					compopt -o filenames
 					COMPREPLY=($(compgen -f -- $cur))
