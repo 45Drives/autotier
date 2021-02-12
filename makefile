@@ -63,8 +63,8 @@ inst-config:
 	cp -n doc/autotier.conf.template $(DESTDIR)/etc/autotier.conf
 
 inst-completion:
-	mkdir -p $(DESTDIR)/etc/profile.d
-	cp doc/completion/autotier_completion.sh $(DESTDIR)/etc/profile.d
+	mkdir -p $(DESTDIR)/usr/share/bash-completion/completions
+	cp doc/completion/autotier.bash-completion $(DESTDIR)/usr/share/bash-completion/completions/autotier
 
 rm-completion:
-	-rm -f $(DESTDIR)/etc/profile.d/autotier_completion.sh
+	-rm -f $(DESTDIR)/usr/share/bash-completion/completions/autotier
