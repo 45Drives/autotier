@@ -61,9 +61,13 @@ _AutotierCompleteBash () {
 			if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
 				COMPREPLY=()
 			else
-				COMPREPLY=(
-					$(compgen -W '${commands[@]}' -- $cur)
-				)
+				if [[ $command_used == 0 ]]; then
+					COMPREPLY=(
+						$(compgen -W '${commands[@]}' -- $cur)
+					)
+				else
+					COMPREPLY=()
+				fi
 				if [[ $command_used == 0 && ${#COMPREPLY[@]} == 0 ]]; then
 					local IFS=$'\n'
 					compopt -o filenames
