@@ -5,6 +5,9 @@ _AutotierCompleteBash () {
 	local before_prev
 	local conf
 	local word_list
+	local commands
+	
+	commands=("config" "help" "list-pins" "list-popularity" "oneshot" "pin" "status" "unpin" "which-tier")
 	
 	conf=/etc/autotier.conf
 	
@@ -52,7 +55,7 @@ _AutotierCompleteBash () {
 				COMPREPLY=()
 			else
 				COMPREPLY=(
-					$(compgen -W 'config help list-pins list-popularity oneshot pin status unpin which-tier' -- $cur)
+					$(compgen -W '${commands[@]}' -- $cur)
 				)
 				if [[ ${#COMPREPLY[@]} == 0 ]]; then
 					local IFS=$'\n'
