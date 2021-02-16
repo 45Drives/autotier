@@ -17,30 +17,38 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* fusePassthrough.cpp contains all the fuse filesystem calls needed to
- * implement the filesystem. It creates a TierEngine object pointer and runs
- * begin() and process_adhoc_requests() as threads in the at_init() method, and
- * joins the threads in the at_destroy() method.
+/* Simple concurrent queue implementation. No guard against popping from empty queue.
+ * Check empty() before popping. Intended only for multiple producer, single consumer use.
  */
+
 
 #pragma once
 
-#include <list>
-#include <rocksdb/db.h>
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
+#include <queue>
+#include <mutex>
 
-struct ConfigOverrides;
-
-class FusePassthrough{
+template<class T>
+class ConcurrentQueue{
 private:
+	std::mutex mt_;
+	std::queue<T> queue_;
 public:
-	FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides);
-	/* calls open_db and saves pointers to each tier of tiers_
-	 */
-	~FusePassthrough(void) = default;
-	int mount_fs(fs::path mountpoint, char *fuse_opts);
-	/* creates struct of FUSE function pointers and calls fuse_main()
-	 */
+	ConcurrentQueue() : mt_(), queue_() {}
+	bool empty(void) const{
+		return queue_.empty();
+	}
+	void push(const T &val){
+		std::lock_guard<std::mutex> lk(mt_);
+		queue_.push(val);
+	}
+	void emplace(const T &val){
+		std::lock_guard<std::mutex> lk(mt_);
+		queue_.emplace(val);
+	}
+	T pop(void){
+		std::lock_guard<std::mutex> lk(mt_);
+		T val = queue_.front();
+		queue_.pop();
+		return val;
+	}
 };
-

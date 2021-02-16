@@ -1,178 +1,226 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
-
+#include "version.hpp"
+#include "alert.hpp"
 #include "config.hpp"
 #include "tierEngine.hpp"
 #include "tools.hpp"
 #include "fusePassthrough.hpp"
-#include "alert.hpp"
-#include <thread>
-#include <iostream>
-#include <string.h>
-#include <getopt.h>
+#include <sstream>
+#include <cstring>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
+
+extern "C" {
+	#include <getopt.h>
+	#include <fcntl.h>
+}
 
 int main(int argc, char *argv[]){
-	/* parse flags, get command,
-	 * construct TierEngine,
-	 * execute command.
-	 */
 	int opt;
 	int option_ind = 0;
 	int cmd;
-	bool daemon_mode = false;
-	int byte_format = BYTES;
+	bool print_version = false;
+	bool json = false;
 	fs::path config_path = DEFAULT_CONFIG_PATH;
 	fs::path mountpoint;
 	char *fuse_opts = NULL;
 	
+	ConfigOverrides config_overrides;
+	
 	static struct option long_options[] = {
-		{"config",		     required_argument, 0, 'c'},
+		{"config",         required_argument, 0, 'c'},
 		{"help",           no_argument,       0, 'h'},
-		{"mountpoint",     required_argument, 0, 'm'},
+		{"json",           no_argument,       0, 'j'},
 		{"fuse-options",   required_argument, 0, 'o'},
-		{"binary",         no_argument,       0, 'B'},
-		{"SI",             no_argument,       0, 'S'},
-		{"verbose",        no_argument,       &log_lvl, 2},
-		{"quiet",          no_argument,       &log_lvl, 0},
+		{"verbose",        no_argument,       0, 'v'},
+		{"quiet",          no_argument,       0, 'q'},
+		{"version",        no_argument,       0, 'V'},
 		{0, 0, 0, 0}
 	};
 	
-	while((opt = getopt_long(argc, argv, "c:hm:o:BS", long_options, &option_ind)) != -1){
+	/* Get CLI options.
+	 */
+	while((opt = getopt_long(argc, argv, "c:hjo:vqV", long_options, &option_ind)) != -1){
 		switch(opt){
-		case 0:
-			// flag set
-			break;
-		case 'c':
-			config_path = optarg;
-			break;
-		case 'h':
-			usage();
-			exit(EXIT_SUCCESS);
-			break;
-		case 'm':
-			mountpoint = optarg;
-			break;
-		case 'o':
-			fuse_opts = optarg;
-			break;
-		case 'B':
-			byte_format = POWTWO;
-			break;
-		case 'S':
-			byte_format = POWTEN;
-			break;
-		case '?':
-			break; // getopt_long prints errors
-		default:
-			abort();
+			case 'c':
+				config_path = optarg;
+				break;
+			case 'h':
+				usage();
+				exit(EXIT_SUCCESS);
+			case 'j':
+				json = true;
+				break;
+			case 'o':
+				fuse_opts = optarg;
+				break;
+			case 'v':
+				config_overrides.log_level_override = ConfigOverride<int>(2);
+				break;
+			case 'q':
+				config_overrides.log_level_override = ConfigOverride<int>(0);
+				break;
+			case 'V':
+				print_version = true;
+				break;
+			case '?':
+				break; // getopt_long prints errors
+			default:
+				abort();
 		}
 	}
 	
+	if(print_version){
+		Logging::log.message("autotier " VERS, 0);
+		if(!config_overrides.log_level_override.overridden() || config_overrides.log_level_override.value() >= 1){
+			Logging::log.message(
+				u8"   ┓\n"
+				u8"└─ ┃ ├─\n"
+				u8"└─ ┣ ├─\n"
+				u8"└─ ┃ └─\n"
+				u8"   ┛",
+				1
+			);
+		}
+		if(config_overrides.log_level_override.value() >= 2){
+			Logging::log.message(
+				"The logo shows three separate tiers on the left being combined into one storage space on the right.\n"
+				"The use of " u8"└─" " to represent filesystem hierarchy was inspired by the output of `tree`.",
+				1
+			);
+		}
+		exit(EXIT_SUCCESS);
+	}
+	
+	/* Grab command or mountpoint.
+	 */
 	if(optind < argc){
-		cmd = get_command_index(argv[optind++]);
+		cmd = get_command_index(argv[optind]);
 	}else{
-		std::cerr << "No command passed." << std::endl;
+		Logging::log.error("No command passed.", false);
 		usage();
 		exit(EXIT_FAILURE);
 	}
 	
-	if(cmd == ERR){
-		std::cerr << "Unknown command: " << argv[optind-1] << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	
-	TierEngine autotier(config_path);
-	if(mountpoint.empty()) mountpoint = autotier.get_mountpoint(); // grab from config
-	autotier.get_config()->byte_format = byte_format;
-	
-	pid_t pid = (cmd == RUN)? fork() : 1; // fork if run else goto parent
-	if(pid == -1){
-		error(FORK);
-		exit(EXIT_FAILURE);
-	}else if(pid == 0){
-		// child
-		FusePassthrough at_filesystem(autotier.get_tiers());
-		at_filesystem.mount_fs(mountpoint, fuse_opts);
-	}else{
-		switch(cmd){
-		case RUN:
-			daemon_mode = true;
-			__attribute__((fallthrough));
-		case ONESHOT:
-			autotier.begin(daemon_mode);
-			break;
-		case STATUS:
-			autotier.print_tier_info();
-			break;
-		case PIN:
-			pin(optind, argc, argv, autotier);
-			break;
-		case CONFIG:
-			std::cout << "Config file: (" << config_path.string() << ")" << std::endl;
-			std::cout << std::ifstream(config_path.string()).rdbuf();
-			break;
-		case UNPIN:
-			if(argc - optind < 1){
-				std::cerr << "No file names passed." << std::endl;
-				usage();
-				exit(1);
-			}
-			autotier.unpin(optind, argc, argv);
-			break;
-		case LPIN:
-			std::cout << "Pinned files:" << std::endl;
-			autotier.launch_crawlers(&TierEngine::emplace_file);
-			autotier.print_file_pins();
-			break;
-		case LPOP:
-			autotier.launch_crawlers(&TierEngine::emplace_file);
-			autotier.sort();
-			autotier.print_file_popularity();
-			break;
-		case HELP:
-			usage();
-			exit(EXIT_SUCCESS);
-		default:
+	if(cmd == MOUNTPOINT){
+		/* Initialize filesystem and mount
+		 * it to the mountpoint if it exists.
+		 */
+		mountpoint = argv[optind];
+		if(!is_directory(mountpoint)){
+			Logging::log.error("Invalid mountpoint or command: " + mountpoint.string(), false);
 			usage();
 			exit(EXIT_FAILURE);
-			break;
 		}
-		if(cmd == RUN){
-			// kill fusermount
-			int fusermount_pid = fork();
-			switch(fusermount_pid){
-			case 0:
-				// child
-				execlp("umount", "umount", mountpoint.c_str(), NULL);
-				error(MOUNT);
-				exit(EXIT_FAILURE);
-			case -1:
-				error(FORK);
-				exit(EXIT_FAILURE);
-			default:
-				// parent
+		FusePassthrough at_filesystem(config_path, config_overrides);
+		Logging::log.set_output(SYSLOG);
+		at_filesystem.mount_fs(mountpoint, fuse_opts);
+	}else{
+		/* Process ad hoc command.
+		 */
+		switch(cmd){
+			case ONESHOT:
+			case PIN:
+			case UNPIN:
+			case WHICHTIER:
+				/* Pass command through to the filesystem
+				 * tier engine through a named FIFO pipe.
+				 */
+				{
+					std::vector<std::string> payload;
+					payload.push_back(argv[optind++]); // push command name
+					if(cmd == PIN) payload.push_back(argv[optind++]); // push tier name
+					if(cmd == PIN || cmd == UNPIN || cmd == WHICHTIER){
+						std::list<std::string> paths;
+						while(optind < argc)
+							paths.push_back(argv[optind++]);
+						if(paths.empty())
+							Logging::log.error("No arguments passed.");
+						sanitize_paths(paths);
+						if(paths.empty())
+							Logging::log.error("No remaining valid paths.");
+						for(const std::string &path : paths)
+							payload.emplace_back(path);
+					}
+					
+					fs::path run_path = Config(config_path, config_overrides).run_path();
+					
+					send_fifo_payload(payload, run_path / "request.pipe");
+					
+					Logging::log.message("Waiting for filesystem response...", 2);
+					
+					get_fifo_payload(payload, run_path / "response.pipe");
+					
+					if(payload.front() == "OK"){
+						Logging::log.message("Response OK.", 2);
+						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+							Logging::log.message(*itr, 0);
+						}
+					}else{
+						for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+							Logging::log.error(*itr, false);
+						}
+						exit(EXIT_FAILURE);
+					}
+				}
 				break;
-			}
+				/* Other commands can just execute in the calling process
+				 * by opening the database as read-only.
+				 */
+			case STATUS:
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, config_overrides, read_only);
+					autotier.status(json);
+				}
+				break;
+			case CONFIG:
+				Logging::log.message("Config file: (" + config_path.string() + ")", 0);
+				{
+					std::ifstream f(config_path.string());
+					std::stringstream ss;
+					ss << f.rdbuf();
+					Logging::log.message(ss.str(), 0);
+				}
+				break;
+			case HELP:
+				usage();
+				break;
+			case LPIN:
+				Logging::log.message("Pinned files:", 0);
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, config_overrides, read_only);
+					autotier.launch_crawlers(&TierEngine::print_file_pins);
+				}
+				break;
+			case LPOP:
+				Logging::log.message("File popularity:", 0);
+				{
+					bool read_only = true;
+					TierEngine autotier(config_path, config_overrides, read_only);
+					autotier.launch_crawlers(&TierEngine::print_file_popularity);
+				}
+				break;
 		}
 	}
-	
 	return 0;
 }
-
-

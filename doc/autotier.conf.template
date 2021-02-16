@@ -1,0 +1,16 @@
+# autotier config
+[Global]                       # global settings
+Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
+Tier Period = 1000             # number of seconds between file move batches
+
+[Tier 1]                       # tier name (can be anything)
+Path =                         # full path to tier storage pool
+Quota =                        # absolute or % usage to keep tier under
+# Quota format: x (%|B|MB|MiB|KB|KiB|MB|MiB|...)
+# Example: Quota = 5.3 TiB
+
+[Tier 2]
+Path =
+Quota =
+
+# ... (add as many tiers as you like)

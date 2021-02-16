@@ -1,0 +1,112 @@
+_AutotierCompleteBash () {
+	local cur
+	local prev
+	local file_arg_commands
+	local tier_arg_commands
+	local no_arg_commands
+	local before_prev
+	local conf
+	local word_list
+	local commands
+	local command_used
+	local multi_file
+	command_used=0
+	multi_file=0
+	
+	commands=("config" "help" "list-pins" "list-popularity" "oneshot" "pin" "status" "unpin" "which-tier")
+	multi_file_arg_commands=("pin" "unpin" "which-tier")
+	
+	conf=/etc/autotier.conf
+	
+	for i in $(seq 1 ${COMP_CWORD}); do
+		if [[ "${COMP_WORDS[$i-1]}" == "-c" || "${COMP_WORDS[$i-1]}" == "--config" ]]; then
+			if [[ -f "${COMP_WORDS[$i]}" ]]; then
+				conf=${COMP_WORDS[$i]}
+			fi
+		fi
+		if [[ " ${commands[@]} " =~ " ${COMP_WORDS[$i-1]} " ]]; then
+			command_used=1
+		fi
+		if [[ " ${multi_file_arg_commands[@]} " =~ " ${COMP_WORDS[$i-1]} " ]]; then
+			multi_file=1
+		fi
+	done
+	
+	COMPREPLY=()
+	
+	cur=${COMP_WORDS[COMP_CWORD]}
+	
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+	before_prev=${COMP_WORDS[COMP_CWORD-2]}
+	
+	tier_arg_commands=("pin")
+	file_arg_commands=("-c" "--config" "unpin" "which-tier")
+	no_arg_commands=("config" "help" "list-pins" "list-popularity" "oneshot" "status")
+	if [[ " ${tier_arg_commands[@]} " =~ " ${prev} " ]]; then
+		word_list=$(grep '^.*\[.*\].*$' $conf | sed 's/^.*\[\(.*\)\].*$/\1/g' | sed 's/ /\\\\ /g' | grep -v '[Gg]lobal')
+		cur=$(printf "$cur" | sed 's/ /\\\\ /')
+		local IFS=$'\n'
+		COMPREPLY=(
+			$(compgen -W "$word_list" -- $cur)
+		)
+	elif [[ " ${file_arg_commands[@]} " =~ " ${prev} "  || "$before_prev" == "pin" ]]; then
+		local IFS=$'\n'
+		compopt -o filenames
+		COMPREPLY=($(compgen -f -- $cur))
+		return 0
+	else
+		case "$cur" in
+			-*)
+				COMPREPLY=(
+					$(compgen -W '-c --config -h --help -o --fuse-options -q --quiet -v --verbose -V --version' -- $cur)
+				)
+				;;
+			*)
+				case "$prev" in
+					-o|--fuse-options)
+						compopt -o nospace
+						cur=$(echo $cur | sed 's/=/\\=/g')
+						local cur_pre
+						local cur_post_eq
+						cur_pre=$(printf "$cur" | sed 's/^\(.*,\)[^,]*$/\1/')
+						cur_post_eq=$(printf "$cur" | sed 's/^.*=\([^=]*\)$/\1/')
+						local AT_FUSE_OPTS=("allow_other" "default_permissions" "rootmode\=" "user_id\=" "group_id\=" "fsname\=" "subtype\=" "allow_root" "auto_unmount" "kernel_cache" "auto_cache" "umask\=" "uid\=" "gid\=" "entry_timeout\=" "negative_timeout\=" "attr_timeout\=" "ac_attr_timeout\=" "noforget" "remember\=" "modules\=" "setuid\=" "drop_privileges\=")
+						if [[ "$cur" =~ ^.*,.*$ ]]; then
+							for i in $(seq 0 ${#AT_FUSE_OPTS[@]}); do
+								AT_FUSE_OPTS[$i]="$cur_pre${AT_FUSE_OPTS[$i]}"
+							done
+						fi
+						COMPREPLY=($(compgen -W '${AT_FUSE_OPTS[@]}' -- $cur))
+						if [[ ${#COMPREPLY[@]} == 1 && $cur == ${COMPREPLY[0]} ]]; then
+							COMPREPLY=("${COMPREPLY[0]},")
+						fi
+						return 0
+						;;
+					*)
+						if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
+							COMPREPLY=()
+						else
+							compopt -o default
+							if [[ $command_used == 0 ]]; then
+								COMPREPLY=(
+									$(compgen -W '${commands[@]}' -- $cur)
+								)
+							else
+								COMPREPLY=()
+							fi
+							if [[ ($command_used == 0 && ${#COMPREPLY[@]} == 0) || ($multi_file == 1 && ${#COMPREPLY[@]} == 0) ]]; then
+								local IFS=$'\n'
+								compopt -o filenames
+								COMPREPLY=($(compgen -f -- $cur))
+								return 0
+							fi
+						fi
+						;;
+				esac
+				;;
+		esac
+	fi
+	return 0
+}
+
+complete -F _AutotierCompleteBash autotier

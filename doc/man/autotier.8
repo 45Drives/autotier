@@ -1,0 +1,231 @@
+.\" (C) Copyright 2021 Josh Boudreau <jboudreau@45drives.com>,
+.\"
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH AUTOTIER 8 "February 16 2021" "autotier 1.0.0"
+.\" Please adjust this date whenever revising the manpage.
+
+.SH NAME
+autotier \- a passthrough FUSE filesystem that intelligently moves files
+between storage tiers based on frequency of use, file age, and tier fullness.
+
+.SH SYNOPSIS
+.SS MOUNTING FILESYSTEM
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
+.SS AD HOC COMMANDS
+.BI "autotier " "\fR[\fPflags\fR]\fP command \fR[\fParg1 arg2 \fR...]\fP"
+
+.SH DESCRIPTION
+.B autotier
+acts as a passthrough fuse filesystem to combine multiple underlying filesystems, or
+.IR tier s,
+into one pool of storage. Each
+.I tier
+should be a separate filesystem. Any number of
+.IR tier s
+can be defined in the configuration file for autotier. Files are moved between each
+.I tier
+based on their
+.IR popularity ,
+and
+.B autotier
+will attempt to keep the percent usage of each 
+.I tier
+below the 
+.IR tier 's
+.IR watermark .
+
+.SH OPTIONS
+.TP
+.BI "\-c\fR,\fP \-\^\-config " "path/to/config/file"
+Override configuration file path (default /etc/autotier.conf).
+.TP
+.B "\-h\fR,\fP \-\^\-help"
+Display usage message and cancel current command.
+.TP
+.BI "\-o\fR,\fP \-\^\-fuse-options " "comma\fR,\fPseparated\fR,\fPlist"
+Options for fuse filsystem. See
+.B fuse(8)
+for details.
+.TP 
+.B "\-q\fR,\fP \-\^\-quiet"
+Mute log output, other than warnings and errors. Overrides
+.I Log Level
+in the configuration file to 0.
+.TP
+.B "\-v\fR,\fP \-\^\-verbose"
+Print debug level output. Overrides
+.I Log Level
+in the configuration file to 2.
+.TP
+.B "\-V\fR,\fP \-\^\-version"
+Print
+.B autotier
+version and exit. Prints unicode logo as well if log level is 1 or higher. Combine with
+.I -q
+to mute logo output.
+
+.SH MOUNTING
+.SS MANUALLY
+.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[\-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
+.SS IN FSTAB
+.B autotier
+.I mountpoint
+.IR fuse , options ",..."
+0 0
+.SS RECOMMENDED FSTAB SETTINGS
+.B autotier
+.I mountpoint
+.IR default_permissions , allow_other ",..."
+0 0
+
+.SH AD HOC COMMANDS
+.TP
+.B config
+Print current configuration file.
+.TP
+.B help
+Display usage message and cancel current command.
+.TP
+.B list-pins
+Show all pinned files along with the tier they are pinned to.
+.TP
+.B list-popularity
+Print all files in filesystem along with their popularity scores (accesses per hour).
+.TP
+.B oneshot
+Execute tiering of files immediately.
+.TP
+.BI "pin \fR\*(lq\fP" "tier name" "\fR\*(rq\fP " "path/to/file " \fR[\fP "path/to/file \fR...]\fP"
+Move files into the given tier and keep them there regardless of their popularity scores.
+.TP
+.B status
+Print info about each tier, including the tier name, path, usage, and watermark.
+.TP
+.BI "unpin " "path/to/file \fR[\fPpath/to/file \fR...]\fP"
+Remove the "pinned" flag from each file to allow the tiering process to move it.
+.TP
+.BI "which-tier " "path/to/file \fR[\fPpath/to/file \fR...]\fP"
+Display a table of each file passed in the argument list with the name of the tier containing the
+file and the full backend path to that file. To see where each file is in a given directory, use
+.IB \fR`\fP "find " "path/to/directory " "-type " "f \fR|\fP " "xargs autotier " "which-tier" \fR`\fP
+
+.SH CONFIGURATION
+The default location of the configuration file is
+.BR /etc/autotier.conf .
+.SS FORMAT
+.B autotier
+configuration contains sections and parameters. Sections are groupings of parameters that
+begin with a header name in square brackets. There is one special section header name,
+.IR global ,
+which contains global autotier configuration parameters. Sections with headers containing anything
+other than
+.I global
+are
+.IR tiers .
+The parameters of each section take the form of
+.B Key
+=
+.IR value .
+
+.SS GLOBAL PARAMETERS
+The following parameters are to be put under the
+.B [Global]
+header.
+.TP
+.BI "Log Level \fR=\fP " "0\fR|\fP1\fR|\fP2"
+The level at which to print log messages. If the value is
+.IR 0 ,
+all informational messages are muted and only warnings and errors are printed. If the value is
+.IR 1 ,
+normal informational log messages are printed. If the value is
+.IR 2 ,
+debug messages will also be printed. This value is overridden by the
+.I --verbose
+and
+.I --quiet
+flags.
+.TP
+.BI "Tier Period \fR=\fP " "n"
+Number of seconds between each tiering of files. Must be an integer in the range [0, INT64_MAX].
+.TP
+.BI "Metadata Path \fR=\fP " "/full/path/to/metadata"
+Optional. If undefined,
+.B autotier
+defaults to using
+.I /var/lib/autotier
+as the path to store metadata in. To mount
+.B autotier
+as an unprivileged user, set this path to somewhere with write permissions for that user.
+
+.SS TIER DEFINITIONS
+Pick a friendly name for the tier and use that as the header name.
+There needs to be at least two tiers, however there is no upper limit. That said, keep the number of tiers reasonable.
+The following parameters are to be put in each tier section.
+.TP
+.BI "Path \fR=\fP " "/full/path/to/tier"
+The path to the tier mountpoint/directory. Keep in mind that each tier should be in a
+separate filesystem for intended functionality.
+.TP 
+.BI "Quota \fR=\fP " "n unit"
+The tier's quota. Tier usage is kept under this value.
+It can either be a percent of the tier's capacity, or an absolute value.
+To set it to a
+.IR percent ,
+use
+.IR "Quota " = " n %" ,
+where
+.I n 
+is a positive integer in the range [0, 100].
+To use an absolute value, use
+.IR "Quota " = " n [prefix][i]B" ,
+where
+.I n
+is a positive real number and
+.I prefix
+= 
+.IR K | M | G | T | P | E | Z | Y .
+Include
+.I i
+between the 
+.I prefix
+and
+.I B
+to use base-1024 units instead of base-1000.
+While moving files around,
+.B autotier
+attempts to keep the percent usage of each tier below this level.
+
+.SS EXAMPLE CONFIGURATION
+.br
+# autotier config
+.br
+[Global]               # global settings
+.br
+Log Level = 1          # 0 = none, 1 = normal, 2 = debug
+.br
+Tier Period = 10       # number of seconds between file move batches
+.PP
+[SSDs]                 # tier name
+.br
+Path = /mnt/ssd_pool   # full path to tier storage pool
+.br
+Quota = 15 TiB         # abs usage at which to stop filling tier
+.PP
+[HDDs]
+.br
+Path = /mnt/hdd_pool
+.br
+Quota = 70 %       # % usage at which to stop filling tier
+.PP
+[Cold Storage]
+.br
+Path = /mnt/cold_storage
+.br
+Quota = 100 %
+.br
+
+.SH AUTHOR
+.B autotier
+was created by \fBJosh Boudreau\fP <\fIjboudreau@45drives.com\fP> and is maintained by the \fBResearch and Development\fP team at \fB45Drives\fP.

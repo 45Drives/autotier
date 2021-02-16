@@ -31,3 +31,21 @@
 *.out
 *.app
 autotier
+
+# Kate swap file
+*.kate-swp
+
+# kdevelop
+.kdev4/
+*.kdev4
+
+# deb packaging
+debian/autotier
+debian/autotier.substvars
+debian/autotier.postrm.debhelper
+debian/debhelper-build-stamp
+debian/files
+debian/.debhelper
+
+# tests
+test_db

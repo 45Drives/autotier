@@ -1,76 +1,112 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
-#include "tier.hpp"
-
-#include <iostream>
+#include <fstream>
+#include <chrono>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 #define DEFAULT_CONFIG_PATH "/etc/autotier.conf"
-#define ERR -1
-#define DISABLED -999
 
-enum BYTE_FORMAT {BYTES, POWTEN, POWTWO};
+template<class T>
+/* ConfigOverride is used with command line flags
+ * to allow for easy overridding of configuration values.
+ */
+class ConfigOverride{
+private:
+	T value_;
+	/* The value to override with.
+	 */
+	bool overridden_;
+	/* Whether or not the field is overridden.
+	 * Since ConfigOverride objects are constructed in main()
+	 * without a valuem, overridden_ will be set to false. If
+	 * the value is updated through copying a newly constructed
+	 * ConfigOverride object with a value, this will be true.
+	 */
+public:
+	ConfigOverride(void) : value_() {
+		overridden_ = false;
+	}
+	ConfigOverride(const T &value_passed) : value_(value_passed){
+		overridden_ = true;
+	}
+	~ConfigOverride(void) = default;
+	const T &value(void) const{
+		return value_;
+	}
+	const bool &overridden(void) const{
+		return overridden_;
+	}
+};
+
+struct ConfigOverrides{
+	ConfigOverride<int> log_level_override;
+};
+
+class Tier;
 
 class Config{
 private:
-	void generate_config(std::fstream &file);
-  /* called if config file DNE
-   * prints default config options to file
-   */
-	bool verify(const std::list<Tier> &tiers);
-  /* ensures all config options are legal
-   * returns true if no errors found, false otherwise
-   */
-  int load_global(std::fstream &config_file, std::string &id);
-  /* called by load() when [global] config header is found
-   */
+	int log_level_ = -1;
+	/* value read from config file which may be overridden in main()
+	 * by CLI flags [ --verbose | --quiet ]
+	 */
+	std::chrono::seconds tier_period_s_ = std::chrono::seconds(-1);
+	/* Polling period to check whether to send new files in seconds.
+	 */
+	fs::path run_path_ = "/var/lib/autotier";
+	/* Path to database and FIFOs. Default location: /var/lib/autotier
+	 */
+	void verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only = false) const;
+	void verify_global(bool read_only, bool &errors) const;
+	void verify_tiers(const std::list<Tier> &tiers, bool &errors) const;
+	/* ensures all config options are legal
+	 * returns true if no errors found, false otherwise
+	 */
+	int load_global(std::ifstream &config_file, std::string &id);
+	/* called by load() when [global] config header is found
+	 */
+	void init_config_file(const fs::path &config_path) const;
+	/* When config file DNE, this is called to create and initialize one.
+	 */
 public:
-	int log_lvl = ERR;
-  /* value read from config file which may be overridden in main()
-   * by CLI flags [ --verbose | --quiet ]
-   */
-  int byte_format = BYTES;
-  /* set by CLI flag in main() - sets print format for bytes as:
-   * bytes, base 1000 SI units, or base 1024 binary units
-   */
-	unsigned long period = ERR;
-  /* number of seconds between tiering
-   */
-	fs::path mountpoint;
-  /* path read from config file at which to mount autotier
-   * can be overridden with CLI flag [ -m --mountpoint </path/to/mountpoint> ]
-   */
-	void load(const fs::path &config_path, std::list<Tier> &tiers);
-  /* open config file at config_path, parse global and tier options,
-   * populate list of tiers
-   */
-	void dump(std::ostream &os, const std::list<Tier> &tiers) const;
-  /* print out loaded options from config file for the global section
-   * and for each tier to os
-   */
+	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides, bool read_only = false);
+	/* open config file at config_path, parse global and tier options,
+	 * populate list of tiers
+	 */
+	Config(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/* Only read global.
+	 */
+	~Config() = default;
+	/* Default destructor.
+	 */
+	std::chrono::seconds tier_period_s(void) const;
+	/* Get tier_period_s_.
+	 */
+	fs::path run_path(void) const;
+	/* Get run_path_.
+	 */
+	void dump(const std::list<Tier> &tiers) const;
+	/* print out loaded options from config file for the global section
+	 * and for each tier
+	 */
 };
-
-void strip_whitespace(std::string &str);
-/* modifies str by first removing comments at end if they exist,
- * then removing all whitespace characters from the end and beginning of str.
- */

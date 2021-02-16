@@ -1,105 +1,140 @@
 /*
-		Copyright (C) 2019-2020 Joshua Boudreau <jboudreau@45drives.com>
-		
-		This file is part of autotier.
-
-		autotier is free software: you can redistribute it and/or modify
-		it under the terms of the GNU General Public License as published by
-		the Free Software Foundation, either version 3 of the License, or
-		(at your option) any later version.
-
-		autotier is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-		GNU General Public License for more details.
-
-		You should have received a copy of the GNU General Public License
-		along with autotier.	If not, see <https://www.gnu.org/licenses/>.
-*/
+ *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+ *    
+ *    This file is part of autotier.
+ * 
+ *    autotier is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ * 
+ *    autotier is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ * 
+ *    You should have received a copy of the GNU General Public License
+ *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include "file.hpp"
 #include "alert.hpp"
-
-#include <fcntl.h>
+#include "tier.hpp"
 #include <sstream>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/xattr.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <iostream>
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
 
-File::File(fs::path path_, sqlite3 *db_, Tier *tptr){
-	db = db_;
-	rel_path = (path_.is_absolute())? fs::relative(path_, fs::path("/")) : path_;
-	ID = std::hash<std::string>{}(rel_path.string());
-	get_info(db);
-  if(tptr){
-    current_tier = tptr->dir;
-  } // else keep current_tier grabbed from db
-  old_tier = tptr; // either tier or NULL
-	new_path = old_path = current_tier / path_;
+extern "C" {
+	#include <sys/time.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <sys/wait.h>
+}
+
+Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
+	std::string str;
+	if(path[0] == '/') path++;
+	rocksdb::Status s = db->Get(rocksdb::ReadOptions(), path, &str);
+	if(s.ok()){
+		std::stringstream ss(str);
+		boost::archive::text_iarchive ia(ss);
+		this->serialize(ia, 0);
+	}else if(tptr){
+		tier_path_ = tptr->path().string();
+		update(path, db);
+	}else{
+		not_found_ = true;
+	}
+}
+
+void Metadata::update(const char *relative_path, rocksdb::DB *db){
+	if(relative_path[0] == '/') relative_path++;
+	std::stringstream ss;
+	{
+		boost::archive::text_oarchive oa(ss);
+		this->serialize(oa, 0);
+	}
+	rocksdb::Status s = db->Put(rocksdb::WriteOptions(), relative_path, ss.str());
+}
+
+void Metadata::touch(void){
+	access_count_++;
+}
+
+std::string Metadata::tier_path(void) const{
+	return tier_path_;
+}
+
+void Metadata::tier_path(const std::string &path){
+	tier_path_ = path;
+}
+
+bool Metadata::pinned(void) const{
+	return pinned_;
+}
+
+void Metadata::pinned(bool val){
+	pinned_ = val;
+}
+
+bool Metadata::not_found(void) const{
+	return not_found_;
+}
+
+std::string Metadata::dump_stats(void) const{
+	std::stringstream ss;
+	ss << "tier_path_: " << tier_path_ << std::endl;
+	ss << "access_count_: " << access_count_ << std::endl;
+	ss << "popularity_: " << popularity_ << std::endl;
+	ss << "pinned: " << std::boolalpha << pinned_ << std::noboolalpha << std::endl;
+	return ss.str();
+}
+
+File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
+		: relative_path_(fs::relative(full_path, tptr->path())), metadata_(relative_path_.c_str(), db, tptr){
+	tier_ptr_ = tptr;
 	struct stat info;
-	stat(old_path.c_str(), &info);
-	size = (size_t)info.st_size;
-  times[0].tv_sec = info.st_atim.tv_sec;
-  times[0].tv_usec = info.st_atim.tv_nsec / 1000;
-  times[1].tv_sec = info.st_mtim.tv_sec;
-  times[1].tv_usec = info.st_mtim.tv_nsec / 1000;
-	last_atime = times[0].tv_sec;
+	lstat(full_path.c_str(), &info);
+	size_ = (uintmax_t)info.st_size;
+	times_[0].tv_sec = info.st_atim.tv_sec;
+	times_[0].tv_usec = info.st_atim.tv_nsec / 1000;
+	times_[1].tv_sec = info.st_mtim.tv_sec;
+	times_[1].tv_usec = info.st_mtim.tv_nsec / 1000;
+	atime_ = times_[0].tv_sec;
+	ctime_ = info.st_ctim.tv_sec;
+	db_ = db;
 }
 
 File::~File(){
-	put_info(db);
+	metadata_.update(relative_path_.c_str(), db_);
 }
 
-void File::move(){
-	if(old_path == new_path) return;
-	if(is_open()){
-		Log("File is open by another process.", 2);
-		new_path = old_path;
+void File::calc_popularity(double period_seconds){
+	if(period_seconds == 0.0)
 		return;
+	double usage_frequency;
+	time_t now = time(NULL);
+	if(metadata_.access_count_ == 1 && metadata_.last_popularity_calc_){
+		// access period slower than tier period
+		usage_frequency = double(metadata_.access_count_) / double(now - metadata_.last_popularity_calc_);
+		metadata_.last_popularity_calc_ = now;
+	}else if(metadata_.access_count_){
+		// access period faster than tier period
+		usage_frequency = double(metadata_.access_count_) / period_seconds;
+		metadata_.last_popularity_calc_ = now;
+	}else if(metadata_.last_popularity_calc_){
+		// access period slower than two tier periods
+		usage_frequency = 1.0 / double(now - metadata_.last_popularity_calc_);
+	}else{
+		// access period slower than two tier periods
+		double diff = now - atime_;
+		if(diff < 1.0)
+			diff = 1.0;
+		usage_frequency = 1.0 / diff;
+		metadata_.last_popularity_calc_ = atime_;
 	}
-	if(!is_directory(new_path.parent_path()))
-		create_directories(new_path.parent_path());
-	Log("Copying " + old_path.string() + " to " + new_path.string(),2);
-	bool copy_success = true;
-	try{
-		copy_file(old_path, new_path); // move item to slow tier
-	}catch(boost::filesystem::filesystem_error const & e){
-		copy_success = false;
-		std::cerr << "Copy failed: " << e.what() << std::endl;
-		if(e.code() == boost::system::errc::file_exists){
-			std::cerr << "User intervention required to delete duplicate file" << std::endl;
-		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			std::cerr << "No action required." << std::endl;
-		}
-	}
-	if(copy_success){
-		copy_ownership_and_perms();
-		Log("Copy succeeded.\n",2);
-		remove(old_path);
-	}
-	utimes(new_path.c_str(), times); // overwrite mtime and atime with previous times
-}
-
-void File::copy_ownership_and_perms(){
-	struct stat info;
-	stat(old_path.c_str(), &info);
-	chown(new_path.c_str(), info.st_uid, info.st_gid);
-	chmod(new_path.c_str(), info.st_mode);
-}
-
-void File::calc_popularity(){
-	/* popularity is moving average of the inverse of
-	 * (now - last access time)
-	 */
-	double diff = time(NULL) - last_atime;
-	popularity = MULTIPLIER / (DAMPING * (diff + 1.0))
-						 + (1.0 - 1.0 / DAMPING) * popularity;
+	double damping = std::min((double)(time(NULL) - ctime_) / 100.0 + START_DAMPING, DAMPING); // dynamically change damping as file ages
+	damping = std::max(damping, 1.0);
+	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
+	metadata_.access_count_ = 0;
 }
 
 bool File::is_open(void){
@@ -112,8 +147,8 @@ bool File::is_open(void){
 	pid = fork();
 	switch(pid){
 	case -1:
-		std::cerr << "Error forking while checking if file is open!" << std::endl;
-		break;
+		Logging::log.warning("Error forking while checking if file is open!");
+		return false;
 	case 0:
 		// child
 		pid = getpid();
@@ -126,7 +161,7 @@ bool File::is_open(void){
 		dup2(fd, STDERR_FILENO);
 		close(fd);
 		
-		execlp("lsof", "lsof", old_path.c_str(), (char *)NULL);
+		execlp("lsof", "lsof", full_path().c_str(), (char *)NULL);
 		
 		// undo redirect
 		dup2(stdout_copy, STDOUT_FILENO);
@@ -134,12 +169,13 @@ bool File::is_open(void){
 		dup2(stderr_copy, STDERR_FILENO);
 		close(stderr_copy);
 		
-		std::cerr << "Error executing lsof! Is it installed?" << std::endl;
-		exit(127);
+		Logging::log.error("Error executing lsof! Is it installed?");
+		// error exits, ignore following:
+		// fall through
 	default:
 		// parent
 		if((waitpid(pid, &status, 0)) < 0)
-			std::cerr << "Error waiting for lsof to exit." << std::endl;
+			Logging::log.warning("Error waiting for lsof to exit.");
 		break;
 	}
 	
@@ -150,69 +186,52 @@ bool File::is_open(void){
 		case 1:
 			return false;
 		default:
-			std::cerr << "Unexpected lsof exit status! Exit status: " << WEXITSTATUS(status) << std::endl;
+			Logging::log.warning("Unexpected lsof exit status! Exit status: " + std::to_string(WEXITSTATUS(status)));
 			return false;
 		}
 	}else{
-		std::cerr << "Error reading lsof exit status!" << std::endl;
+		Logging::log.warning("Error reading lsof exit status!");
 		return false;
 	}
 }
 
-static int c_callback_file(void *param, int count, char *data[], char *cols[]){
-	File *file = reinterpret_cast<File *>(param);
-	return file->callback(count, data, cols);
+fs::path File::full_path(void) const{
+	if(tier_ptr_)
+		return tier_ptr_->path() / relative_path_;
+	else
+		return metadata_.tier_path_ / relative_path_;
 }
 
-int File::get_info(sqlite3 *db){
-	char *errMsg = 0;
-	
-	std::string sql =
-	"SELECT * FROM Files WHERE ID='" + std::to_string(this->ID) + "';";
-	
-	int res = sqlite3_exec(db, sql.c_str(), c_callback_file, this, &errMsg);
-	
-	if(res != SQLITE_OK){
-		std::cerr << "SQL Error: " << errMsg;
-		sqlite3_free(errMsg);
-	}
-	return res;
+fs::path File::relative_path(void) const{
+	return relative_path_;
 }
 
-int File::put_info(sqlite3 *db){
-	char *errMsg = 0;
-	
-	std::string sql =
-	"REPLACE INTO Files (ID, RELATIVE_PATH, CURRENT_TIER, PIN, POPULARITY, LAST_ACCESS)"
-	"VALUES("
-		+ std::to_string(this->ID) + ","
-		"'" + this->rel_path.string() + "',"
-		"'" + this->current_tier.string() + "',"
-		"'" + this->pinned_to.string() + "',"
-		+ std::to_string(this->popularity) + ","
-		+ std::to_string(this->last_atime) +
-	");";
-	int res = sqlite3_exec(db, sql.c_str(), NULL, 0, &errMsg);
-	
-	if(res != SQLITE_OK){
-		std::cerr << "SQL Error: " << sqlite3_errmsg(db);
-		sqlite3_free(errMsg);
-	}
-	return res;
+Tier *File::tier_ptr(void) const{
+	return tier_ptr_;
 }
 
-int File::callback(int count, char *data[], char *cols[]){
-	// process returned values
-	for(int i = 0; i < count; i++){
-		//std::cout << "col: " << cols[i] << " data: " << data[i] << std::endl;
-		if(data[i] && strcmp(cols[i], "CURRENT_TIER") == 0)
-			this->current_tier = fs::path(data[i]);
-		else if(data[i] && strcmp(cols[i], "PIN") == 0 && strlen(data[i]))
-			this->pinned_to = fs::path(data[i]);
-		else if(data[i] && strcmp(cols[i], "POPULARITY") == 0)
-			this->popularity = std::stod(data[i]);
-		else if(data[i] && strcmp(cols[i], "LAST_ACCESS") == 0)
-			this->last_atime = std::stol(data[i]);
-	}
-	return 0;
+double File::popularity(void) const{
+	return metadata_.popularity_;
+}
+
+struct timeval File::atime(void) const{
+	return times_[0];
+}
+
+uintmax_t File::size(void) const{
+	return size_;
+}
+
+bool File::is_pinned(void) const{
+	return metadata_.pinned_;
+}
+
+void File::transfer_to_tier(Tier *tptr){
+	tier_ptr_ = tptr;
+	metadata_.tier_path_ = tptr->path().string();
+	metadata_.update(relative_path_.c_str(), db_);
+}
+
+void File::overwrite_times(void) const{
+	utimes(full_path().c_str(), times_);
 }
