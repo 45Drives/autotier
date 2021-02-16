@@ -1,0 +1,26 @@
+Source: autotier
+Section: utils
+Priority: optional
+Maintainer: Josh Boudreau <jboudreau@45drives.com>
+Build-Depends: debhelper-compat (= 12),
+               libfuse3-dev,
+               libstdc++-dev,
+               libboost-system-dev,
+               libboost-filesystem-dev,
+               libboost-serialization-dev,
+               g++ (>= 4.8),
+               librocksdb-dev
+Standards-Version: 4.4.1
+Homepage: https://github.com/45Drives/autotier
+
+Package: autotier
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         libstdc++6,
+         libboost-system1.71.0 | libboost-all-dev,
+         libboost-filesystem1.71.0 | libboost-all-dev,
+         libboost-serialization1.71.0 | libboost-all-dev,
+         librocksdb-dev | librocksdb5.17,
+         fuse3
+Description: A passthrough FUSE filesystem that intelligently moves files
+ between storage tiers based on frequency of use, file age, and tier fullness.

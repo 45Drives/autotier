@@ -1,0 +1,5 @@
+autotier (1.0.0-1focal) focal; urgency=high
+
+  * Initial packaging of autotier for Ubuntu Focal.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 16 Feb 2021 01:14:00 -0400
