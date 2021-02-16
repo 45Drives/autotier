@@ -64,14 +64,29 @@ _AutotierCompleteBash () {
 			*)
 				case "$prev" in
 					-o|--fuse-options)
-						local IFS=$','
-						COMPREPLY=($(compgen -W 'allow_other,default_permissions' -- $cur))
+						compopt -o nospace
+						cur=$(echo $cur | sed 's/=/\\=/g')
+						local cur_pre
+						local cur_post_eq
+						cur_pre=$(printf "$cur" | sed 's/^\(.*,\)[^,]*$/\1/')
+						cur_post_eq=$(printf "$cur" | sed 's/^.*=\([^=]*\)$/\1/')
+						local AT_FUSE_OPTS=("allow_other" "default_permissions" "rootmode\=" "user_id\=" "group_id\=" "fsname\=" "subtype\=" "allow_root" "auto_unmount" "kernel_cache" "auto_cache" "umask\=" "uid\=" "gid\=" "entry_timeout\=" "negative_timeout\=" "attr_timeout\=" "ac_attr_timeout\=" "noforget" "remember\=" "modules\=" "setuid\=" "drop_privileges\=")
+						if [[ "$cur" =~ ^.*,.*$ ]]; then
+							for i in $(seq 0 ${#AT_FUSE_OPTS[@]}); do
+								AT_FUSE_OPTS[$i]="$cur_pre${AT_FUSE_OPTS[$i]}"
+							done
+						fi
+						COMPREPLY=($(compgen -W '${AT_FUSE_OPTS[@]}' -- $cur))
+						if [[ ${#COMPREPLY[@]} == 1 && $cur == ${COMPREPLY[0]} ]]; then
+							COMPREPLY=("${COMPREPLY[0]},")
+						fi
 						return 0
 						;;
 					*)
 						if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
 							COMPREPLY=()
 						else
+							compopt -o default
 							if [[ $command_used == 0 ]]; then
 								COMPREPLY=(
 									$(compgen -W '${commands[@]}' -- $cur)
