@@ -471,6 +471,9 @@ void TierEngine::process_which_tier(AdHoc &work){
 		if(len > namew)
 			namew = len;
 	}
+	int file_header_len = std::string("File").length();
+	if(file_header_len > namew)
+		namew = file_header_len;
 	for(const Tier &tier : tiers_){
 		int len = tier.id().length() + 2; // 2 quotes
 		if(len > tierw)
