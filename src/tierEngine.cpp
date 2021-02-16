@@ -133,9 +133,10 @@ void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entr
 void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
 	// TODO: Replace this with multithreaded BFS
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-		if(is_directory(*itr)){
+		fs::file_status status = fs::symlink_status(*itr);
+		if(fs::is_directory(status)){
 			crawl(*itr, tptr, function);
-		}else if(!is_symlink(*itr)){
+		}else if(!is_symlink(status)){
 			(this->*function)(*itr, tptr);
 		}
 	}

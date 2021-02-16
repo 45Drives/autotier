@@ -63,7 +63,11 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 // helpers
 
 static int is_directory(const char *relative_path){
-	return fs::is_directory(FuseGlobal::tiers_.front()->path() / relative_path);
+	boost::system::error_code ec;
+	fs::file_status status = fs::symlink_status(FuseGlobal::tiers_.front()->path() / relative_path, ec);
+	if(ec.failed())
+		return false;
+	return fs::is_directory(status);
 }
 
 static int mknod_wrapper(int dirfd, const char *path, const char *link,
