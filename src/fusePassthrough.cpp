@@ -165,6 +165,12 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	if (res == -1)
 		return -errno;
 	
+	fuse_context *ctx = fuse_get_context();
+	res = lchown(fullpath.c_str(), ctx->uid, ctx->gid);
+	
+	if (res == -1)
+		return -errno;
+	
 	Metadata l(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
 	
 	return res;
@@ -173,8 +179,13 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 static int at_mkdir(const char *path, mode_t mode){
 	int res;
 	
+	fuse_context *ctx = fuse_get_context();
+	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		res = mkdir((tptr->path() / fs::path(path)).c_str(), mode);
+		if (res == -1)
+			return -errno;
+		res = lchown((tptr->path() / fs::path(path)).c_str(), ctx->uid, ctx->gid);
 		if (res == -1)
 			return -errno;
 	}
@@ -218,10 +229,17 @@ static int at_symlink(const char *from, const char *to){
 	
 	res = symlink(from, (FuseGlobal::tiers_.front()->path() / to).c_str());
 	
-	Metadata l(to, FuseGlobal::db_, FuseGlobal::tiers_.front());
+	if (res == -1)
+		return -errno;
+	
+	fuse_context *ctx = fuse_get_context();
+	res = lchown((FuseGlobal::tiers_.front()->path() / to).c_str(), ctx->uid, ctx->gid);
 	
 	if (res == -1)
 		return -errno;
+	
+	Metadata l(to, FuseGlobal::db_, FuseGlobal::tiers_.front());
+	
 	return res;
 }
 
@@ -258,6 +276,12 @@ static int at_link(const char *from, const char *to){
 	res = link((tier_path / from).c_str(), (tier_path / to).c_str());
 	
 	if(res == -1)
+		return -errno;
+	
+	fuse_context *ctx = fuse_get_context();
+	res = lchown(to, ctx->uid, ctx->gid);
+	
+	if (res == -1)
 		return -errno;
 	
 	Metadata l(to, FuseGlobal::db_);
@@ -577,6 +601,12 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
 	
 	res = open(fullpath.c_str(), fi->flags, mode);
+	
+	if (res == -1)
+		return -errno;
+	
+	fuse_context *ctx = fuse_get_context();
+	res = lchown(fullpath.c_str(), ctx->uid, ctx->gid);
 	
 	if (res == -1)
 		return -errno;

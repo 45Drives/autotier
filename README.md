@@ -2,123 +2,118 @@
 A passthrough FUSE filesystem that intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.
 
 ## What it does
-`autotier` is a tiered FUSE filesystem which acts as a merging passthrough to any number of underlying filesystems. These underlying filesystems can be of any type. Behind the scenes, `autotier` moves files around such that the most often accessed files are kept in the highest tier. `autotier` fills each defined tier up to their watermarked capacity, starting at the fastest tier with the highest priority files. If you do a lot of writing, set a lower watermark for the highest tier to allow for more room. If you do mostly reading, set a higher watermark to allow for as much use as possible out of your available top tier storage.  
+`autotier` is a tiered FUSE filesystem which acts as a merging passthrough to any number of underlying filesystems. These underlying filesystems can be of any type. Behind the scenes, `autotier` moves files around such that the most often accessed files are kept in the highest tier. `autotier` fills each defined tier up to their configuration-defined quota, starting at the fastest tier with the highest priority files. If you do a lot of writing, set a lower quota for the highest tier to allow for more room. If you do mostly reading, set a higher watermark to allow for as much use as possible out of your available top tier storage.  
 ![autotier example](doc/mounted_fs_status.png)
 
 ## Installation
 ### Current Release
-* `dnf install https://github.com/45Drives/autotier/releases/download/v0.7.1-beta/autotier-0.7.1-1.el8.x86_64.rpm`
-* Create configuration file
-* `systemctl enable --now autotier`
+* Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.0.0-beta/autotier_1.0.0-1focal_amd64.deb`
+* Install deb: `# dpkg -i autotier_1.0.0-1focal_amd64.deb`
+* Edit configuration file: `/etc/autotier.conf`
+* Mount filesystem:
+	* manually: `# autotier /path/to/mountpoint -o allow_other,default_permissions`
+	* fstab: `/usr/bin/autotier	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
 
 ### Installing from Source
-* `dnf install make gcc gcc-c++ boost boost-devel fuse3 fuse3-devel sqlite sqlite-devel`
-* `git clone https://github.com/45drives/autotier`
-* `cd autotier`
-* `make`
-* `sudo make install`
-* Create configuration file
-* `systemctl enable --now autotier`  
-  
-If you get the following error after running make:
-```
-/usr/bin/ld: cannot find -l:libboost_system.a
-/usr/bin/ld: cannot find -l:libboost_filesystem.a
-```
-then run `sed -i "s/\\.a\\b/.so/g" makefile` to switch from static linking to dynamic linking.
+* Install dependencies: 
+	`# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev`
+* `$ git clone https://github.com/45drives/autotier`
+* `$ cd autotier`
+* `$ git checkout <version>`
+* `$ make -j8`
+* `# sudo make install`
+* Edit configuration file
+* Mount filesystem  
 
 ### Uninstallation
-From RPM: `dnf remove autotier`  
-From source: `make uninstall`
+From dpkg: `# dpkg --remove autotier`  
+From source: `# make uninstall`
 
 ## Configuration
-### Autotier Config
-#### Global Config
+### Global Config
 For global configuration of `autotier`, options are placed below the `[Global]` header. Example:
 ```
-[Global]            # global settings
-LOG_LEVEL=1         # 0 = none, 1 = normal, 2 = debug
-TIER_PERIOD=5       # number of seconds between file move batches
-MOUNT_POINT=/mnt/autotier
+[Global]                       # global settings
+Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
+Tier Period = 100              # number of seconds between file move batches
 ```
 The global config section can be placed before, after, or between tier definitions.
-#### Tier Config
+### Tier Config
 The layout of a single tier's configuration entry is as follows:
 ```
-[<Tier name>]
-DIR=/path/to/storage/tier
-WATERMARK=<0-100% of tier usage at which to stop filling tier>
+[Tier 1]                       # tier name (can be anything)
+Path =                         # full path to tier storage pool
+Quota =                        # absolute or % usage to keep tier under
+# Quota format: x (%|B|MB|MiB|KB|KiB|MB|MiB|...)
+# Example: Quota = 5.3 TiB
 ```
 As many tiers as desired can be defined in the configuration, however they must be in order of fastest to slowest. The tier's name can be whatever you want but it cannot be `global` or `Global`. Tier names are only used for config diagnostics and file pinning.  
 Below is a complete example of a configuration file:
 ```
-# autotier.conf
-[Global]            # global settings
-LOG_LEVEL=1         # 0 = none, 1 = normal, 2 = debug
-TIER_PERIOD=100     # number of seconds between file move batches
-MOUNT_POINT=/mnt/autotier
+# autotier config
+[Global]                       # global settings
+Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
+Tier Period = 1000             # number of seconds between file move batches
 
-[Fastest Tier]
-DIR=/mnt/tier1     # fast tier storage pool
-WATERMARK=70        # keep tier usage just below 70%
+[Tier 1]                       # tier name (can be anything)
+Path = /mnt/ssd_tier           # full path to tier storage pool
+Quota = 5 TiB                  # absolute or % usage to keep tier under
 
-[Medium Tier]
-DIR=/mnt/tier2
-WATERMARK=90
+[Tier 2]
+Path = /mnt/ssd_tier
+Quota = 90 %
 
-[Slower Tier]
-DIR=/mnt/tier3
-WATERMARK=100
-
-# ... and so on
+[Tier 3]
+Path = /mnt/cold_storage
+Quota = 100 %
 ```
 
 ## Usage
-The RPM install package includes a systemd unit file. Configure `autotier` as described below and enable the daemon with `systemctl enable autotier` The default configuration file is `/etc/autotier.conf`, but this can be changed by passing the `-c`/`--config` flag followed by the path to the alternate configuration file. The first defined tier should be the working tier that is exported. So far, `samba` is the only sharing tool that seems to work with this software. `nfs` is too literal, and has no capability of following wide symlinks.
-
-### Command Line Tools
+See `man cephgeorep` after installing for full usage details.
+### Command Line Tool Usage
 ```
 Usage:
-  autotier <command> [<flags>]
+  mount filesystem:
+    autotier [<flags>] <mountpoint> [-o <fuse,options,...>]
+  ad hoc commands:
+    autotier [<flags>] <command> [<arg1 arg2 ...>]
 Commands:
-  oneshot     - execute tiering only once
-  run         - start tiering of files as daemon
-  status      - list info about defined tiers
-  pin <"tier name"> <"path/to/file">...
-              - pin file(s) to tier using tier name in config file
-              - if a path to a directory is passed, all top-level files
-                will be pinned
-              - "path/to/file" must be relative to the autotier mountpoint
-  unpin <path/to/file>...
-              - remove pin from file(s)
-              - "path/to/file" must be relative to the autotier mountpoint
   config      - display current configuration file
+  help        - display this message
   list-pins   - show all pinned files
   list-popularity
               - print list of all tier files sorted by frequency of use
-  help        - display this message
+  oneshot     - execute tiering only once
+  pin <"tier name"> <"path/to/file" "path/to/file" ...>
+              - pin file(s) to tier using tier name in config file
+  status      - list info about defined tiers
+  unpin <"path/to/file" "path/to/file" ...>
+              - remove pin from file(s)
+  which-tier <"path/to/file" "path/to/file" ...>
+              - list which tier each argument is in
 Flags:
-  -h, --help  - display this message and cancel current command
   -c, --config <path/to/config>
               - override configuration file path (default /etc/autotier.conf)
-  -m, --mountpoint <path/to/mountpoint>
-              - override mountpoint from configuration file
+  -h, --help  - display this message and cancel current command
   -o, --fuse-options <comma,separated,list>
               - mount options to pass to fuse (see man mount.fuse)
-  --verbose   - set log level to 2
-  --quiet     - set log level to 0 (no output)
+  -q, --quiet - set log level to 0 (no output)
+  -v, --verbose
+              - set log level to 2 (debug output)
+  -V, --version
+              - print version and exit
+              - if log level >= 1, logo will also print
+              - combine with -q to mute logo output
 ```
 Examples:  
-Run tiering of files in daemon mode:  
-`autotier run`  
-Run tiering of files only once:  
+Trigger tiering of files immediately:  
 `autotier oneshot`  
 Show status of configured tiers:  
 `autotier status`  
 Pin a file to a tier with \<Tier Name\>:  
-`autotier pin "<Tier Name>" path/to/file`  
+`autotier pin "<Tier Name>" /path/to/file`  
 Pin multiple files:  
-`autotier pin "<Tier Name>" path/to/file1 path/to/dir/* bash/expansion/**/*`  
+`autotier pin "<Tier Name>" /path/to/file1 /path/to/dir/* /bash/expansion/**/*`  
 `find path/* -type f -print | xargs autotier pin "<Tier Name>"`  
 Remove pins:  
 `autotier unpin path/to/file`  
@@ -128,13 +123,10 @@ List pinned files:
 
 ---
 ```
-    🕯️
-  ╒════╕
-  │ 45 │
- ╒╧════╧╕
- │DRIVES│
-╒╧══════╧╕
-│AUTOTIER│
-╘════════╛
+   ┓
+└─ ┃ ├─
+└─ ┣ ├─
+└─ ┃ └─
+   ┛
 ```
 [![45Drives Logo](https://www.45drives.com/img/45-drives-brand.png)](https://www.45drives.com)
