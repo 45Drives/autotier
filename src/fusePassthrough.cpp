@@ -427,21 +427,40 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 static int at_flush(const char *path, struct fuse_file_info *fi)
 {
 	int res;
-	(void) path;
 	
 	/* This is called from every close on an open file, so call the
 	 *	   close on the underlying filesystem.	But since flush may be
 	 *	   called multiple times for an open file, this must not really
 	 *	   close the file.  This is important if used on a network
 	 *	   filesystem like NFS which flush the data/metadata on close() */
+	int fh_dup;
 	
-	res = close(dup(fi->fh));
+	if(!fi->fh){
+		if(is_directory(path)){
+			fh_dup = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
+			if (fh_dup == -1)
+				return -errno;
+		}else{
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			fs::path tier_path = f.tier_path();
+			fh_dup = open((tier_path / path).c_str(), fi->flags);
+			if (fh_dup == -1)
+				return -errno;
+		}
+	}else{
+		fh_dup = dup(fi->fh);
+		if(fh_dup == -1)
+			return -errno;
+	}
+	
+	res = close(fh_dup);
 	
 	if (res == -1)
 		return -errno;
 	return res;
 }
-
 
 static int at_release(const char *path, struct fuse_file_info *fi){
 	int res;
@@ -452,20 +471,34 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
 	int res;
-	(void) path;
 	
-	#ifndef HAVE_FDATASYNC
-	(void) isdatasync;
-	#else
-	if (isdatasync)
+	if(!fi->fh){
+		int fh;
+		if(is_directory(path)){
+			fh = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
+			if (fh == -1)
+				return -errno;
+		}else{
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			fs::path tier_path = f.tier_path();
+			fh = open((tier_path / path).c_str(), fi->flags);
+			if (fh == -1)
+				return -errno;
+		}
+		fi->fh = fh;
+	}
+	
+	if(isdatasync)
 		res = fdatasync(fi->fh);
 	else
-		#endif
 		res = fsync(fi->fh);
 	
 	if (res == -1)
 		return -errno;
-	return res;
+	
+	return 0;
 }
 
 #ifdef HAVE_SETXATTR
@@ -488,38 +521,132 @@ static int at_removexattr(const char *path, const char *name){
 }
 #endif
 
+class at_dirp {
+public:
+	std::vector<DIR *> dps;
+	struct dirent *entry;
+	off_t offset;
+	at_dirp() : dps(FuseGlobal::tiers_.size()) {}
+};
+
+static int at_opendir(const char *path, struct fuse_file_info *fi)
+{
+	int res;
+	class at_dirp *d = new at_dirp();
+	if (d == NULL)
+		return -ENOMEM;
+	
+	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
+		d->dps[i] = opendir((FuseGlobal::tiers_[i]->path() / path).c_str());
+		if (d->dps[i] == NULL) {
+			res = -errno;
+			delete d;
+			return res;
+		}
+	}
+	
+	d->offset = 0;
+	d->entry = NULL;
+
+	fi->fh = (unsigned long) d;
+	return 0;
+}
+
+static inline class at_dirp *get_dirp(struct fuse_file_info *fi)
+{
+	return (class at_dirp *) (uintptr_t) fi->fh;
+}
+
 static int at_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi,
 	enum fuse_readdir_flags flags
  					){
-	DIR *dp;
-	struct dirent *de;
+	class at_dirp *d = get_dirp(fi);
+	std::vector<DIR *>::iterator cur_dir = d->dps.begin();
+	
+	(void) path;
+	
 	std::regex temp_file_re("^\\..*\\.autotier\\.hide$");
 	
-	(void) offset;
-	(void) fi;
-	(void) flags;
-	
-	for(Tier *tptr : FuseGlobal::tiers_){
-		dp = opendir((tptr->path() / path).c_str());
-		if (dp == NULL)
-			return -errno;
-		
-		while ((de = readdir(dp)) != NULL) {
-			if(de->d_type == DT_DIR && tptr != FuseGlobal::tiers_.front())
-				continue;
-			if(de->d_type != DT_DIR && std::regex_match(de->d_name, temp_file_re))
-				continue;
+	while(cur_dir != d->dps.end()){
+		if (offset != d->offset) {
+	#ifndef __FreeBSD__
+			seekdir(*cur_dir, offset);
+	#else
+			/* Subtract the one that we add when calling
+			telldir() below */
+			seekdir(*cur_dir, offset-1);
+	#endif
+			d->entry = NULL;
+			d->offset = offset;
+		}
+		while (1) {
 			struct stat st;
-			memset(&st, 0, sizeof(st));
-			st.st_ino = de->d_ino;
-			st.st_mode = de->d_type << 12;
-			if (filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
+			off_t nextoff;
+			enum fuse_fill_dir_flags fill_flags = (enum fuse_fill_dir_flags) 0;
+
+			if (!d->entry) {
+				d->entry = readdir(*cur_dir);
+				if (!d->entry)
+					break;
+			}
+	#ifdef HAVE_FSTATAT
+			if (flags & FUSE_READDIR_PLUS) {
+				int res;
+
+				res = fstatat(dirfd(*cur_dir), d->entry->d_name, &st,
+						AT_SYMLINK_NOFOLLOW);
+				if (res != -1)
+					fill_flags |= FUSE_FILL_DIR_PLUS;
+			}
+	#endif
+			if (!(fill_flags & FUSE_FILL_DIR_PLUS)) {
+				memset(&st, 0, sizeof(st));
+				st.st_ino = d->entry->d_ino;
+				st.st_mode = d->entry->d_type << 12;
+			}
+			nextoff = telldir(*cur_dir);
+	#ifdef __FreeBSD__		
+			/* Under FreeBSD, telldir() may return 0 the first time
+			it is called. But for libfuse, an offset of zero
+			means that offsets are not supported, so we shift
+			everything by one. */
+			nextoff++;
+	#endif
+			if (filler(buf, d->entry->d_name, &st, nextoff, fill_flags))
 				break;
+
+			d->entry = NULL;
+			d->offset = nextoff;
 		}
 		
-		closedir(dp);
+		++cur_dir;
+		
+// 		while ((de = readdir(dp)) != NULL) {
+// 			if(de->d_type == DT_DIR && tptr != FuseGlobal::tiers_.front())
+// 				continue;
+// 			if(de->d_type != DT_DIR && std::regex_match(de->d_name, temp_file_re))
+// 				continue;
+// 			struct stat st;
+// 			memset(&st, 0, sizeof(st));
+// 			st.st_ino = de->d_ino;
+// 			st.st_mode = de->d_type << 12;
+// 			if (filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
+// 				break;
+// 		}
+// 		
+// 		closedir(dp);
 	}
+	return 0;
+}
+
+static int at_releasedir(const char *path, struct fuse_file_info *fi)
+{
+	class at_dirp *d = get_dirp(fi);
+	(void) path;
+	for(DIR *dp : d->dps)
+		closedir(dp);
+	free(d);
 	return 0;
 }
 
@@ -538,6 +665,7 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	cfg->entry_timeout = 0;
 	cfg->attr_timeout = 0;
 	cfg->negative_timeout = 0;
+	cfg->nullpath_ok = 1;
 	
 	FuseGlobal::autotier_->mount_point(FuseGlobal::mount_point_);
 	
@@ -745,7 +873,9 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.listxattr					= at_listxattr,
 		.removexattr				= at_removexattr,
 		#endif
+		.opendir					= at_opendir,
 		.readdir					= at_readdir,
+		.releasedir					= at_releasedir,
 		.init		 				= at_init,
 		.destroy					= at_destroy,
 		.access						= at_access,
