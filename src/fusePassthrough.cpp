@@ -30,6 +30,8 @@
 #include <thread>
 #include <regex>
 
+#define LOG_METHODS
+
 #define FUSE_USE_VERSION 30
 extern "C"{
 	#include <signal.h>
@@ -295,20 +297,29 @@ static int at_link(const char *from, const char *to){
 
 static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 	int res;
-	(void) fi;
 	
-	if(is_directory(path)){
-		for(Tier *tptr: FuseGlobal::tiers_){
-			res = chmod((tptr->path() / path).c_str(), mode);
-			if (res == -1)
-				return -errno;
-		}
+	if(fi){
+#ifdef LOG_METHODS
+		Logging::log.message("chmod fh", 0);
+#endif
+		res = fchmod(fi->fh, mode);
 	}else{
-		Metadata f(path, FuseGlobal::db_);
-		if(f.not_found())
-			return -ENOENT;
-		fs::path tier_path = f.tier_path();
-		res = chmod((tier_path / path).c_str(), mode);
+#ifdef LOG_METHODS
+		Logging::log.message("chmod " + std::string(path), 0);
+#endif
+		if(is_directory(path)){
+			for(Tier *tptr: FuseGlobal::tiers_){
+				res = chmod((tptr->path() / path).c_str(), mode);
+				if (res == -1)
+					return -errno;
+			}
+		}else{
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			fs::path tier_path = f.tier_path();
+			res = chmod((tier_path / path).c_str(), mode);
+		}
 	}
 	
 	if (res == -1)
@@ -318,20 +329,29 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 
 static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi){
 	int res;
-	(void) fi;
 	
-	if(is_directory(path)){
-		for(Tier *tptr: FuseGlobal::tiers_){
-			res = lchown((tptr->path() / path).c_str(), uid, gid);
-			if (res == -1)
-				return -errno;
-		}
+	if(fi){
+#ifdef LOG_METHODS
+		Logging::log.message("chown fh", 0);
+#endif
+		res = fchown(fi->fh, uid, gid);
 	}else{
-		Metadata f(path, FuseGlobal::db_);
-		if(f.not_found())
-			return -ENOENT;
-		fs::path tier_path = f.tier_path();
-		res = lchown((tier_path / path).c_str(), uid, gid);
+#ifdef LOG_METHODS
+		Logging::log.message("chown " + std::string(path), 0);
+#endif
+		if(is_directory(path)){
+			for(Tier *tptr: FuseGlobal::tiers_){
+				res = lchown((tptr->path() / path).c_str(), uid, gid);
+				if (res == -1)
+					return -errno;
+			}
+		}else{
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			fs::path tier_path = f.tier_path();
+			res = lchown((tier_path / path).c_str(), uid, gid);
+		}
 	}
 	
 	if (res == -1)
@@ -342,14 +362,14 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
 	
-	if (fi == NULL){
+	if (fi){
+		res = ftruncate(fi->fh, size);
+	}else{
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = truncate((tier_path / path).c_str(), size);
-	}else{
-		res = ftruncate(fi->fh, size);
 	}
 	
 	if (res == -1)
@@ -370,6 +390,12 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		res = open((tier_path / path).c_str(), fi->flags);
+		if(fi->flags & O_CREAT){
+			struct fuse_context *ctx = fuse_get_context();
+			int chown_res = fchown(res, ctx->uid, ctx->gid);
+			if(chown_res == -1)
+				return -errno;
+		}
 		f.touch();
 		f.update(path, FuseGlobal::db_);
 	}
@@ -427,6 +453,10 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 static int at_flush(const char *path, struct fuse_file_info *fi)
 {
 	int res;
+#ifdef LOG_METHODS
+	Logging::log.message("flush fh", 0);
+#endif
+	(void) path;
 	
 	/* This is called from every close on an open file, so call the
 	 *	   close on the underlying filesystem.	But since flush may be
@@ -435,25 +465,9 @@ static int at_flush(const char *path, struct fuse_file_info *fi)
 	 *	   filesystem like NFS which flush the data/metadata on close() */
 	int fh_dup;
 	
-	if(!fi->fh){
-		if(is_directory(path)){
-			fh_dup = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
-			if (fh_dup == -1)
-				return -errno;
-		}else{
-			Metadata f(path, FuseGlobal::db_);
-			if(f.not_found())
-				return -ENOENT;
-			fs::path tier_path = f.tier_path();
-			fh_dup = open((tier_path / path).c_str(), fi->flags);
-			if (fh_dup == -1)
-				return -errno;
-		}
-	}else{
-		fh_dup = dup(fi->fh);
-		if(fh_dup == -1)
-			return -errno;
-	}
+	fh_dup = dup(fi->fh);
+	if(fh_dup == -1)
+		return -errno;
 	
 	res = close(fh_dup);
 	
@@ -464,7 +478,9 @@ static int at_flush(const char *path, struct fuse_file_info *fi)
 
 static int at_release(const char *path, struct fuse_file_info *fi){
 	int res;
+	
 	(void) path;
+	
 	res = close(fi->fh);
 	return res;
 }
@@ -472,27 +488,34 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
 	int res;
 	
-	if(!fi->fh){
-		int fh;
-		if(is_directory(path)){
-			fh = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
-			if (fh == -1)
-				return -errno;
-		}else{
-			Metadata f(path, FuseGlobal::db_);
-			if(f.not_found())
-				return -ENOENT;
-			fs::path tier_path = f.tier_path();
-			fh = open((tier_path / path).c_str(), fi->flags);
-			if (fh == -1)
-				return -errno;
-		}
-		fi->fh = fh;
-	}
 	
-	if(isdatasync)
-		res = fdatasync(fi->fh);
-	else
+#ifdef LOG_METHODS
+		Logging::log.message("fsync fh", 0);
+#endif
+	
+	(void) path;
+	
+// 	if(!fi){
+// 		int fh;
+// 		if(is_directory(path)){
+// 			fh = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
+// 			if (fh == -1)
+// 				return -errno;
+// 		}else{
+// 			Metadata f(path, FuseGlobal::db_);
+// 			if(f.not_found())
+// 				return -ENOENT;
+// 			fs::path tier_path = f.tier_path();
+// 			fh = open((tier_path / path).c_str(), fi->flags);
+// 			if (fh == -1)
+// 				return -errno;
+// 		}
+// 		fi->fh = fh;
+// 	}
+	
+// 	if(isdatasync)
+// 		res = fdatasync(fi->fh);
+// 	else
 		res = fsync(fi->fh);
 	
 	if (res == -1)
@@ -523,9 +546,9 @@ static int at_removexattr(const char *path, const char *name){
 
 class at_dirp {
 public:
-	std::vector<DIR *> dps;
 	struct dirent *entry;
 	off_t offset;
+	std::vector<DIR *> dps;
 	at_dirp() : dps(FuseGlobal::tiers_.size()) {}
 };
 
@@ -581,6 +604,7 @@ static int at_readdir(
 			d->offset = offset;
 		}
 		while (1) {
+			bool skip_dup_dir = false;
 			struct stat st;
 			off_t nextoff;
 			enum fuse_fill_dir_flags fill_flags = (enum fuse_fill_dir_flags) 0;
@@ -589,6 +613,7 @@ static int at_readdir(
 				d->entry = readdir(*cur_dir);
 				if (!d->entry)
 					break;
+				skip_dup_dir = (d->entry->d_type == DT_DIR && cur_dir != d->dps.begin());
 			}
 	#ifdef HAVE_FSTATAT
 			if (flags & FUSE_READDIR_PLUS) {
@@ -600,7 +625,7 @@ static int at_readdir(
 					fill_flags |= FUSE_FILL_DIR_PLUS;
 			}
 	#endif
-			if (!(fill_flags & FUSE_FILL_DIR_PLUS)) {
+			if (!(fill_flags & FUSE_FILL_DIR_PLUS) && !skip_dup_dir) {
 				memset(&st, 0, sizeof(st));
 				st.st_ino = d->entry->d_ino;
 				st.st_mode = d->entry->d_type << 12;
@@ -613,8 +638,10 @@ static int at_readdir(
 			everything by one. */
 			nextoff++;
 	#endif
-			if (filler(buf, d->entry->d_name, &st, nextoff, fill_flags))
-				break;
+			if(!skip_dup_dir){
+				if(filler(buf, d->entry->d_name, &st, nextoff, fill_flags))
+					break;
+			}
 
 			d->entry = NULL;
 			d->offset = nextoff;
@@ -640,13 +667,42 @@ static int at_readdir(
 	return 0;
 }
 
-static int at_releasedir(const char *path, struct fuse_file_info *fi)
-{
+static int at_releasedir(const char *path, struct fuse_file_info *fi){
 	class at_dirp *d = get_dirp(fi);
 	(void) path;
 	for(DIR *dp : d->dps)
 		closedir(dp);
 	free(d);
+	return 0;
+}
+
+static int at_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *fi){
+	int res;
+	class at_dirp *d = get_dirp(fi);
+	(void) path;
+#ifdef LOG_METHODS
+	Logging::log.message("fsyncdir fh", 0);
+#endif
+// 	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
+// 		DIR *dp = d->dps[i];
+// 		struct dirent *de;
+// 		de = readdir(dp);
+// 		if(!de)
+// 			continue;
+// 		int fd = open((FuseGlobal::tiers_[i]->path() / de->d_name).c_str(), O_DIRECTORY);
+// // 		if(isdatasync)
+// // 			res = fdatasync(fd);
+// // 		else
+// 			res = fsync(fd);
+// 		
+// 		if (res == -1)
+// 			return -errno;
+// 	}
+	res = fsync(fi->fh);
+	
+	if (res == -1)
+		return -errno;
+	
 	return 0;
 }
 
@@ -738,7 +794,7 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 		return -errno;
 	
 	fuse_context *ctx = fuse_get_context();
-	res = lchown(fullpath.c_str(), ctx->uid, ctx->gid);
+	res = fchown(res, ctx->uid, ctx->gid);
 	
 	if (res == -1)
 		return -errno;
@@ -751,15 +807,25 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 
 static int at_utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi){
 	int res;
-	(void) fi;
 	
-	Metadata f(path, FuseGlobal::db_);
-	if(f.not_found())
-		return -ENOENT;
-	fs::path tier_path = f.tier_path();
-	
-	/* don't use utime/utimes since they follow symlinks */
-	res = utimensat(0, (tier_path / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
+	if(fi){
+		res = futimens(fi->fh, ts);
+	}else{
+		if(is_directory(path)){
+			for(Tier *tptr: FuseGlobal::tiers_){
+				res = utimensat(0, (tptr->path() / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
+				if (res != 0)
+					return res;
+			}
+		}else{
+			Metadata f(path, FuseGlobal::db_);
+			if(f.not_found())
+				return -ENOENT;
+			fs::path tier_path = f.tier_path();
+			/* don't use utime/utimes since they follow symlinks */
+			res = utimensat(0, (tier_path / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
+		}
+	}
 	
 	if (res == -1)
 		return -errno;
@@ -798,7 +864,6 @@ static int at_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size,
 	return 0;
 }
 
-#ifdef HAVE_POSIX_FALLOCATE
 static int at_fallocate(const char *path, int mode, off_t offset, off_t length, struct fuse_file_info *fi){
 	(void) path;
 	
@@ -807,7 +872,6 @@ static int at_fallocate(const char *path, int mode, off_t offset, off_t length, 
 	
 	return -posix_fallocate(fi->fh, offset, length);
 }
-#endif
 
 #ifdef HAVE_COPY_FILE_RANGE
 static ssize_t at_copy_file_range(
@@ -876,6 +940,7 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.opendir					= at_opendir,
 		.readdir					= at_readdir,
 		.releasedir					= at_releasedir,
+		.fsyncdir					= at_fsyncdir,
 		.init		 				= at_init,
 		.destroy					= at_destroy,
 		.access						= at_access,
@@ -883,9 +948,7 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.utimens					= at_utimens,
 		.write_buf					= at_write_buf,
 		.read_buf					= at_read_buf,
-		#ifdef HAVE_POSIX_FALLOCATE
 		.fallocate					= at_fallocate,
-		#endif
 		#ifdef HAVE_COPY_FILE_RANGE
 		.copy_file_range 			= at_copy_file_range,
 		#endif
