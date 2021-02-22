@@ -393,6 +393,11 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 }
 
 static int at_open(const char *path, struct fuse_file_info *fi){
+#ifdef LOG_METHODS
+	std::stringstream ss;
+	ss << "open " << path << " flags: " << std::bitset<8>(fi->flags);
+	Logging::log.message(ss.str(), 0);
+#endif
 	int res;
 	
 	if(is_directory(path)){
@@ -865,6 +870,11 @@ static int at_access(const char *path, int mask){
 }
 
 static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
+#ifdef LOG_METHODS
+	std::stringstream ss;
+	ss << "create " << path << " mode: " << std::oct << mode << " flags: " << std::bitset<8>(fi->flags);
+	Logging::log.message(ss.str(), 0);
+#endif
 	int res;
 	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
 	
@@ -873,6 +883,8 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	if(res == -1)
 		return -errno;
 	
+	fi->fh = res;
+	
 	fuse_context *ctx = fuse_get_context();
 	res = fchown(res, ctx->uid, ctx->gid);
 	
@@ -880,7 +892,6 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 		return -errno;
 	
 	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front()).update(path, FuseGlobal::db_);
-	fi->fh = res;
 	
 	return 0;
 }
