@@ -461,8 +461,7 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 	return res;
 }
 
-static int at_flush(const char *path, struct fuse_file_info *fi)
-{
+static int at_flush(const char *path, struct fuse_file_info *fi){
 	int res;
 #ifdef LOG_METHODS
 	Logging::log.message("flush fh", 0);
@@ -623,7 +622,7 @@ static int at_removexattr(const char *path, const char *name){
 	return 0;
 }
 
-class at_dirp {
+class at_dirp{
 public:
 	struct dirent *entry;
 	off_t offset;
@@ -631,8 +630,7 @@ public:
 	at_dirp() : dps(FuseGlobal::tiers_.size()) {}
 };
 
-static int at_opendir(const char *path, struct fuse_file_info *fi)
-{
+static int at_opendir(const char *path, struct fuse_file_info *fi){
 	int res;
 	class at_dirp *d = new at_dirp();
 	if(d == NULL)
@@ -654,15 +652,14 @@ static int at_opendir(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static inline class at_dirp *get_dirp(struct fuse_file_info *fi)
-{
+static inline class at_dirp *get_dirp(struct fuse_file_info *fi){
 	return (class at_dirp *) (uintptr_t) fi->fh;
 }
 
 static int at_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi,
 	enum fuse_readdir_flags flags
- 					){
+){
 	class at_dirp *d = get_dirp(fi);
 	std::vector<DIR *>::iterator cur_dir = d->dps.begin();
 	
@@ -1038,12 +1035,10 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.flush						= at_flush,
 		.release					= at_release,
 		.fsync						= at_fsync,
-#ifdef HAVE_SETXATTR
 		.setxattr					= at_setxattr,
 		.getxattr					= at_getxattr,
 		.listxattr					= at_listxattr,
 		.removexattr				= at_removexattr,
-#endif
 		.opendir					= at_opendir,
 		.readdir					= at_readdir,
 		.releasedir					= at_releasedir,
