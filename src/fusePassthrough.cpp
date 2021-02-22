@@ -46,6 +46,10 @@ extern "C"{
 	#include <errno.h>
 	#include <sys/time.h>
 	#include <sys/xattr.h>
+#ifdef HAVE_LIBULOCKMGR
+	#include <ulockmgr.h>
+#endif
+	#include <sys/file.h>
 }
 
 namespace FuseGlobal{
@@ -64,7 +68,7 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 
 // helpers
 
-static int is_directory(const char *relative_path){
+static bool is_directory(const char *relative_path){
 	boost::system::error_code ec;
 	fs::file_status status = fs::symlink_status(FuseGlobal::tiers_.front()->path() / relative_path, ec);
 	if(ec.failed())
@@ -72,53 +76,53 @@ static int is_directory(const char *relative_path){
 	return fs::is_directory(status);
 }
 
-static int mknod_wrapper(int dirfd, const char *path, const char *link,
-						 int mode, dev_t rdev)
-{
-	int res;
-	
-	if (S_ISREG(mode)) {
-		res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
-		if (res >= 0)
-			res = close(res);
-	} else if (S_ISDIR(mode)) {
-		res = mkdirat(dirfd, path, mode);
-	} else if (S_ISLNK(mode) && link != NULL) {
-		res = symlinkat(link, dirfd, path);
-	} else if (S_ISFIFO(mode)) {
-		res = mkfifoat(dirfd, path, mode);
-		#ifdef __FreeBSD__
-	} else if (S_ISSOCK(mode)) {
-		struct sockaddr_un su;
-		int fd;
-		
-		if (strlen(path) >= sizeof(su.sun_path)) {
-			errno = ENAMETOOLONG;
-			return -1;
-		}
-		fd = socket(AF_UNIX, SOCK_STREAM, 0);
-		if (fd >= 0) {
-			/*
-			 * We must bind the socket to the underlying file
-			 * system to create the socket file, even though
-			 * we'll never listen on this socket.
-			 */
-			su.sun_family = AF_UNIX;
-			strncpy(su.sun_path, path, sizeof(su.sun_path));
-			res = bindat(dirfd, fd, (struct sockaddr*)&su,
-						 sizeof(su));
-			if (res == 0)
-				close(fd);
-		} else {
-			res = -1;
-		}
-		#endif
-	} else {
-		res = mknodat(dirfd, path, mode, rdev);
-	}
-	
-	return res;
-}
+// static int mknod_wrapper(int dirfd, const char *path, const char *link,
+// 						 int mode, dev_t rdev)
+// {
+// 	int res;
+// 	
+// 	if(S_ISREG(mode)){
+// 		res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
+// 		if(res >= 0)
+// 			res = close(res);
+// 	}else if(S_ISDIR(mode)){
+// 		res = mkdirat(dirfd, path, mode);
+// 	}else if(S_ISLNK(mode) && link != NULL){
+// 		res = symlinkat(link, dirfd, path);
+// 	}else if(S_ISFIFO(mode)){
+// 		res = mkfifoat(dirfd, path, mode);
+// 		#ifdef __FreeBSD__
+// 	}else if(S_ISSOCK(mode)){
+// 		struct sockaddr_un su;
+// 		int fd;
+// 		
+// 		if(strlen(path) >= sizeof(su.sun_path)){
+// 			errno = ENAMETOOLONG;
+// 			return -1;
+// 		}
+// 		fd = socket(AF_UNIX, SOCK_STREAM, 0);
+// 		if(fd >= 0){
+// 			/*
+// 			 * We must bind the socket to the underlying file
+// 			 * system to create the socket file, even though
+// 			 * we'll never listen on this socket.
+// 			 */
+// 			su.sun_family = AF_UNIX;
+// 			strncpy(su.sun_path, path, sizeof(su.sun_path));
+// 			res = bindat(dirfd, fd, (struct sockaddr*)&su,
+// 						 sizeof(su));
+// 			if(res == 0)
+// 				close(fd);
+// 		}else{
+// 			res = -1;
+// 		}
+// 		#endif
+// 	}else{
+// 		res = mknodat(dirfd, path, mode, rdev);
+// 	}
+// 	
+// 	return res;
+// }
 
 // methods
 
@@ -140,7 +144,7 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
 		res = fstat(fi->fh, stbuf);
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -156,7 +160,7 @@ static int at_readlink(const char *path, char *buf, size_t size){
 	
 	res = readlink((tier_path / path).c_str(), buf, size - 1);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	buf[res] = '\0';
 	return 0;
@@ -166,15 +170,22 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	int res;
 	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
 	
-	res = mknod_wrapper(AT_FDCWD, fullpath.c_str(), NULL, mode, rdev);
+// 	res = mknod_wrapper(AT_FDCWD, fullpath.c_str(), NULL, mode, rdev);
+// 	
+// 	if(res == -1)
+// 		return -errno;
 	
-	if (res == -1)
+	if(S_ISFIFO(mode))
+		res = mkfifo(fullpath.c_str(), mode);
+	else
+		res = mknod(fullpath.c_str(), mode, rdev);
+	if(res == -1)
 		return -errno;
 	
 	fuse_context *ctx = fuse_get_context();
 	res = lchown(fullpath.c_str(), ctx->uid, ctx->gid);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	Metadata l(path, FuseGlobal::db_, FuseGlobal::tiers_.front());
@@ -189,10 +200,10 @@ static int at_mkdir(const char *path, mode_t mode){
 	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		res = mkdir((tptr->path() / fs::path(path)).c_str(), mode);
-		if (res == -1)
+		if(res == -1)
 			return -errno;
 		res = lchown((tptr->path() / fs::path(path)).c_str(), ctx->uid, ctx->gid);
-		if (res == -1)
+		if(res == -1)
 			return -errno;
 	}
 	
@@ -210,7 +221,7 @@ static int at_unlink(const char *path){
 	
 	res = unlink((tier_path / path).c_str());
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	if(!FuseGlobal::db_->Delete(rocksdb::WriteOptions(), path+1).ok())
@@ -223,7 +234,7 @@ static int at_rmdir(const char *path){
 	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		res = rmdir((tptr->path() / path).c_str());
-		if (res == -1)
+		if(res == -1)
 			return -errno;
 	}
 	
@@ -235,13 +246,13 @@ static int at_symlink(const char *from, const char *to){
 	
 	res = symlink(from, (FuseGlobal::tiers_.front()->path() / to).c_str());
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	fuse_context *ctx = fuse_get_context();
 	res = lchown((FuseGlobal::tiers_.front()->path() / to).c_str(), ctx->uid, ctx->gid);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	Metadata l(to, FuseGlobal::db_, FuseGlobal::tiers_.front());
@@ -252,7 +263,7 @@ static int at_symlink(const char *from, const char *to){
 static int at_rename(const char *from, const char *to, unsigned int flags){
 	int res;
 	
-	if (flags)
+	if(flags)
 		return -EINVAL;
 	
 	Metadata f(from, FuseGlobal::db_);
@@ -261,7 +272,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	fs::path tier_path = f.tier_path();
 	
 	res = rename((tier_path / from).c_str(), (tier_path / to).c_str());
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	f.update(to, FuseGlobal::db_);
@@ -287,7 +298,7 @@ static int at_link(const char *from, const char *to){
 	fuse_context *ctx = fuse_get_context();
 	res = lchown(to, ctx->uid, ctx->gid);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	Metadata l(to, FuseGlobal::db_);
@@ -310,7 +321,7 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 		if(is_directory(path)){
 			for(Tier *tptr: FuseGlobal::tiers_){
 				res = chmod((tptr->path() / path).c_str(), mode);
-				if (res == -1)
+				if(res == -1)
 					return -errno;
 			}
 		}else{
@@ -322,7 +333,7 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 		}
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -342,7 +353,7 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 		if(is_directory(path)){
 			for(Tier *tptr: FuseGlobal::tiers_){
 				res = lchown((tptr->path() / path).c_str(), uid, gid);
-				if (res == -1)
+				if(res == -1)
 					return -errno;
 			}
 		}else{
@@ -354,7 +365,7 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 		}
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -362,7 +373,7 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
 	
-	if (fi){
+	if(fi){
 		res = ftruncate(fi->fh, size);
 	}else{
 		Metadata f(path, FuseGlobal::db_);
@@ -372,7 +383,7 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 		res = truncate((tier_path / path).c_str(), size);
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -382,7 +393,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	
 	if(is_directory(path)){
 		res = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
-		if (res == -1)
+		if(res == -1)
 			return -errno;
 	}else{
 		Metadata f(path, FuseGlobal::db_);
@@ -400,7 +411,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		f.update(path, FuseGlobal::db_);
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	fi->fh = res;
 	return 0;
@@ -423,7 +434,7 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
 	
 	res = pwrite(fi->fh, buf, size, offset);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -435,7 +446,7 @@ static int at_statfs(const char *path, struct statvfs *stbuf){
 	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		res = statvfs((tptr->path() / path).c_str(), &fs_stats_temp);
-		if (res == -1)
+		if(res == -1)
 			return -errno;
 		if(stbuf->f_bsize == 0) stbuf->f_bsize = fs_stats_temp.f_bsize;
 		if(stbuf->f_frsize == 0) stbuf->f_frsize = fs_stats_temp.f_frsize;
@@ -471,7 +482,7 @@ static int at_flush(const char *path, struct fuse_file_info *fi)
 	
 	res = close(fh_dup);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -499,7 +510,7 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 // 		int fh;
 // 		if(is_directory(path)){
 // 			fh = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
-// 			if (fh == -1)
+// 			if(fh == -1)
 // 				return -errno;
 // 		}else{
 // 			Metadata f(path, FuseGlobal::db_);
@@ -507,7 +518,7 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 // 				return -ENOENT;
 // 			fs::path tier_path = f.tier_path();
 // 			fh = open((tier_path / path).c_str(), fi->flags);
-// 			if (fh == -1)
+// 			if(fh == -1)
 // 				return -errno;
 // 		}
 // 		fi->fh = fh;
@@ -518,17 +529,33 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 // 	else
 		res = fsync(fi->fh);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	return 0;
 }
 
-#ifdef HAVE_SETXATTR
-/* TODO: Implement these.
- */
 static int at_setxattr(const char *path, const char *name, const char *value, size_t size, int flags){
+	int res;
 	
+	if(is_directory(path)){
+		for(Tier * const &tier : FuseGlobal::tiers_){
+			fs::path fullpath = tier->path() / path;
+			res = lsetxattr(fullpath.c_str(), name, value, size, flags);
+			if(res == -1)
+				return -errno;
+		}
+	}else{
+		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
+		fs::path fullpath = f.tier_path() + std::string(path);
+		res = lsetxattr(fullpath.c_str(), name, value, size, flags);
+		if(res == -1)
+			return -errno;
+	}
+	
+	return 0;
 }
 
 static int at_getxattr(const char *path, const char *name, char *value, size_t size){
@@ -542,7 +569,6 @@ static int at_listxattr(const char *path, char *list, size_t size){
 static int at_removexattr(const char *path, const char *name){
 	
 }
-#endif
 
 class at_dirp {
 public:
@@ -556,12 +582,12 @@ static int at_opendir(const char *path, struct fuse_file_info *fi)
 {
 	int res;
 	class at_dirp *d = new at_dirp();
-	if (d == NULL)
+	if(d == NULL)
 		return -ENOMEM;
 	
 	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
 		d->dps[i] = opendir((FuseGlobal::tiers_[i]->path() / path).c_str());
-		if (d->dps[i] == NULL) {
+		if(d->dps[i] == NULL) {
 			res = -errno;
 			delete d;
 			return res;
@@ -592,7 +618,7 @@ static int at_readdir(
 	std::regex temp_file_re("^\\..*\\.autotier\\.hide$");
 	
 	while(cur_dir != d->dps.end()){
-		if (offset != d->offset) {
+		if(offset != d->offset) {
 	#ifndef __FreeBSD__
 			seekdir(*cur_dir, offset);
 	#else
@@ -609,23 +635,23 @@ static int at_readdir(
 			off_t nextoff;
 			enum fuse_fill_dir_flags fill_flags = (enum fuse_fill_dir_flags) 0;
 
-			if (!d->entry) {
+			if(!d->entry) {
 				d->entry = readdir(*cur_dir);
-				if (!d->entry)
+				if(!d->entry)
 					break;
 				skip_dup_dir = (d->entry->d_type == DT_DIR && cur_dir != d->dps.begin());
 			}
 	#ifdef HAVE_FSTATAT
-			if (flags & FUSE_READDIR_PLUS) {
+			if(flags & FUSE_READDIR_PLUS) {
 				int res;
 
 				res = fstatat(dirfd(*cur_dir), d->entry->d_name, &st,
 						AT_SYMLINK_NOFOLLOW);
-				if (res != -1)
+				if(res != -1)
 					fill_flags |= FUSE_FILL_DIR_PLUS;
 			}
 	#endif
-			if (!(fill_flags & FUSE_FILL_DIR_PLUS) && !skip_dup_dir) {
+			if(!(fill_flags & FUSE_FILL_DIR_PLUS) && !skip_dup_dir) {
 				memset(&st, 0, sizeof(st));
 				st.st_ino = d->entry->d_ino;
 				st.st_mode = d->entry->d_type << 12;
@@ -658,7 +684,7 @@ static int at_readdir(
 // 			memset(&st, 0, sizeof(st));
 // 			st.st_ino = de->d_ino;
 // 			st.st_mode = de->d_type << 12;
-// 			if (filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
+// 			if(filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
 // 				break;
 // 		}
 // 		
@@ -695,12 +721,12 @@ static int at_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *
 // // 		else
 // 			res = fsync(fd);
 // 		
-// 		if (res == -1)
+// 		if(res == -1)
 // 			return -errno;
 // 	}
 	res = fsync(fi->fh);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	return 0;
@@ -768,7 +794,7 @@ static int at_access(const char *path, int mask){
 	if(is_directory(path)){
 		for(Tier *tptr: FuseGlobal::tiers_){
 			res = access((tptr->path() / path).c_str(), mask);
-			if (res != 0)
+			if(res != 0)
 				return res;
 		}
 	}else{
@@ -779,7 +805,7 @@ static int at_access(const char *path, int mask){
 		res = access((tier_path / path).c_str(), mask);
 	}
 	
-	if (res != 0)
+	if(res != 0)
 		return res;
 	return res;
 }
@@ -790,13 +816,13 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	
 	res = open(fullpath.c_str(), fi->flags, mode);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	fuse_context *ctx = fuse_get_context();
 	res = fchown(res, ctx->uid, ctx->gid);
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	
 	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front()).update(path, FuseGlobal::db_);
@@ -804,6 +830,15 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	
 	return 0;
 }
+
+#ifdef HAVE_LIBULOCKMGR
+static int at_lock(const char *path, struct fuse_file_info *fi, int cmd, struct flock *lock){
+	(void) path;
+
+	return ulockmgr_op(fi->fh, cmd, lock, &fi->lock_owner,
+			   sizeof(fi->lock_owner));
+}
+#endif
 
 static int at_utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi){
 	int res;
@@ -814,7 +849,7 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 		if(is_directory(path)){
 			for(Tier *tptr: FuseGlobal::tiers_){
 				res = utimensat(0, (tptr->path() / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
-				if (res != 0)
+				if(res != 0)
 					return res;
 			}
 		}else{
@@ -827,7 +862,7 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 		}
 	}
 	
-	if (res == -1)
+	if(res == -1)
 		return -errno;
 	return res;
 }
@@ -850,7 +885,7 @@ static int at_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size,
 	(void) path;
 	
 	src = (struct fuse_bufvec *)malloc(sizeof(struct fuse_bufvec));
-	if (src == NULL)
+	if(src == NULL)
 		return -ENOMEM;
 	
 	*src = FUSE_BUFVEC_INIT(size);
@@ -864,29 +899,48 @@ static int at_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size,
 	return 0;
 }
 
+static int at_flock(const char *path, struct fuse_file_info *fi, int op){
+	int res;
+	(void) path;
+
+	res = flock(fi->fh, op);
+	if(res == -1)
+		return -errno;
+
+	return 0;
+}
+
+
 static int at_fallocate(const char *path, int mode, off_t offset, off_t length, struct fuse_file_info *fi){
 	(void) path;
 	
-	if (mode)
+	if(mode)
 		return -EOPNOTSUPP;
 	
 	return -posix_fallocate(fi->fh, offset, length);
 }
 
-#ifdef HAVE_COPY_FILE_RANGE
 static ssize_t at_copy_file_range(
 	const char *path_in, struct fuse_file_info *fi_in, off_t offset_in, const char *path_out,
 	struct fuse_file_info *fi_out, off_t offset_out, size_t len, int flags
 ){
-	
+	ssize_t res;
+	(void) path_in;
+	(void) path_out;
+
+	res = copy_file_range(fi_in->fh, &offset_in, fi_out->fh, &offset_out, len,
+			      flags);
+	if(res == -1)
+		return -errno;
+
+	return res;
 }
-#endif
 
 static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_info *fi){
 	int fd;
 	off_t res;
 	
-	if (fi == NULL){
+	if(fi == NULL){
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
@@ -895,14 +949,14 @@ static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_
 	}else
 		fd = fi->fh;
 	
-	if (fd == -1)
+	if(fd == -1)
 		return -errno;
 	
 	res = lseek(fd, off, whence);
-	if (res == -1)
+	if(res == -1)
 		res = -errno;
 	
-	if (fi == NULL)
+	if(fi == NULL)
 		close(fd);
 	return res;
 }
@@ -931,12 +985,12 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.flush						= at_flush,
 		.release					= at_release,
 		.fsync						= at_fsync,
-		#ifdef HAVE_SETXATTR
+#ifdef HAVE_SETXATTR
 		.setxattr					= at_setxattr,
 		.getxattr					= at_getxattr,
 		.listxattr					= at_listxattr,
 		.removexattr				= at_removexattr,
-		#endif
+#endif
 		.opendir					= at_opendir,
 		.readdir					= at_readdir,
 		.releasedir					= at_releasedir,
@@ -945,13 +999,15 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.destroy					= at_destroy,
 		.access						= at_access,
 		.create 					= at_create,
+#ifdef HAVE_LIBULOCKMGR
+		.lock						= at_lock,
+#endif
 		.utimens					= at_utimens,
 		.write_buf					= at_write_buf,
 		.read_buf					= at_read_buf,
+		.flock						= at_flock,
 		.fallocate					= at_fallocate,
-		#ifdef HAVE_COPY_FILE_RANGE
 		.copy_file_range 			= at_copy_file_range,
-		#endif
 		.lseek						= at_lseek,
 	};
 	std::vector<char *>argv = {strdup("autotier"), strdup(mountpoint.c_str())};
