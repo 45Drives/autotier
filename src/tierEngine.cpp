@@ -26,6 +26,7 @@
 #include <sstream>
 #include <cmath>
 #include <iomanip>
+#include <atomic>
 
 extern "C" {
 	#include <fcntl.h>
@@ -122,43 +123,49 @@ void TierEngine::tier(std::chrono::steady_clock::duration period){
 	files_.clear();
 }
 
-void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
+void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage)){
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		crawl(t->path(), &(*t), function);
+		std::atomic<uintmax_t> usage(0);
+		crawl(t->path(), &(*t), function, usage);
+		t->usage(usage);
 	}
 }
 
-void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr)){
+void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage){
 	// TODO: Replace this with multithreaded BFS
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
 		fs::file_status status = fs::symlink_status(*itr);
 		if(fs::is_directory(status)){
-			crawl(*itr, tptr, function);
+			crawl(*itr, tptr, function, usage);
 		}else if(!is_symlink(status)){
-			(this->*function)(*itr, tptr);
+			(this->*function)(*itr, tptr, usage);
 		}
 	}
 }
 
-void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr){
+void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
 	files_.emplace_back(file.path(), db_, tptr);
+	uintmax_t size = files_.back().size();
+	usage += size;
 	if(files_.back().is_pinned()){
 		files_.pop_back();
 	}else{
-		tptr->subtract_file_size(files_.back().size()); // remove file size from current usage
+		tptr->subtract_file_size_sim(size); // remove file size from current usage
 	}
 }
 
-void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr){
+void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
+	(void) usage;
 	File f(file, db_, tptr);
 	if(f.is_pinned()){
 		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 0);
 	}
 }
 
-void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr){
+void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
+	(void) usage;
 	File f(file, db_, tptr);
 	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 0);
 	files_.clear();
@@ -204,7 +211,7 @@ void TierEngine::simulate_tier(void){
 				++tptr;
 			} // else: out of space!
 		}
-		tptr->add_file_size(fptr->size());
+		tptr->add_file_size_sim(fptr->size());
 		if(fptr->tier_ptr() != &(*tptr)) tptr->enqueue_file_ptr(&(*fptr));
 		++fptr;
 	}
@@ -244,131 +251,6 @@ inline int find_max_width(const std::vector<std::string> &names){
 	return res;
 }
 
-void TierEngine::status(bool json){
-	uintmax_t total_capacity = 0;
-	uintmax_t total_quota_capacity = 0;
-	uintmax_t total_usage = 0;
-	std::string unit("");
-	for(const Tier &t : tiers_){
-		total_capacity += t.capacity();
-		total_quota_capacity += t.quota_bytes();
-		total_usage += t.usage_bytes();
-	}
-	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
-	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
-	if(json){
-		std::stringstream ss;
-		ss << 
-		"{"
-			"\"version\":\"" VERS "\","
-			"\"combined\":{"
-				"\"capacity\":" + std::to_string(total_capacity) + ","
-				"\"capacity_pretty\":\"" + Logging::log.format_bytes(total_capacity) + "\","
-				"\"quota\":" + std::to_string(total_quota_capacity) + ","
-				"\"quota_pretty\":\"" + Logging::log.format_bytes(total_quota_capacity) + "\","
-				"\"usage\":" + std::to_string(total_usage) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(total_usage) + "\""
-			"},"
-			"\"tiers\":[";
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
-			ss <<
-			"{"
-				"\"name\":\"" + tptr->id() + "\","
-				"\"capacity\":" + std::to_string(tptr->capacity()) + ","
-				"\"capacity_pretty\":\"" + Logging::log.format_bytes(tptr->capacity()) + "\","
-				"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
-				"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
-				"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
-				"\"path\":\"" + tptr->path().string() + "\""
-			"}";
-			if(std::next(tptr) != tiers_.end())
-				ss << ",";
-		}
-		ss <<
-			"]"
-		"}";
-		Logging::log.message(ss.str(), 0);
-	}else{
-		std::vector<std::string> names;
-		names.push_back("combined");
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
-			names.push_back(tptr->id());
-		}
-		int namew = find_max_width(names);
-		{
-			std::stringstream heading;
-			heading << std::setw(namew) << std::left << "Tier";
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Size";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Quota";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(PERCENTW) << std::right << "Quota";
-			heading << std::setw(PERCENTU) << "%"; // unit
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Use";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(PERCENTW) << std::right << "Use";
-			heading << std::setw(PERCENTU) << "%"; // unit
-			heading << " ";
-			heading << std::left << "Path";
-	#ifdef TABLE_HEADER_LINE
-			heading << std::endl;
-			auto fill = heading.fill();
-			heading << std::setw(80) << std::setfill('-') << "";
-			heading.fill(fill);
-	#endif
-			Logging::log.message(heading.str(), 0);
-		}
-		{
-			std::stringstream ss;
-			ss << std::setw(namew) << std::left << "combined"; // tier
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity, unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << overall_quota;
-			ss << std::setw(PERCENTU) << "%"; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage, unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
-			ss << std::setw(PERCENTU) << "%"; // unit
-			Logging::log.message(ss.str(), 0);
-		}
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
-			std::stringstream ss;
-			ss << std::setw(namew) << std::left << tptr->id(); // tier
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota_bytes(), unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->quota_percent();
-			ss << std::setw(PERCENTU) << "%"; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes(), unit);
-			ss << std::setw(ABSU) << unit; // unit
-			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->usage_percent();
-			ss << std::setw(PERCENTU) << "%"; // unit
-			ss << " ";
-			ss << std::left << tptr->path().string();
-			Logging::log.message(ss.str(), 0);
-		}
-	}
-}
-
 void TierEngine::stop(void){
 	std::lock_guard<std::mutex> lk(sleep_mt_);
 	stop_flag_ = true;
@@ -393,6 +275,9 @@ void TierEngine::process_adhoc_requests(void){
 				break;
 			case WHICHTIER:
 				process_which_tier(work);
+				break;
+			case STATUS:
+				process_status(work);
 				break;
 			default:
 				Logging::log.warning("Received bad ad hoc command.");
@@ -510,6 +395,139 @@ void TierEngine::process_which_tier(AdHoc &work){
 	send_fifo_payload(payload, run_path_ / "response.pipe");
 }
 
+void TierEngine::process_status(const AdHoc &work){
+	uintmax_t total_capacity = 0;
+	uintmax_t total_quota_capacity = 0;
+	uintmax_t total_usage = 0;
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	
+	bool json;
+	std::stringstream ss(work.args_.front());
+	ss >> std::boolalpha >> json;
+	
+	std::string unit("");
+	for(const Tier &t : tiers_){
+		total_capacity += t.capacity();
+		total_quota_capacity += t.quota_bytes();
+		total_usage += t.usage_bytes();
+	}
+	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
+	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
+	if(json){
+		std::stringstream ss;
+		ss << 
+		"{"
+			"\"version\":\"" VERS "\","
+			"\"combined\":{"
+				"\"capacity\":" + std::to_string(total_capacity) + ","
+				"\"capacity_pretty\":\"" + Logging::log.format_bytes(total_capacity) + "\","
+				"\"quota\":" + std::to_string(total_quota_capacity) + ","
+				"\"quota_pretty\":\"" + Logging::log.format_bytes(total_quota_capacity) + "\","
+				"\"usage\":" + std::to_string(total_usage) + ","
+				"\"usage_pretty\":\"" + Logging::log.format_bytes(total_usage) + "\""
+			"},"
+			"\"tiers\":[";
+		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+			ss <<
+			"{"
+				"\"name\":\"" + tptr->id() + "\","
+				"\"capacity\":" + std::to_string(tptr->capacity()) + ","
+				"\"capacity_pretty\":\"" + Logging::log.format_bytes(tptr->capacity()) + "\","
+				"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
+				"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
+				"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
+				"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
+				"\"path\":\"" + tptr->path().string() + "\""
+			"}";
+			if(std::next(tptr) != tiers_.end())
+				ss << ",";
+		}
+		ss <<
+			"]"
+		"}";
+		payload.emplace_back(ss.str());
+	}else{
+		std::vector<std::string> names;
+		names.push_back("combined");
+		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+			names.push_back(tptr->id());
+		}
+		int namew = find_max_width(names);
+		{
+			std::stringstream heading;
+			heading << std::setw(namew) << std::left << "Tier";
+			heading << " ";
+			heading << std::setw(ABSW) << std::right << "Size";
+			heading << std::setw(ABSU) << ""; // unit
+			heading << " ";
+			heading << std::setw(ABSW) << std::right << "Quota";
+			heading << std::setw(ABSU) << ""; // unit
+			heading << " ";
+			heading << std::setw(PERCENTW) << std::right << "Quota";
+			heading << std::setw(PERCENTU) << "%"; // unit
+			heading << " ";
+			heading << std::setw(ABSW) << std::right << "Use";
+			heading << std::setw(ABSU) << ""; // unit
+			heading << " ";
+			heading << std::setw(PERCENTW) << std::right << "Use";
+			heading << std::setw(PERCENTU) << "%"; // unit
+			heading << " ";
+			heading << std::left << "Path";
+	#ifdef TABLE_HEADER_LINE
+			heading << std::endl;
+			auto fill = heading.fill();
+			heading << std::setw(80) << std::setfill('-') << "";
+			heading.fill(fill);
+	#endif
+			payload.emplace_back(heading.str());
+		}
+		{
+			std::stringstream ss;
+			ss << std::setw(namew) << std::left << "combined"; // tier
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity, unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << overall_quota;
+			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage, unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
+			ss << std::setw(PERCENTU) << "%"; // unit
+			payload.emplace_back(ss.str());
+		}
+		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+			std::stringstream ss;
+			ss << std::setw(namew) << std::left << tptr->id(); // tier
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota_bytes(), unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->quota_percent();
+			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes(), unit);
+			ss << std::setw(ABSU) << unit; // unit
+			ss << " ";
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->usage_percent();
+			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::left << tptr->path().string();
+			payload.emplace_back(ss.str());
+		}
+	}
+	send_fifo_payload(payload, run_path_ / "response.pipe");
+}
+
 void TierEngine::execute_queued_work(void){
 	while(!adhoc_work_.empty()){
 		AdHoc work = adhoc_work_.pop();
@@ -545,19 +563,14 @@ void TierEngine::pin_files(const std::vector<std::string> &args){
 			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
 			continue;
 		}
-		fs::path old_path = f.tier_path() / relative_path;
-		fs::path new_path = tptr->path() / relative_path;
-		if(!fs::exists(old_path)){
-			Logging::log.warning("File does not exist in tier while trying to pin: " + old_path.string());
-			continue;
-		}
-		bool move_success = tptr->move_file(old_path, new_path);
-		if(move_success){
-			f.tier_path(tptr->path().string());
-			f.pinned(true);
-			f.update(relative_path.c_str(), db_);
-		}
+		Logging::log.message("old tier path: " + f.tier_path(), 0);
+		Tier *old_tptr = tier_lookup(fs::path(f.tier_path()));
+		File file(old_tptr->path() / relative_path, db_, old_tptr);
+		Logging::log.message("old full path: " + file.full_path().string(), 0);
+		file.pin();
+		tptr->enqueue_file_ptr(&file);
 	}
+	tptr->transfer_files();
 }
 
 void TierEngine::unpin_files(const std::vector<std::string> &args){

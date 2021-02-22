@@ -184,6 +184,9 @@ public:
 	uintmax_t size(void) const;
 	/* Get size of file in bytes.
 	 */
+	void pin(void);
+	/* set metadata_.pinned_.
+	 */
 	bool is_pinned(void) const;
 	/* Get metadata_.pinned_.
 	 */

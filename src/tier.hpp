@@ -42,10 +42,10 @@ private:
 	/* Number of bytes available in the tier,
 	 * calculated from the results of a statvfs() call.
 	 */
-	uintmax_t usage_;
+	uintmax_t usage_ = 0;
 	/* Real current bytes used in underlying filesystem.
 	 */
-	uintmax_t sim_usage_;
+	intmax_t sim_usage_;
 	/* Number of bytes used, used while simulating
 	 * the tiering of files to determine where to place each file.
 	 */
@@ -78,6 +78,12 @@ public:
 	 */
 	void subtract_file_size(uintmax_t size);
 	/* Subtract size bytes from usage.
+	 */
+	void add_file_size_sim(uintmax_t size);
+	/* Add size bytes to sim_usage_.
+	 */
+	void subtract_file_size_sim(uintmax_t size);
+	/* Subtract size bytes from sim_usage.
 	 */
 	void quota_percent(double quota_percent);
 	/* Set  quota_percent_.
@@ -119,6 +125,9 @@ public:
 	bool move_file(const fs::path &old_path, const fs::path &new_path) const;
 	/* Called in transfer_files() to actually copy the file and
 	 * remove the old one.
+	 */
+	void usage(uintmax_t usage);
+	/* Set tier usage_ in bytes.
 	 */
 	double usage_percent(void) const;
 	/* Return real current usage as percent.

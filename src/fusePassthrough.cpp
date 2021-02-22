@@ -380,7 +380,11 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 		if(f.not_found())
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
+		Tier *tptr = FuseGlobal::autotier_->tier_lookup(fs::path(tier_path));
+		File file(tier_path / path, FuseGlobal::autotier_->get_db(), tptr);
+		tptr->subtract_file_size(file.size());
 		res = truncate((tier_path / path).c_str(), size);
+		tptr->add_file_size(size);
 	}
 	
 	if(res == -1)

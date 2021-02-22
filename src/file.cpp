@@ -220,12 +220,18 @@ uintmax_t File::size(void) const{
 	return size_;
 }
 
+void File::pin(void){
+	metadata_.pinned_ = true;
+}
+
 bool File::is_pinned(void) const{
 	return metadata_.pinned_;
 }
 
 void File::transfer_to_tier(Tier *tptr){
+	tier_ptr_->subtract_file_size(size_);
 	tier_ptr_ = tptr;
+	tier_ptr_->add_file_size(size_);
 	metadata_.tier_path_ = tptr->path().string();
 	metadata_.update(relative_path_.c_str(), db_);
 }
