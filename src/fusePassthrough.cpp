@@ -559,15 +559,68 @@ static int at_setxattr(const char *path, const char *name, const char *value, si
 }
 
 static int at_getxattr(const char *path, const char *name, char *value, size_t size){
+	int res;
 	
+	const char *fullpath;
+	
+	if(is_directory(path))
+		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+	else{
+		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
+		fullpath = (f.tier_path() + std::string(path)).c_str();
+	}
+	
+	res = lgetxattr(fullpath, name, value, size);
+	if(res == -1)
+		return -errno;
+	
+	return res;
 }
 
 static int at_listxattr(const char *path, char *list, size_t size){
+	int res;
 	
+	const char *fullpath;
+	
+	if(is_directory(path))
+		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+	else{
+		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
+		fullpath = (f.tier_path() + std::string(path)).c_str();
+	}
+	
+	res = llistxattr(fullpath, list, size);
+	if(res == -1)
+		return -errno;
+	
+	return res;
 }
 
 static int at_removexattr(const char *path, const char *name){
+	int res;
 	
+	if(is_directory(path)){
+		for(Tier * const &tier : FuseGlobal::tiers_){
+			fs::path fullpath = tier->path() / path;
+			res = lremovexattr(fullpath.c_str(), name);
+			if(res == -1)
+				return -errno;
+		}
+	}else{
+		Metadata f(path, FuseGlobal::db_);
+		if(f.not_found())
+			return -ENOENT;
+		fs::path fullpath = f.tier_path() + std::string(path);
+		res = lremovexattr(fullpath.c_str(), name);
+		if(res == -1)
+			return -errno;
+	}
+	
+	return 0;
 }
 
 class at_dirp {
