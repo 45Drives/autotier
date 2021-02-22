@@ -60,6 +60,7 @@ namespace FuseGlobal{
 	static std::vector<Tier *> tiers_;
 	static std::thread tier_worker_;
 	static std::thread adhoc_server_;
+	static std::map<int, char *> fd_to_path_;
 }
 
 FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
@@ -76,53 +77,27 @@ static bool is_directory(const char *relative_path){
 	return fs::is_directory(status);
 }
 
-// static int mknod_wrapper(int dirfd, const char *path, const char *link,
-// 						 int mode, dev_t rdev)
-// {
-// 	int res;
-// 	
-// 	if(S_ISREG(mode)){
-// 		res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
-// 		if(res >= 0)
-// 			res = close(res);
-// 	}else if(S_ISDIR(mode)){
-// 		res = mkdirat(dirfd, path, mode);
-// 	}else if(S_ISLNK(mode) && link != NULL){
-// 		res = symlinkat(link, dirfd, path);
-// 	}else if(S_ISFIFO(mode)){
-// 		res = mkfifoat(dirfd, path, mode);
-// 		#ifdef __FreeBSD__
-// 	}else if(S_ISSOCK(mode)){
-// 		struct sockaddr_un su;
-// 		int fd;
-// 		
-// 		if(strlen(path) >= sizeof(su.sun_path)){
-// 			errno = ENAMETOOLONG;
-// 			return -1;
-// 		}
-// 		fd = socket(AF_UNIX, SOCK_STREAM, 0);
-// 		if(fd >= 0){
-// 			/*
-// 			 * We must bind the socket to the underlying file
-// 			 * system to create the socket file, even though
-// 			 * we'll never listen on this socket.
-// 			 */
-// 			su.sun_family = AF_UNIX;
-// 			strncpy(su.sun_path, path, sizeof(su.sun_path));
-// 			res = bindat(dirfd, fd, (struct sockaddr*)&su,
-// 						 sizeof(su));
-// 			if(res == 0)
-// 				close(fd);
-// 		}else{
-// 			res = -1;
-// 		}
-// 		#endif
-// 	}else{
-// 		res = mknodat(dirfd, path, mode, rdev);
-// 	}
-// 	
-// 	return res;
-// }
+template<class key_t, class value_t>
+void insert_key(key_t key, value_t value, std::map<key_t, value_t> &map){
+	try{
+		value_t val = map.at(key);
+		// already defined
+		if(typeid(val) == typeid(char *))
+			free(val);
+		val = value;
+	}catch(const std::out_of_range &){
+		// insert new
+		map[key] = value;
+	}
+}
+
+template<class key_t, class value_t>
+void clear_map(std::map<key_t, value_t> &map){
+	if(typeid(value_t) == typeid(char *))
+		for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
+			free(itr->second);
+	map.clear();
+}
 
 // methods
 
@@ -170,11 +145,6 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	int res;
 	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
 	
-// 	res = mknod_wrapper(AT_FDCWD, fullpath.c_str(), NULL, mode, rdev);
-// 	
-// 	if(res == -1)
-// 		return -errno;
-	
 	if(S_ISFIFO(mode))
 		res = mkfifo(fullpath.c_str(), mode);
 	else
@@ -218,8 +188,12 @@ static int at_unlink(const char *path){
 		return -ENOENT;
 	
 	fs::path tier_path = f.tier_path();
+	fs::path full_path = tier_path / path;
 	
-	res = unlink((tier_path / path).c_str());
+	Tier *tptr = FuseGlobal::autotier_->tier_lookup(fs::path(tier_path));
+	tptr->subtract_file_size(fs::file_size(full_path));
+	
+	res = unlink(full_path.c_str());
 	
 	if(res == -1)
 		return -errno;
@@ -374,16 +348,22 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
 	
 	if(fi){
+		try{
+			char *path = FuseGlobal::fd_to_path_.at(fi->fh);
+			
+		}catch(const std::out_of_range &){
+			
+		}
 		res = ftruncate(fi->fh, size);
 	}else{
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
+		fs::path full_path = tier_path / path;
 		Tier *tptr = FuseGlobal::autotier_->tier_lookup(fs::path(tier_path));
-		File file(tier_path / path, FuseGlobal::autotier_->get_db(), tptr);
-		tptr->subtract_file_size(file.size());
-		res = truncate((tier_path / path).c_str(), size);
+		tptr->subtract_file_size(fs::file_size(full_path));
+		res = truncate(full_path.c_str(), size);
 		tptr->add_file_size(size);
 	}
 	
@@ -399,9 +379,11 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	Logging::log.message(ss.str(), 0);
 #endif
 	int res;
+	const char *fullpath;
 	
 	if(is_directory(path)){
-		res = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
+		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+		res = open(fullpath, fi->flags);
 		if(res == -1)
 			return -errno;
 	}else{
@@ -409,7 +391,8 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		if(f.not_found())
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
-		res = open((tier_path / path).c_str(), fi->flags);
+		fullpath = strdup((tier_path / path).c_str());
+		res = open(fullpath, fi->flags);
 		if(fi->flags & O_CREAT){
 			struct fuse_context *ctx = fuse_get_context();
 			int chown_res = fchown(res, ctx->uid, ctx->gid);
@@ -423,6 +406,9 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	if(res == -1)
 		return -errno;
 	fi->fh = res;
+	
+	insert_key<int, char *>(res, strdup(fullpath), FuseGlobal::fd_to_path_);
+	
 	return 0;
 }
 
@@ -499,7 +485,13 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 	int res;
 	
 	(void) path;
-	
+	try{
+		char *fullpath = FuseGlobal::fd_to_path_.at(fi->fh);
+		free(fullpath);
+		FuseGlobal::fd_to_path_.erase(fi->fh);
+	}catch(const std::out_of_range &err){
+		Logging::log.warning("release: Could not find fd in map.");
+	}
 	res = close(fi->fh);
 	return res;
 }
@@ -514,27 +506,9 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 	
 	(void) path;
 	
-// 	if(!fi){
-// 		int fh;
-// 		if(is_directory(path)){
-// 			fh = open((FuseGlobal::tiers_.front()->path() / path).c_str(), fi->flags);
-// 			if(fh == -1)
-// 				return -errno;
-// 		}else{
-// 			Metadata f(path, FuseGlobal::db_);
-// 			if(f.not_found())
-// 				return -ENOENT;
-// 			fs::path tier_path = f.tier_path();
-// 			fh = open((tier_path / path).c_str(), fi->flags);
-// 			if(fh == -1)
-// 				return -errno;
-// 		}
-// 		fi->fh = fh;
-// 	}
-	
-// 	if(isdatasync)
-// 		res = fdatasync(fi->fh);
-// 	else
+	if(isdatasync)
+		res = fdatasync(fi->fh);
+	else
 		res = fsync(fi->fh);
 	
 	if(res == -1)
@@ -636,7 +610,14 @@ public:
 	struct dirent *entry;
 	off_t offset;
 	std::vector<DIR *> dps;
-	at_dirp() : dps(FuseGlobal::tiers_.size()) {}
+	std::vector<char *> backends;
+	at_dirp() : dps(FuseGlobal::tiers_.size()), backends(dps.size()) {}
+	~at_dirp(){
+		for(DIR *dp : dps)
+			closedir(dp);
+		for(char *str : backends)
+			free(str);
+	}
 };
 
 static int at_opendir(const char *path, struct fuse_file_info *fi){
@@ -646,7 +627,9 @@ static int at_opendir(const char *path, struct fuse_file_info *fi){
 		return -ENOMEM;
 	
 	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
-		d->dps[i] = opendir((FuseGlobal::tiers_[i]->path() / path).c_str());
+		fs::path backend_path = FuseGlobal::tiers_[i]->path() / path;
+		d->dps[i] = opendir(backend_path.c_str());
+		d->backends[i] = strdup(backend_path.c_str());
 		if(d->dps[i] == NULL) {
 			res = -errno;
 			delete d;
@@ -733,21 +716,6 @@ static int at_readdir(
 		}
 		
 		++cur_dir;
-		
-// 		while ((de = readdir(dp)) != NULL) {
-// 			if(de->d_type == DT_DIR && tptr != FuseGlobal::tiers_.front())
-// 				continue;
-// 			if(de->d_type != DT_DIR && std::regex_match(de->d_name, temp_file_re))
-// 				continue;
-// 			struct stat st;
-// 			memset(&st, 0, sizeof(st));
-// 			st.st_ino = de->d_ino;
-// 			st.st_mode = de->d_type << 12;
-// 			if(filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
-// 				break;
-// 		}
-// 		
-// 		closedir(dp);
 	}
 	return 0;
 }
@@ -755,9 +723,7 @@ static int at_readdir(
 static int at_releasedir(const char *path, struct fuse_file_info *fi){
 	class at_dirp *d = get_dirp(fi);
 	(void) path;
-	for(DIR *dp : d->dps)
-		closedir(dp);
-	free(d);
+	delete d;
 	return 0;
 }
 
@@ -768,25 +734,16 @@ static int at_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *
 #ifdef LOG_METHODS
 	Logging::log.message("fsyncdir fh", 0);
 #endif
-// 	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
-// 		DIR *dp = d->dps[i];
-// 		struct dirent *de;
-// 		de = readdir(dp);
-// 		if(!de)
-// 			continue;
-// 		int fd = open((FuseGlobal::tiers_[i]->path() / de->d_name).c_str(), O_DIRECTORY);
-// // 		if(isdatasync)
-// // 			res = fdatasync(fd);
-// // 		else
-// 			res = fsync(fd);
-// 		
-// 		if(res == -1)
-// 			return -errno;
-// 	}
-	res = fsync(fi->fh);
-	
-	if(res == -1)
-		return -errno;
+	for(int i = 0; i < FuseGlobal::tiers_.size(); i++){
+		int fd = open(d->backends[i], O_DIRECTORY);
+		if(isdatasync)
+			res = fdatasync(fd);
+		else
+			res = fsync(fd);
+		
+		if(res == -1)
+			return -errno;
+	}
 	
 	return 0;
 }
@@ -845,6 +802,8 @@ void at_destroy(void *private_data){
 	FuseGlobal::adhoc_server_.join();
 	
 	delete FuseGlobal::autotier_;
+	
+	clear_map<int, char *>(FuseGlobal::fd_to_path_);
 }
 
 static int at_access(const char *path, int mask){
@@ -876,9 +835,9 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	Logging::log.message(ss.str(), 0);
 #endif
 	int res;
-	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
+	const char *fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
 	
-	res = open(fullpath.c_str(), fi->flags, mode);
+	res = open(fullpath, fi->flags, mode);
 	
 	if(res == -1)
 		return -errno;
@@ -892,6 +851,8 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 		return -errno;
 	
 	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front()).update(path, FuseGlobal::db_);
+	
+	insert_key<int, char *>(fi->fh, strdup(fullpath), FuseGlobal::fd_to_path_);
 	
 	return 0;
 }
