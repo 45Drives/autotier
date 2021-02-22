@@ -30,7 +30,7 @@
 #include <thread>
 #include <regex>
 
-#define LOG_METHODS
+//#define LOG_METHODS
 
 #define FUSE_USE_VERSION 30
 extern "C"{
