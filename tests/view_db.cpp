@@ -5,7 +5,7 @@
 #include <algorithm>
 
 int main(int argc, char *argv[]){
-	std::string db_path = "/run/autotier/" + std::to_string(std::hash<std::string>{}("/etc/autotier.conf")) + "/db";
+	std::string db_path = "/var/lib/autotier/" + std::to_string(std::hash<std::string>{}("/etc/autotier.conf")) + "/db";
 	rocksdb::DB *db;
 	rocksdb::Status status = rocksdb::DB::OpenForReadOnly(rocksdb::Options(), db_path, &db);
 	assert(status.ok());
