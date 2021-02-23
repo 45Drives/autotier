@@ -30,7 +30,7 @@
 #include <thread>
 #include <regex>
 
-//#define LOG_METHODS
+#define LOG_METHODS
 
 #define FUSE_USE_VERSION 30
 extern "C"{
@@ -61,6 +61,7 @@ namespace FuseGlobal{
 	static std::thread tier_worker_;
 	static std::thread adhoc_server_;
 	static std::map<int, char *> fd_to_path_;
+	static std::map<int, uintmax_t> size_at_open_;
 }
 
 FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
@@ -77,13 +78,11 @@ static bool is_directory(const char *relative_path){
 	return fs::is_directory(status);
 }
 
-template<class key_t, class value_t>
-void insert_key(key_t key, value_t value, std::map<key_t, value_t> &map){
+void insert_key(int key, char *value, std::map<int, char *> &map){
 	try{
-		value_t val = map.at(key);
+		char *val = map.at(key);
 		// already defined
-		if(typeid(val) == typeid(char *))
-			free(val);
+		free(val);
 		val = value;
 	}catch(const std::out_of_range &){
 		// insert new
@@ -97,6 +96,15 @@ void clear_map(std::map<key_t, value_t> &map){
 		for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
 			free(itr->second);
 	map.clear();
+}
+
+Tier *fullpath_to_tier(fs::path fullpath){
+	for(Tier *tptr : FuseGlobal::tiers_){
+		if(std::equal(tptr->path().string().begin(), tptr->path().string().end(), fullpath.string().begin())){
+			return tptr;
+		}
+	}
+	return nullptr;
 }
 
 // methods
@@ -348,12 +356,6 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
 	
 	if(fi){
-		try{
-			char *path = FuseGlobal::fd_to_path_.at(fi->fh);
-			
-		}catch(const std::out_of_range &){
-			
-		}
 		res = ftruncate(fi->fh, size);
 	}else{
 		Metadata f(path, FuseGlobal::db_);
@@ -361,10 +363,7 @@ static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		fs::path full_path = tier_path / path;
-		Tier *tptr = FuseGlobal::autotier_->tier_lookup(fs::path(tier_path));
-		tptr->subtract_file_size(fs::file_size(full_path));
 		res = truncate(full_path.c_str(), size);
-		tptr->add_file_size(size);
 	}
 	
 	if(res == -1)
@@ -379,10 +378,10 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	Logging::log.message(ss.str(), 0);
 #endif
 	int res;
-	const char *fullpath;
+	char *fullpath;
 	
 	if(is_directory(path)){
-		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+		fullpath = strdup((FuseGlobal::tiers_.front()->path() / path).c_str());
 		res = open(fullpath, fi->flags);
 		if(res == -1)
 			return -errno;
@@ -392,7 +391,9 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		fullpath = strdup((tier_path / path).c_str());
+		uintmax_t file_size = fs::file_size(fs::path(fullpath));
 		res = open(fullpath, fi->flags);
+		FuseGlobal::size_at_open_.insert(std::pair<int, uintmax_t>(res, file_size));
 		if(fi->flags & O_CREAT){
 			struct fuse_context *ctx = fuse_get_context();
 			int chown_res = fchown(res, ctx->uid, ctx->gid);
@@ -401,13 +402,20 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		}
 		f.touch();
 		f.update(path, FuseGlobal::db_);
+#ifdef LOG_METHODS
+		{
+		std::stringstream ss;
+		ss << "size at open of " << fullpath << ": " << file_size << ", from LUT: " << FuseGlobal::size_at_open_[res];
+		Logging::log.message(ss.str(), 0);
+		}
+#endif
 	}
 	
 	if(res == -1)
 		return -errno;
 	fi->fh = res;
 	
-	insert_key<int, char *>(res, strdup(fullpath), FuseGlobal::fd_to_path_);
+	insert_key(res, fullpath, FuseGlobal::fd_to_path_);
 	
 	return 0;
 }
@@ -431,6 +439,7 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
 	
 	if(res == -1)
 		return -errno;
+	
 	return res;
 }
 
@@ -487,10 +496,32 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 	(void) path;
 	try{
 		char *fullpath = FuseGlobal::fd_to_path_.at(fi->fh);
+		Tier *tptr = fullpath_to_tier(fullpath);
+		try{
+			tptr->subtract_file_size(FuseGlobal::size_at_open_.at(fi->fh));
+#ifdef LOG_METHODS
+			{
+			std::stringstream ss;
+			ss << "size from LUT: " << FuseGlobal::size_at_open_.at(fi->fh);
+			Logging::log.message(ss.str(), 0);
+			}
+#endif
+			tptr->add_file_size(fs::file_size(fullpath));
+#ifdef LOG_METHODS
+			{
+			std::stringstream ss;
+			ss << "size after close: " << fs::file_size(fullpath);
+			Logging::log.message(ss.str(), 0);
+			}
+#endif
+		}catch(const std::out_of_range &){
+			Logging::log.warning("release: Could not find fd in size map.");
+		}
 		free(fullpath);
 		FuseGlobal::fd_to_path_.erase(fi->fh);
+		FuseGlobal::size_at_open_.erase(fi->fh);
 	}catch(const std::out_of_range &err){
-		Logging::log.warning("release: Could not find fd in map.");
+		Logging::log.warning("release: Could not find fd in path map.");
 	}
 	res = close(fi->fh);
 	return res;
@@ -804,6 +835,7 @@ void at_destroy(void *private_data){
 	delete FuseGlobal::autotier_;
 	
 	clear_map<int, char *>(FuseGlobal::fd_to_path_);
+	FuseGlobal::size_at_open_.clear();
 }
 
 static int at_access(const char *path, int mask){
@@ -830,14 +862,24 @@ static int at_access(const char *path, int mask){
 
 static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 #ifdef LOG_METHODS
-	std::stringstream ss;
-	ss << "create " << path << " mode: " << std::oct << mode << " flags: " << std::bitset<8>(fi->flags);
-	Logging::log.message(ss.str(), 0);
+	{
+		std::stringstream ss;
+		ss << "create " << path << " mode: " << std::oct << mode << " flags: " << std::bitset<8>(fi->flags);
+		Logging::log.message(ss.str(), 0);
+	}
 #endif
 	int res;
-	const char *fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+	char *fullpath = strdup((FuseGlobal::tiers_.front()->path() / path).c_str());
 	
 	res = open(fullpath, fi->flags, mode);
+	
+#ifdef LOG_METHODS
+	{
+		std::stringstream ss;
+		ss << "fullpath: " << fullpath << " res: " << res;
+		Logging::log.message(std::string(ss.str()), 0);
+	}
+#endif
 	
 	if(res == -1)
 		return -errno;
@@ -852,7 +894,8 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	
 	Metadata(path, FuseGlobal::db_, FuseGlobal::tiers_.front()).update(path, FuseGlobal::db_);
 	
-	insert_key<int, char *>(fi->fh, strdup(fullpath), FuseGlobal::fd_to_path_);
+	insert_key(fi->fh, fullpath, FuseGlobal::fd_to_path_);
+	FuseGlobal::size_at_open_[fi->fh] = 0;
 	
 	return 0;
 }
@@ -902,7 +945,9 @@ static int at_write_buf(const char *path, struct fuse_bufvec *buf, off_t offset,
 	dst.buf[0].fd = fi->fh;
 	dst.buf[0].pos = offset;
 	
-	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+	ssize_t bytes_copied = fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+	
+	return bytes_copied;
 }
 
 static int at_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size, off_t offset, struct fuse_file_info *fi){
