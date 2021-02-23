@@ -30,7 +30,9 @@
 #include <thread>
 #include <regex>
 
-#define LOG_METHODS
+//#define LOG_METHODS // uncomment to enable debug output to journalctl
+
+#define USE_XATTR
 
 #define FUSE_USE_VERSION 30
 extern "C"{
@@ -112,18 +114,54 @@ Tier *fullpath_to_tier(fs::path fullpath){
 static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "getattr " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	if(fi == NULL){
 		if(is_directory(path)){
 			res = lstat((FuseGlobal::tiers_.front()->path() / path).c_str(), stbuf);
 		}else{
 			Metadata f(path, FuseGlobal::db_);
+#ifdef LOG_METHODS
+			{
+			std::stringstream ss;
+			ss << "getattr file " << path << " found? " << std::boolalpha << !f.not_found();
+			Logging::log.message(ss.str(), 0);
+			}
+#endif
 			if(f.not_found())
 				return -ENOENT;
 			
 			fs::path tier_path = f.tier_path();
+#ifdef LOG_METHODS
+			{
+			std::stringstream ss;
+			ss << "path: " << (tier_path / path).c_str();
+			Logging::log.message(ss.str(), 0);
+			}
+#endif
 			res = lstat((tier_path / path).c_str(), stbuf);
+#ifdef LOG_METHODS
+			{
+			std::stringstream ss;
+			ss << "res: " << res;
+			Logging::log.message(ss.str(), 0);
+			}
+#endif
 		}
 	}else{
+#ifdef LOG_METHODS
+		{
+		std::stringstream ss;
+		ss << "getattr fh " << FuseGlobal::fd_to_path_.at(fi->fh);
+		Logging::log.message(ss.str(), 0);
+		}
+#endif
 		res = fstat(fi->fh, stbuf);
 	}
 	
@@ -134,6 +172,14 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
 
 static int at_readlink(const char *path, char *buf, size_t size){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "readlink " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	Metadata f(path, FuseGlobal::db_);
 	if(f.not_found())
@@ -151,6 +197,15 @@ static int at_readlink(const char *path, char *buf, size_t size){
 
 static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "mknod " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	fs::path fullpath(FuseGlobal::tiers_.front()->path() / path);
 	
 	if(S_ISFIFO(mode))
@@ -174,6 +229,14 @@ static int at_mknod(const char *path, mode_t mode, dev_t rdev){
 static int at_mkdir(const char *path, mode_t mode){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "mkdir " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	fuse_context *ctx = fuse_get_context();
 	
 	for(Tier *tptr : FuseGlobal::tiers_){
@@ -190,6 +253,14 @@ static int at_mkdir(const char *path, mode_t mode){
 
 static int at_unlink(const char *path){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "unlink " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	Metadata f(path, FuseGlobal::db_);
 	if(f.not_found())
@@ -214,6 +285,14 @@ static int at_unlink(const char *path){
 static int at_rmdir(const char *path){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "rmdir " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	for(Tier *tptr : FuseGlobal::tiers_){
 		res = rmdir((tptr->path() / path).c_str());
 		if(res == -1)
@@ -225,6 +304,14 @@ static int at_rmdir(const char *path){
 
 static int at_symlink(const char *from, const char *to){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "symlink " << from << "->" << to;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	res = symlink(from, (FuseGlobal::tiers_.front()->path() / to).c_str());
 	
@@ -244,6 +331,14 @@ static int at_symlink(const char *from, const char *to){
 
 static int at_rename(const char *from, const char *to, unsigned int flags){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "rename " << from << "->" << to;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(flags)
 		return -EINVAL;
@@ -266,6 +361,14 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 
 static int at_link(const char *from, const char *to){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "link " << from << "->" << to;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	Metadata f(from, FuseGlobal::db_);
 	if(f.not_found())
@@ -290,6 +393,14 @@ static int at_link(const char *from, const char *to){
 
 static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "chmod";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(fi){
 #ifdef LOG_METHODS
@@ -323,6 +434,14 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "chown";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	if(fi){
 #ifdef LOG_METHODS
 		Logging::log.message("chown fh", 0);
@@ -354,6 +473,14 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 
 static int at_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "truncate";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(fi){
 		res = ftruncate(fi->fh, size);
@@ -424,6 +551,14 @@ static int at_read(const char *path, char *buf, size_t size, off_t offset, struc
 	int res;
 	(void) path;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "read";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	res = pread(fi->fh, buf, size, offset);
 	
 	if(res == -1)
@@ -435,6 +570,14 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
 	int res;
 	(void) path;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "write";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	res = pwrite(fi->fh, buf, size, offset);
 	
 	if(res == -1)
@@ -445,6 +588,15 @@ static int at_write(const char *path, const char *buf, size_t size, off_t offset
 
 static int at_statfs(const char *path, struct statvfs *stbuf){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "statfs";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	struct statvfs fs_stats_temp;
 	memset(stbuf, 0, sizeof(struct statvfs));
 	
@@ -493,6 +645,14 @@ static int at_flush(const char *path, struct fuse_file_info *fi){
 static int at_release(const char *path, struct fuse_file_info *fi){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "release";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	(void) path;
 	try{
 		char *fullpath = FuseGlobal::fd_to_path_.at(fi->fh);
@@ -530,7 +690,6 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi){
 	int res;
 	
-	
 #ifdef LOG_METHODS
 		Logging::log.message("fsync fh", 0);
 #endif
@@ -548,12 +707,23 @@ static int at_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
 	return 0;
 }
 
+#ifdef USE_XATTR
 static int at_setxattr(const char *path, const char *name, const char *value, size_t size, int flags){
 	int res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "setxattr";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
+	fs::path fullpath;
+	
 	if(is_directory(path)){
 		for(Tier * const &tier : FuseGlobal::tiers_){
-			fs::path fullpath = tier->path() / path;
+			fullpath = tier->path() / path;
 			res = lsetxattr(fullpath.c_str(), name, value, size, flags);
 			if(res == -1)
 				return -errno;
@@ -562,7 +732,7 @@ static int at_setxattr(const char *path, const char *name, const char *value, si
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
-		fs::path fullpath = f.tier_path() + std::string(path);
+		fullpath = f.tier_path() + std::string(path);
 		res = lsetxattr(fullpath.c_str(), name, value, size, flags);
 		if(res == -1)
 			return -errno;
@@ -574,18 +744,27 @@ static int at_setxattr(const char *path, const char *name, const char *value, si
 static int at_getxattr(const char *path, const char *name, char *value, size_t size){
 	int res;
 	
-	const char *fullpath;
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "getxattr " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
+	fs::path fullpath;
 	
 	if(is_directory(path))
-		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+		fullpath = FuseGlobal::tiers_.front()->path() / path;
 	else{
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
-		fullpath = (f.tier_path() + std::string(path)).c_str();
+		fullpath = f.tier_path() + std::string(path);
 	}
 	
-	res = lgetxattr(fullpath, name, value, size);
+	res = lgetxattr(fullpath.c_str(), name, value, size);
+	
 	if(res == -1)
 		return -errno;
 	
@@ -595,18 +774,26 @@ static int at_getxattr(const char *path, const char *name, char *value, size_t s
 static int at_listxattr(const char *path, char *list, size_t size){
 	int res;
 	
-	const char *fullpath;
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "listxattr";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
+	fs::path fullpath;
 	
 	if(is_directory(path))
-		fullpath = (FuseGlobal::tiers_.front()->path() / path).c_str();
+		fullpath = FuseGlobal::tiers_.front()->path() / path;
 	else{
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
 			return -ENOENT;
-		fullpath = (f.tier_path() + std::string(path)).c_str();
+		fullpath = f.tier_path() + std::string(path);
 	}
 	
-	res = llistxattr(fullpath, list, size);
+	res = llistxattr(fullpath.c_str(), list, size);
 	if(res == -1)
 		return -errno;
 	
@@ -615,6 +802,14 @@ static int at_listxattr(const char *path, char *list, size_t size){
 
 static int at_removexattr(const char *path, const char *name){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "removexattr";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(is_directory(path)){
 		for(Tier * const &tier : FuseGlobal::tiers_){
@@ -635,6 +830,7 @@ static int at_removexattr(const char *path, const char *name){
 	
 	return 0;
 }
+#endif
 
 class at_dirp{
 public:
@@ -758,6 +954,7 @@ static int at_releasedir(const char *path, struct fuse_file_info *fi){
 	return 0;
 }
 
+#ifdef USE_FSYNCDIR
 static int at_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *fi){
 	int res;
 	class at_dirp *d = get_dirp(fi);
@@ -778,6 +975,7 @@ static int at_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *
 	
 	return 0;
 }
+#endif
 
 void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	(void) conn;
@@ -806,6 +1004,12 @@ void *at_init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 	FuseGlobal::tier_worker_ = std::thread(&TierEngine::begin, FuseGlobal::autotier_, true);
 	
 	FuseGlobal::adhoc_server_ = std::thread(&TierEngine::process_adhoc_requests, FuseGlobal::autotier_);
+	
+#ifdef LOG_METHODS
+	pthread_setname_np(FuseGlobal::tier_worker_.native_handle(), "AT Tier Worker");
+	pthread_setname_np(FuseGlobal::adhoc_server_.native_handle(), "AT AdHoc Server");
+	pthread_setname_np(pthread_self(), "AT Fuse Thread");
+#endif
 	
 	return NULL;
 }
@@ -840,6 +1044,14 @@ void at_destroy(void *private_data){
 
 static int at_access(const char *path, int mask){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "access " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(is_directory(path)){
 		for(Tier *tptr: FuseGlobal::tiers_){
@@ -911,6 +1123,14 @@ static int at_lock(const char *path, struct fuse_file_info *fi, int cmd, struct 
 
 static int at_utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi){
 	int res;
+	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "utimens " << path;
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
 	
 	if(fi){
 		res = futimens(fi->fh, ts);
@@ -1011,6 +1231,14 @@ static off_t at_lseek(const char *path, off_t off, int whence, struct fuse_file_
 	int fd;
 	off_t res;
 	
+#ifdef LOG_METHODS
+	{
+	std::stringstream ss;
+	ss << "lseek";
+	Logging::log.message(ss.str(), 0);
+	}
+#endif
+	
 	if(fi == NULL){
 		Metadata f(path, FuseGlobal::db_);
 		if(f.not_found())
@@ -1056,14 +1284,18 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.flush						= at_flush,
 		.release					= at_release,
 		.fsync						= at_fsync,
+#ifdef USE_XATTR
 		.setxattr					= at_setxattr,
 		.getxattr					= at_getxattr,
 		.listxattr					= at_listxattr,
 		.removexattr				= at_removexattr,
+#endif
 		.opendir					= at_opendir,
 		.readdir					= at_readdir,
 		.releasedir					= at_releasedir,
+#ifdef USE_FSYNCDIR
 		.fsyncdir					= at_fsyncdir,
+#endif
 		.init		 				= at_init,
 		.destroy					= at_destroy,
 		.access						= at_access,
