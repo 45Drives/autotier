@@ -98,7 +98,7 @@ void TierEngine::begin(bool daemon_mode){
 		tier(tier_time - last_tier_time);
 		last_tier_time = std::chrono::steady_clock::now();
 		// don't wait for oneshot execution
-		while(daemon_mode && std::chrono::steady_clock::now() < wake_time){
+		while(daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_){
 			execute_queued_work();
 			sleep_until(wake_time);
 		}
