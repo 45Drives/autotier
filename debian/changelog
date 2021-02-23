@@ -1,3 +1,14 @@
+autotier (1.0.1-1focal) focal; urgency=medium
+
+  * Use file handles for everything by setting nullpath_ok in fuse config.
+  * Rewrite readdir and implement opendir and releasedir to use fi->fh.
+  * Keep track of live tier usage based on file size inside tier.
+  * Fix bug where tier worker thread doesn't exit on unmount.
+  * Fix bug where ownership and permissions aren't properly copied.
+  * Implement extended attribute methods.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Feb 2021 4:27:00 -0400
+
 autotier (1.0.0-1focal) focal; urgency=high
 
   * Initial packaging of autotier for Ubuntu Focal.
