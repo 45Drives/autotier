@@ -141,7 +141,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 		}
 	}
 	if(copy_success){
-		copy_ownership_and_perms(old_path, new_path);
+		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
 		fs::rename(new_tmp_path, new_path);
 		Logging::log.message("Copy succeeded.\n", 2);
