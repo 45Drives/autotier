@@ -80,16 +80,18 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 // helpers
 
 namespace l{
-	static bool is_directory(const char *relative_path){
+	static int is_directory(const fs::path &relative_path){
 		boost::system::error_code ec;
 		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
 		fs::file_status status = fs::symlink_status(priv->tiers_.front()->path() / relative_path, ec);
-		if(ec.failed())
-			return false;
+		if(ec.failed()){
+			errno = ec.value();
+			return -1;
+		}
 		return fs::is_directory(status);
 	}
-
-	void insert_key(int key, char *value, std::map<int, char *> &map){
+	
+	static void insert_key(int key, char *value, std::map<int, char *> &map){
 		try{
 			char *val = map.at(key);
 			// already defined
@@ -100,16 +102,16 @@ namespace l{
 			map[key] = value;
 		}
 	}
-
+	
 	template<class key_t, class value_t>
-	void clear_map(std::map<key_t, value_t> &map){
+	static void clear_map(std::map<key_t, value_t> &map){
 		if(typeid(value_t) == typeid(char *))
 			for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
 				free(itr->second);
 		map.clear();
 	}
-
-	Tier *fullpath_to_tier(fs::path fullpath){
+	
+	static Tier *fullpath_to_tier(fs::path fullpath){
 		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
 		for(Tier *tptr : priv->tiers_){
 			if(std::equal(tptr->path().string().begin(), tptr->path().string().end(), fullpath.string().begin())){
@@ -118,16 +120,16 @@ namespace l{
 		}
 		return nullptr;
 	}
-
-	intmax_t file_size(int fd){
+	
+	static intmax_t file_size(int fd){
 		struct stat st = {};
 		int res = fstat(fd, &st);
 		if(res == -1)
 			return res;
 		return st.st_size;
 	}
-
-	intmax_t file_size(const fs::path &path){
+	
+	static intmax_t file_size(const fs::path &path){
 		struct stat st = {};
 		int res = lstat(path.c_str(), &st);
 		if(res == -1)
@@ -155,7 +157,10 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
 #endif
 	
 	if(fi == NULL){
-		if(l::is_directory(path)){
+		int is_directory = l::is_directory(path);
+		if(is_directory == -1)
+			return -errno;
+		if(is_directory){
 			res = lstat((priv->tiers_.front()->path() / path).c_str(), stbuf);
 		}else{
 			Metadata f(path, priv->db_);
@@ -488,7 +493,10 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 #ifdef LOG_METHODS
 		Logging::log.message("chmod " + std::string(path), 0);
 #endif
-		if(l::is_directory(path)){
+		int is_directory = l::is_directory(path);
+		if(is_directory == -1)
+			return -errno;
+		if(is_directory){
 			for(Tier *tptr: priv->tiers_){
 				res = chmod((tptr->path() / path).c_str(), mode);
 				if(res == -1)
@@ -533,7 +541,10 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 #ifdef LOG_METHODS
 		Logging::log.message("chown " + std::string(path), 0);
 #endif
-		if(l::is_directory(path)){
+		int is_directory = l::is_directory(path);
+		if(is_directory == -1)
+			return -errno;
+		if(is_directory){
 			for(Tier *tptr: priv->tiers_){
 				res = lchown((tptr->path() / path).c_str(), uid, gid);
 				if(res == -1)
@@ -600,7 +611,10 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	Logging::log.message(ss.str(), 0);
 #endif
 	
-	if(l::is_directory(path)){
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
 		res = open(fullpath, fi->flags);
 		if(res == -1)
@@ -836,7 +850,10 @@ static int at_setxattr(const char *path, const char *name, const char *value, si
 	
 	fs::path fullpath;
 	
-	if(l::is_directory(path)){
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		for(Tier * const &tier : priv->tiers_){
 			fullpath = tier->path() / path;
 			res = lsetxattr(fullpath.c_str(), name, value, size, flags);
@@ -874,9 +891,12 @@ static int at_getxattr(const char *path, const char *name, char *value, size_t s
 	
 	fs::path fullpath;
 	
-	if(l::is_directory(path))
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		fullpath = priv->tiers_.front()->path() / path;
-	else{
+	}else{
 		Metadata f(path, priv->db_);
 		if(f.not_found())
 			return -ENOENT;
@@ -909,9 +929,12 @@ static int at_listxattr(const char *path, char *list, size_t size){
 	
 	fs::path fullpath;
 	
-	if(l::is_directory(path))
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		fullpath = priv->tiers_.front()->path() / path;
-	else{
+	}else{
 		Metadata f(path, priv->db_);
 		if(f.not_found())
 			return -ENOENT;
@@ -941,7 +964,10 @@ static int at_removexattr(const char *path, const char *name){
 	}
 #endif
 	
-	if(l::is_directory(path)){
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		for(Tier * const &tier : priv->tiers_){
 			fs::path fullpath = tier->path() / path;
 			res = lremovexattr(fullpath.c_str(), name);
@@ -1206,7 +1232,10 @@ static int at_access(const char *path, int mask){
 	}
 #endif
 	
-	if(l::is_directory(path)){
+	int is_directory = l::is_directory(path);
+	if(is_directory == -1)
+		return -errno;
+	if(is_directory){
 		for(Tier *tptr: priv->tiers_){
 			res = access((tptr->path() / path).c_str(), mask);
 			if(res != 0)
@@ -1298,7 +1327,10 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 	if(fi){
 		res = futimens(fi->fh, ts);
 	}else{
-		if(l::is_directory(path)){
+		int is_directory = l::is_directory(path);
+		if(is_directory == -1)
+			return -errno;
+		if(is_directory){
 			for(Tier *tptr: priv->tiers_){
 				res = utimensat(0, (tptr->path() / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
 				if(res != 0)
