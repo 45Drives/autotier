@@ -39,10 +39,12 @@ Tier::Tier(std::string id){
 }
 
 void Tier::add_file_size(uintmax_t size){
+	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ += size;
 }
 
 void Tier::subtract_file_size(uintmax_t size){
+	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ -= size;
 }
 
