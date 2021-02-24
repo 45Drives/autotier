@@ -79,43 +79,61 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 
 // helpers
 
-static bool is_directory(const char *relative_path){
-	boost::system::error_code ec;
-	FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
-	fs::file_status status = fs::symlink_status(priv->tiers_.front()->path() / relative_path, ec);
-	if(ec.failed())
-		return false;
-	return fs::is_directory(status);
-}
-
-void insert_key(int key, char *value, std::map<int, char *> &map){
-	try{
-		char *val = map.at(key);
-		// already defined
-		free(val);
-		val = value;
-	}catch(const std::out_of_range &){
-		// insert new
-		map[key] = value;
+namespace l{
+	static bool is_directory(const char *relative_path){
+		boost::system::error_code ec;
+		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
+		fs::file_status status = fs::symlink_status(priv->tiers_.front()->path() / relative_path, ec);
+		if(ec.failed())
+			return false;
+		return fs::is_directory(status);
 	}
-}
 
-template<class key_t, class value_t>
-void clear_map(std::map<key_t, value_t> &map){
-	if(typeid(value_t) == typeid(char *))
-		for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
-			free(itr->second);
-	map.clear();
-}
-
-Tier *fullpath_to_tier(fs::path fullpath){
-	FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
-	for(Tier *tptr : priv->tiers_){
-		if(std::equal(tptr->path().string().begin(), tptr->path().string().end(), fullpath.string().begin())){
-			return tptr;
+	void insert_key(int key, char *value, std::map<int, char *> &map){
+		try{
+			char *val = map.at(key);
+			// already defined
+			free(val);
+			val = value;
+		}catch(const std::out_of_range &){
+			// insert new
+			map[key] = value;
 		}
 	}
-	return nullptr;
+
+	template<class key_t, class value_t>
+	void clear_map(std::map<key_t, value_t> &map){
+		if(typeid(value_t) == typeid(char *))
+			for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
+				free(itr->second);
+		map.clear();
+	}
+
+	Tier *fullpath_to_tier(fs::path fullpath){
+		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
+		for(Tier *tptr : priv->tiers_){
+			if(std::equal(tptr->path().string().begin(), tptr->path().string().end(), fullpath.string().begin())){
+				return tptr;
+			}
+		}
+		return nullptr;
+	}
+
+	intmax_t file_size(int fd){
+		struct stat st = {};
+		int res = fstat(fd, &st);
+		if(res == -1)
+			return res;
+		return st.st_size;
+	}
+
+	intmax_t file_size(const fs::path &path){
+		struct stat st = {};
+		int res = lstat(path.c_str(), &st);
+		if(res == -1)
+			return res;
+		return st.st_size;
+	}
 }
 
 // methods
@@ -137,7 +155,7 @@ static int at_getattr(const char *path, struct stat *stbuf, struct fuse_file_inf
 #endif
 	
 	if(fi == NULL){
-		if(is_directory(path)){
+		if(l::is_directory(path)){
 			res = lstat((priv->tiers_.front()->path() / path).c_str(), stbuf);
 		}else{
 			Metadata f(path, priv->db_);
@@ -301,7 +319,12 @@ static int at_unlink(const char *path){
 	fs::path full_path = tier_path / path;
 	
 	Tier *tptr = priv->autotier_->tier_lookup(fs::path(tier_path));
-	tptr->subtract_file_size(fs::file_size(full_path));
+	
+	intmax_t size = l::file_size(full_path);
+	if(size == -1){
+		return -errno;
+	}
+	tptr->subtract_file_size(size);
 	
 	res = unlink(full_path.c_str());
 	
@@ -465,7 +488,7 @@ static int at_chmod(const char *path, mode_t mode, struct fuse_file_info *fi){
 #ifdef LOG_METHODS
 		Logging::log.message("chmod " + std::string(path), 0);
 #endif
-		if(is_directory(path)){
+		if(l::is_directory(path)){
 			for(Tier *tptr: priv->tiers_){
 				res = chmod((tptr->path() / path).c_str(), mode);
 				if(res == -1)
@@ -510,7 +533,7 @@ static int at_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_inf
 #ifdef LOG_METHODS
 		Logging::log.message("chown " + std::string(path), 0);
 #endif
-		if(is_directory(path)){
+		if(l::is_directory(path)){
 			for(Tier *tptr: priv->tiers_){
 				res = lchown((tptr->path() / path).c_str(), uid, gid);
 				if(res == -1)
@@ -577,7 +600,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 	Logging::log.message(ss.str(), 0);
 #endif
 	
-	if(is_directory(path)){
+	if(l::is_directory(path)){
 		fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
 		res = open(fullpath, fi->flags);
 		if(res == -1)
@@ -588,7 +611,10 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 			return -ENOENT;
 		fs::path tier_path = f.tier_path();
 		fullpath = strdup((tier_path / path).c_str());
-		uintmax_t file_size = fs::file_size(fs::path(fullpath));
+		// get size before open() in case called with truncate
+		intmax_t file_size = l::file_size(fs::path(fullpath));
+		if(file_size == -1)
+			return -errno;
 		res = open(fullpath, fi->flags);
 		priv->size_at_open_.insert(std::pair<int, uintmax_t>(res, file_size));
 		if(fi->flags & O_CREAT){
@@ -612,7 +638,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		return -errno;
 	fi->fh = res;
 	
-	insert_key(res, fullpath, priv->fd_to_path_);
+	l::insert_key(res, fullpath, priv->fd_to_path_);
 	
 	return 0;
 }
@@ -737,7 +763,7 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 	
 	try{
 		char *fullpath = priv->fd_to_path_.at(fi->fh);
-		Tier *tptr = fullpath_to_tier(fullpath);
+		Tier *tptr = l::fullpath_to_tier(fullpath);
 		try{
 			tptr->subtract_file_size(priv->size_at_open_.at(fi->fh));
 #ifdef LOG_METHODS
@@ -747,7 +773,10 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 			Logging::log.message(ss.str(), 0);
 			}
 #endif
-			tptr->add_file_size(fs::file_size(fullpath));
+			intmax_t size = l::file_size(fi->fh);
+			if(size == -1)
+				return -errno;
+			tptr->add_file_size(size);
 #ifdef LOG_METHODS
 			{
 			std::stringstream ss;
@@ -807,7 +836,7 @@ static int at_setxattr(const char *path, const char *name, const char *value, si
 	
 	fs::path fullpath;
 	
-	if(is_directory(path)){
+	if(l::is_directory(path)){
 		for(Tier * const &tier : priv->tiers_){
 			fullpath = tier->path() / path;
 			res = lsetxattr(fullpath.c_str(), name, value, size, flags);
@@ -845,7 +874,7 @@ static int at_getxattr(const char *path, const char *name, char *value, size_t s
 	
 	fs::path fullpath;
 	
-	if(is_directory(path))
+	if(l::is_directory(path))
 		fullpath = priv->tiers_.front()->path() / path;
 	else{
 		Metadata f(path, priv->db_);
@@ -880,7 +909,7 @@ static int at_listxattr(const char *path, char *list, size_t size){
 	
 	fs::path fullpath;
 	
-	if(is_directory(path))
+	if(l::is_directory(path))
 		fullpath = priv->tiers_.front()->path() / path;
 	else{
 		Metadata f(path, priv->db_);
@@ -912,7 +941,7 @@ static int at_removexattr(const char *path, const char *name){
 	}
 #endif
 	
-	if(is_directory(path)){
+	if(l::is_directory(path)){
 		for(Tier * const &tier : priv->tiers_){
 			fs::path fullpath = tier->path() / path;
 			res = lremovexattr(fullpath.c_str(), name);
@@ -1157,7 +1186,7 @@ void at_destroy(void *private_data){
 	
 	delete priv->autotier_;
 	
-	clear_map<int, char *>(priv->fd_to_path_);
+	l::clear_map<int, char *>(priv->fd_to_path_);
 	priv->size_at_open_.clear();
 }
 
@@ -1177,7 +1206,7 @@ static int at_access(const char *path, int mask){
 	}
 #endif
 	
-	if(is_directory(path)){
+	if(l::is_directory(path)){
 		for(Tier *tptr: priv->tiers_){
 			res = access((tptr->path() / path).c_str(), mask);
 			if(res != 0)
@@ -1235,7 +1264,7 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	
 	Metadata(path, priv->db_, priv->tiers_.front()).update(path, priv->db_);
 	
-	insert_key(fi->fh, fullpath, priv->fd_to_path_);
+	l::insert_key(fi->fh, fullpath, priv->fd_to_path_);
 	priv->size_at_open_[fi->fh] = 0;
 	
 	return 0;
@@ -1269,7 +1298,7 @@ static int at_utimens(const char *path, const struct timespec ts[2], struct fuse
 	if(fi){
 		res = futimens(fi->fh, ts);
 	}else{
-		if(is_directory(path)){
+		if(l::is_directory(path)){
 			for(Tier *tptr: priv->tiers_){
 				res = utimensat(0, (tptr->path() / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
 				if(res != 0)
