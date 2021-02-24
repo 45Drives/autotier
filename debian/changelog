@@ -1,3 +1,10 @@
+autotier (1.0.2-1focal) focal; urgency=high
+
+  * Store fuse "global" data in fuse_context->private_data.
+  * Fix crash from AdHoc worker thread calling exit() on errors.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 3:40:00 -0400
+
 autotier (1.0.1-1focal) focal; urgency=medium
 
   * Use file handles for everything by setting nullpath_ok in fuse config.
