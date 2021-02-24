@@ -55,7 +55,7 @@ private:
 	/* Number of times the file was accessed since last tiering.
 	 * Resets to 0 after each popularity calculation.
 	 */
-	time_t last_popularity_calc_ = 0;
+// 	time_t last_popularity_calc_ = 0;
 	/* For finding period to use to calculate access frequency.
 	 */
 	double popularity_ = MULTIPLIER*AVG_USAGE;
@@ -80,7 +80,7 @@ private:
 		(void) version;
 		ar & tier_path_;
 		ar & access_count_;
-		ar & last_popularity_calc_;
+// 		ar & last_popularity_calc_;
 		ar & popularity_;
 		ar & pinned_;
 	}
@@ -183,6 +183,9 @@ public:
 	 */
 	uintmax_t size(void) const;
 	/* Get size of file in bytes.
+	 */
+	void pin(void);
+	/* set metadata_.pinned_.
 	 */
 	bool is_pinned(void) const;
 	/* Get metadata_.pinned_.

@@ -1,3 +1,22 @@
+autotier (1.0.2-1focal) focal; urgency=high
+
+  * Store fuse "global" data in fuse_context->private_data.
+  * Fix crash from AdHoc worker thread calling exit() on errors.
+  * Fix accidentally reporting file not found in l::is_directory().
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 3:40:00 -0400
+
+autotier (1.0.1-1focal) focal; urgency=medium
+
+  * Use file handles for everything by setting nullpath_ok in fuse config.
+  * Rewrite readdir and implement opendir and releasedir to use fi->fh.
+  * Keep track of live tier usage based on file size inside tier.
+  * Fix bug where tier worker thread doesn't exit on unmount.
+  * Fix bug where ownership and permissions aren't properly copied.
+  * Implement extended attribute methods.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Feb 2021 4:27:00 -0400
+
 autotier (1.0.0-1focal) focal; urgency=high
 
   * Initial packaging of autotier for Ubuntu Focal.

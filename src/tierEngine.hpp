@@ -122,20 +122,20 @@ public:
 	 * by popularity, and finally move the files to their
 	 * respective tiers.
 	 */
-	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
+	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage));
 	/* Call crawl() for each tier in tiers.
 	 */
-	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr));
+	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage);
 	/* Recurse into tier directory, executing function on each file.
 	 * Function can be emplace_file(), print_file_pins(), or print_file_popularity().
 	 */
-	void emplace_file(fs::directory_entry &file, Tier *tptr);
+	void emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
 	/* Place file into files_, constructing with fs::path, Tier*, and db_.
 	 */
-	void print_file_pins(fs::directory_entry &file, Tier *tptr);
+	void print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
 	/* Construct File from file, if pinned, print tier ID.
 	 */
-	void print_file_popularity(fs::directory_entry &file, Tier *tptr);
+	void print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
 	/* Construct File from file, print popularity.
 	 */
 	void calc_popularity(std::chrono::steady_clock::duration period);
@@ -166,10 +166,6 @@ public:
 	/* call wait_until on the condition variable. Puts thread
 	 * to sleep until time reaches t or woken by sleep_cv_.notify_one()
 	 */
-	void status(bool json = false);
-	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
-	 * uses Logger::format_bytes() for printing current usage and watermark.
-	 */
 	void stop(void);
 	/* Obtain sleep_mt_, set stop_flag_ to true,
 	 * wake sleeping tier thread with sleep_cv_.notify_one().
@@ -190,6 +186,10 @@ public:
 	void process_which_tier(AdHoc &work);
 	/* Return table of each argument file along with its corresponding tier name
 	 * and full backend path.
+	 */
+	void process_status(const AdHoc &work);
+	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
+	 * uses Logger::format_bytes() for printing current usage and watermark.
 	 */
 	void execute_queued_work(void);
 	/* Tiering thread calls this when woken to execute the queued work.

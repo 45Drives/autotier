@@ -35,13 +35,24 @@ void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &ne
 
 Tier::Tier(std::string id){
 	id_ = id;
+	usage_ = 0;
 }
 
 void Tier::add_file_size(uintmax_t size){
-	sim_usage_ += size;
+	std::lock_guard<std::mutex> lk(usage_mt_);
+	usage_ += size;
 }
 
 void Tier::subtract_file_size(uintmax_t size){
+	std::lock_guard<std::mutex> lk(usage_mt_);
+	usage_ -= size;
+}
+
+void Tier::add_file_size_sim(uintmax_t size){
+	sim_usage_ += size;
+}
+
+void Tier::subtract_file_size_sim(uintmax_t size){
 	sim_usage_ -= size;
 }
 
@@ -58,8 +69,7 @@ void Tier::get_capacity_and_usage(void){
 	if((statvfs(path_.c_str(), &fs_stats) == -1))
 		Logging::log.error("statvfs() failed on " + path_.string());
 	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
-	usage_ = capacity_ - (fs_stats.f_bavail * fs_stats.f_frsize);
-	sim_usage_ = usage_;
+	sim_usage_ = 0;
 }
 
 void Tier::calc_quota_bytes(void){
@@ -101,7 +111,7 @@ void Tier::transfer_files(void){
 	for(File * fptr : incoming_files_){
 		if(fptr->is_open()){
 			Logging::log.warning("File is open by another process: " + fptr->full_path().string());
-			return;
+			continue;
 		}
 		fs::path old_path = fptr->full_path();
 		fs::path new_path = path_ / fptr->relative_path();
@@ -133,12 +143,16 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 		}
 	}
 	if(copy_success){
-		copy_ownership_and_perms(old_path, new_path);
+		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
 		fs::rename(new_tmp_path, new_path);
 		Logging::log.message("Copy succeeded.\n", 2);
 	}
 	return copy_success;
+}
+
+void Tier::usage(uintmax_t usage){
+	usage_ = usage;
 }
 
 double Tier::usage_percent(void) const{

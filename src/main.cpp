@@ -23,6 +23,7 @@
 #include "tierEngine.hpp"
 #include "tools.hpp"
 #include "fusePassthrough.hpp"
+#include <iomanip>
 #include <sstream>
 #include <cstring>
 #include <boost/filesystem.hpp>
@@ -141,6 +142,7 @@ int main(int argc, char *argv[]){
 			case PIN:
 			case UNPIN:
 			case WHICHTIER:
+			case STATUS:
 				/* Pass command through to the filesystem
 				 * tier engine through a named FIFO pipe.
 				 */
@@ -159,15 +161,27 @@ int main(int argc, char *argv[]){
 							Logging::log.error("No remaining valid paths.");
 						for(const std::string &path : paths)
 							payload.emplace_back(path);
+					}else if(cmd == STATUS){
+						std::stringstream ss;
+						ss << std::boolalpha << json << std::endl;
+						payload.emplace_back(ss.str());
 					}
 					
 					fs::path run_path = Config(config_path, config_overrides).run_path();
 					
-					send_fifo_payload(payload, run_path / "request.pipe");
+					try{
+						send_fifo_payload(payload, run_path / "request.pipe");
+					}catch(const fifo_exception &err){
+						Logging::log.error(err.what());
+					}
 					
 					Logging::log.message("Waiting for filesystem response...", 2);
 					
-					get_fifo_payload(payload, run_path / "response.pipe");
+					try{
+						get_fifo_payload(payload, run_path / "response.pipe");
+					}catch(const fifo_exception &err){
+						Logging::log.error(err.what());
+					}
 					
 					if(payload.front() == "OK"){
 						Logging::log.message("Response OK.", 2);
@@ -185,13 +199,13 @@ int main(int argc, char *argv[]){
 				/* Other commands can just execute in the calling process
 				 * by opening the database as read-only.
 				 */
-			case STATUS:
-				{
-					bool read_only = true;
-					TierEngine autotier(config_path, config_overrides, read_only);
-					autotier.status(json);
-				}
-				break;
+// 			case STATUS:
+// 				{
+// 					bool read_only = true;
+// 					TierEngine autotier(config_path, config_overrides, read_only);
+// 					autotier.status(json);
+// 				}
+// 				break;
 			case CONFIG:
 				Logging::log.message("Config file: (" + config_path.string() + ")", 0);
 				{
