@@ -402,10 +402,10 @@ void TierEngine::process_status(const AdHoc &work){
 	std::vector<std::string> payload;
 	
 	bool json;
-	std::stringstream ss(work.args_.front());
+	std::stringstream json_ss(work.args_.front());
 	
 	try{
-		ss >> std::boolalpha >> json;
+		json_ss >> std::boolalpha >> json;
 	}catch (const std::ios_base::failure &){
 		Logging::log.error("Could not extract boolean from string.", false);
 		payload.emplace_back("ERR");
@@ -424,8 +424,8 @@ void TierEngine::process_status(const AdHoc &work){
 	}
 	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
 	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
+	std::stringstream ss;
 	if(json){
-		std::stringstream ss;
 		ss << 
 		"{"
 			"\"version\":\"" VERS "\","
@@ -456,7 +456,6 @@ void TierEngine::process_status(const AdHoc &work){
 		ss <<
 			"]"
 		"}";
-		payload.emplace_back(ss.str());
 	}else{
 		std::vector<std::string> names;
 		names.push_back("combined");
@@ -465,35 +464,35 @@ void TierEngine::process_status(const AdHoc &work){
 		}
 		int namew = find_max_width(names);
 		{
-			std::stringstream heading;
-			heading << std::setw(namew) << std::left << "Tier";
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Size";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Quota";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(PERCENTW) << std::right << "Quota";
-			heading << std::setw(PERCENTU) << "%"; // unit
-			heading << " ";
-			heading << std::setw(ABSW) << std::right << "Use";
-			heading << std::setw(ABSU) << ""; // unit
-			heading << " ";
-			heading << std::setw(PERCENTW) << std::right << "Use";
-			heading << std::setw(PERCENTU) << "%"; // unit
-			heading << " ";
-			heading << std::left << "Path";
+			// Header
+			ss << std::setw(namew) << std::left << "Tier";
+			ss << " ";
+			ss << std::setw(ABSW) << std::right << "Size";
+			ss << std::setw(ABSU) << ""; // unit
+			ss << " ";
+			ss << std::setw(ABSW) << std::right << "Quota";
+			ss << std::setw(ABSU) << ""; // unit
+			ss << " ";
+			ss << std::setw(PERCENTW) << std::right << "Quota";
+			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::setw(ABSW) << std::right << "Use";
+			ss << std::setw(ABSU) << ""; // unit
+			ss << " ";
+			ss << std::setw(PERCENTW) << std::right << "Use";
+			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::left << "Path";
 	#ifdef TABLE_HEADER_LINE
-			heading << std::endl;
-			auto fill = heading.fill();
-			heading << std::setw(80) << std::setfill('-') << "";
-			heading.fill(fill);
+			ss << std::endl;
+			auto fill = ss.fill();
+			ss << std::setw(80) << std::setfill('-') << "";
+			ss.fill(fill);
 	#endif
-			payload.emplace_back(heading.str());
+			ss << std::endl;
 		}
 		{
-			std::stringstream ss;
+			// Combined
 			ss << std::setw(namew) << std::left << "combined"; // tier
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
@@ -510,10 +509,10 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
 			ss << std::setw(PERCENTU) << "%"; // unit
-			payload.emplace_back(ss.str());
+			ss << std::endl;
 		}
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
-			std::stringstream ss;
+			// Tiers
 			ss << std::setw(namew) << std::left << tptr->id(); // tier
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
@@ -532,8 +531,13 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
 			ss << std::left << tptr->path().string();
-			payload.emplace_back(ss.str());
+			ss << std::endl;
 		}
+	}
+	while(ss){
+		std::string line;
+		ss >> line;
+		payload.emplace_back(line);
 	}
 	send_fifo_payload(payload, run_path_ / "response.pipe");
 }
