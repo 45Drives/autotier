@@ -534,9 +534,8 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << std::endl;
 		}
 	}
-	while(ss){
-		std::string line;
-		ss >> line;
+	std::string line;
+	while(getline(ss, line)){
 		payload.emplace_back(line);
 	}
 	send_fifo_payload(payload, run_path_ / "response.pipe");
