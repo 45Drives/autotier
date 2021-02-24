@@ -21,6 +21,7 @@
 
 #include <queue>
 #include <rocksdb/db.h>
+#include <mutex>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -65,6 +66,9 @@ private:
 	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
 	/* Copy ownership and permissions from old_path to new_path,
 	 * called after copying a file to a different tier.
+	 */
+	std::mutex usage_mt_;
+	/* Mutex to be used in {add,subtract}_file_size() for FUSE threads.
 	 */
 public:
 	Tier(std::string id);

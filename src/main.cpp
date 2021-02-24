@@ -169,11 +169,19 @@ int main(int argc, char *argv[]){
 					
 					fs::path run_path = Config(config_path, config_overrides).run_path();
 					
-					send_fifo_payload(payload, run_path / "request.pipe");
+					try{
+						send_fifo_payload(payload, run_path / "request.pipe");
+					}catch(const fifo_exception &err){
+						Logging::log.error(err.what());
+					}
 					
 					Logging::log.message("Waiting for filesystem response...", 2);
 					
-					get_fifo_payload(payload, run_path / "response.pipe");
+					try{
+						get_fifo_payload(payload, run_path / "response.pipe");
+					}catch(const fifo_exception &err){
+						Logging::log.error(err.what());
+					}
 					
 					if(payload.front() == "OK"){
 						Logging::log.message("Response OK.", 2);

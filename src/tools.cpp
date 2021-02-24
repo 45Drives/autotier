@@ -92,28 +92,23 @@ void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &
 	}catch(const int &errno_){
 		switch(errno_){
 			case EACCES:
-				Logging::log.error("No permission to create pipe.");
-				break;
+				throw(fifo_exception("No permission to create pipe."));
 			case EEXIST:
-				Logging::log.error("Pipe already exists!");
-				break;
+				throw(fifo_exception("Pipe already exists!"));
 			case ENOTDIR:
-				Logging::log.error("Path to create pipe in is not a directory.");
-				break;
+				throw(fifo_exception("Path to create pipe in is not a directory."));
 			case ENXIO:
-				Logging::log.error(
-					"Pipe is not connected, autotier seems to not be mounted.\n"
+				throw(fifo_exception(
+					"Pipe is not connected, autotier seems to not be mounted. "
 					"If it is mounted, make sure to run this command as the user who mounted."
-				);
-				break;
+				));
 			default:
-				Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
-				break;
+				throw(fifo_exception("Unhandled error while creating pipe: " + std::to_string(errno_)));
 		}
 	}
 
 	if(request_pipe->put(payload) == -1)
-		Logging::log.error("Writing to pipe failed.");
+		throw(fifo_exception("Writing to pipe failed."));
 	
 	delete request_pipe;
 }
@@ -126,26 +121,21 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 	}catch(const int &errno_){
 		switch(errno_){
 			case EACCES:
-				Logging::log.error("No permission to create pipe.");
-				break;
+				throw(fifo_exception("No permission to create pipe."));
 			case EEXIST:
-				Logging::log.error("Pipe already exists!");
-				break;
+				throw(fifo_exception("Pipe already exists!"));
 			case ENOTDIR:
-				Logging::log.error("Path to create pipe in is not a directory.");
-				break;
+				throw(fifo_exception("Path to create pipe in is not a directory."));
 			case ENXIO:
-				Logging::log.error(
-					"Pipe is not connected, autotier seems to not be mounted.\n"
+				throw(fifo_exception(
+					"Pipe is not connected, autotier seems to not be mounted."
 					"If it is mounted, make sure to run this command as the user who mounted."
-				);
-				break;
+				));
 			case EINTR:
 				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
 				return;
 			default:
-				Logging::log.error("Unhandled error while creating pipe: " + std::to_string(errno_));
-				break;
+				throw(fifo_exception("Unhandled error while creating pipe: " + std::to_string(errno_)));
 		}
 	}
 	
@@ -155,7 +145,7 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
 				return;
 			default:
-				Logging::log.error("Reading from pipe failed. errno: " + std::to_string(errno));
+				throw(fifo_exception("Reading from pipe failed. errno: " + std::to_string(errno)));
 		}
 	}
 	
