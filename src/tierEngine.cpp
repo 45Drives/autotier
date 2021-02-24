@@ -260,7 +260,12 @@ void TierEngine::stop(void){
 void TierEngine::process_adhoc_requests(void){
 	std::vector<std::string> payload;
 	while(!stop_flag_){
-		get_fifo_payload(payload, run_path_ / "request.pipe");
+		try{
+			get_fifo_payload(payload, run_path_ / "request.pipe");
+		}catch(const fifo_exception &err){
+			Logging::log.warning(err.what());
+			continue;
+		}
 		if(stop_flag_)
 			return;
 		AdHoc work(payload);
@@ -284,7 +289,12 @@ void TierEngine::process_adhoc_requests(void){
 				payload.clear();
 				payload.emplace_back("ERR");
 				payload.emplace_back("Not a command.");
-				send_fifo_payload(payload, run_path_ / "response.pipe");
+				try{
+					send_fifo_payload(payload, run_path_ / "response.pipe");
+				}catch(const fifo_exception &err){
+					Logging::log.warning(err.what());
+					// let it notify main tier thread
+				}
 				break;
 		}
 		sleep_cv_.notify_one();
@@ -305,7 +315,11 @@ void TierEngine::process_oneshot(const AdHoc &work){
 	adhoc_work_.push(work);
 	payload.emplace_back("OK");
 	payload.emplace_back("Work queued.");
-	send_fifo_payload(payload, run_path_ / "response.pipe");
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
 }
 
 void TierEngine::process_pin_unpin(const AdHoc &work){
@@ -316,7 +330,11 @@ void TierEngine::process_pin_unpin(const AdHoc &work){
 		if(tier_lookup(tier_id) == nullptr){
 			payload.emplace_back("ERR");
 			payload.emplace_back("Tier does not exist: \"" + tier_id + "\"");
-			send_fifo_payload(payload, run_path_ / "response.pipe");
+			try{
+				send_fifo_payload(payload, run_path_ / "response.pipe");
+			}catch(const fifo_exception &err){
+				Logging::log.warning(err.what());
+			}
 			return;
 		}
 		++itr;
@@ -333,14 +351,22 @@ void TierEngine::process_pin_unpin(const AdHoc &work){
 		for(const std::string &str : not_in_fs)
 			err_msg += " " + str;
 		payload.emplace_back(err_msg);
-		send_fifo_payload(payload, run_path_ / "response.pipe");
+		try{
+			send_fifo_payload(payload, run_path_ / "response.pipe");
+		}catch(const fifo_exception &err){
+			Logging::log.warning(err.what());
+		}
 		return;
 	}
 	adhoc_work_.push(work);
 	payload.clear();
 	payload.emplace_back("OK");
 	payload.emplace_back("Work queued.");
-	send_fifo_payload(payload, run_path_ / "response.pipe");
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
 }
 
 void TierEngine::process_which_tier(AdHoc &work){
@@ -348,7 +374,6 @@ void TierEngine::process_which_tier(AdHoc &work){
 	payload.emplace_back("OK");
 	int namew = 0;
 	int tierw = 0;
-	std::vector<std::string> not_in_fs;
 	for(std::string &arg : work.args_){
 		if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
 			arg = fs::relative(arg, mount_point_).string();
@@ -392,7 +417,11 @@ void TierEngine::process_which_tier(AdHoc &work){
 		}
 		payload.emplace_back(record.str());
 	}
-	send_fifo_payload(payload, run_path_ / "response.pipe");
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
 }
 
 void TierEngine::process_status(const AdHoc &work){
@@ -410,7 +439,11 @@ void TierEngine::process_status(const AdHoc &work){
 		Logging::log.error("Could not extract boolean from string.", false);
 		payload.emplace_back("ERR");
 		payload.emplace_back("Could not determine whether to use table or JSON output.");
-		send_fifo_payload(payload, run_path_ / "response.pipe");
+		try{
+			send_fifo_payload(payload, run_path_ / "response.pipe");
+		}catch(const fifo_exception &err){
+			Logging::log.warning(err.what());
+		}
 		return;
 	}
 	
@@ -538,7 +571,11 @@ void TierEngine::process_status(const AdHoc &work){
 	while(getline(ss, line)){
 		payload.emplace_back(line);
 	}
-	send_fifo_payload(payload, run_path_ / "response.pipe");
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
 }
 
 void TierEngine::execute_queued_work(void){

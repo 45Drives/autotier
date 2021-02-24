@@ -27,6 +27,18 @@ namespace fs = boost::filesystem;
 #define NUM_COMMANDS 9
 enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER, MOUNTPOINT};
 
+//enum FIFO_WHO {SERVER, CLIENT};
+class fifo_exception : public std::exception{
+private:
+	const char *what_;
+public:
+	fifo_exception(const char *what) : what_(what) {}
+	fifo_exception(const std::string &what) : what_(what.c_str()) {}
+	const char *what(void) const noexcept{
+		return what_;
+	}
+};
+
 int get_command_index(const char *cmd);
 /* return switchable index determined by regex match of cmd against
  * each entry in command_list
