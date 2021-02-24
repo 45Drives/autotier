@@ -18,7 +18,7 @@ default: CFLAGS := -O2 $(CFLAGS)
 default: $(TARGET)
 all: default
 
-debug: CFLAGS := -g $(CFLAGS)
+debug: CFLAGS := -g -DLOG_METHODS $(CFLAGS)
 debug: $(TARGET)
 
 %.o: %.cpp $(HEADERS)
