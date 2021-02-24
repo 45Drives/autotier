@@ -81,10 +81,11 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 
 namespace l{
 	static int is_directory(const fs::path &relative_path){
-		boost::system::error_code ec;
 		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
-		fs::file_status status = fs::symlink_status(priv->tiers_.front()->path() / relative_path, ec);
-		if(ec.failed()){
+		fs::file_status status;
+		try{
+			status = fs::symlink_status(priv->tiers_.front()->path() / relative_path);
+		}catch(const boost::system::error_code &ec){
 			errno = ec.value();
 			return -1;
 		}
