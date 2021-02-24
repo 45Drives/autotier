@@ -2,6 +2,7 @@ autotier (1.0.2-1focal) focal; urgency=high
 
   * Store fuse "global" data in fuse_context->private_data.
   * Fix crash from AdHoc worker thread calling exit() on errors.
+  * Fix accidentally reporting file not found in l::is_directory().
 
  -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 3:40:00 -0400
 
