@@ -400,11 +400,21 @@ void TierEngine::process_status(const AdHoc &work){
 	uintmax_t total_quota_capacity = 0;
 	uintmax_t total_usage = 0;
 	std::vector<std::string> payload;
-	payload.emplace_back("OK");
 	
 	bool json;
 	std::stringstream ss(work.args_.front());
-	ss >> std::boolalpha >> json;
+	
+	try{
+		ss >> std::boolalpha >> json;
+	}catch (const std::ios_base::failure &){
+		Logging::log.error("Could not extract boolean from string.", false);
+		payload.emplace_back("ERR");
+		payload.emplace_back("Could not determine whether to use table or JSON output.");
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+		return;
+	}
+	
+	payload.emplace_back("OK");
 	
 	std::string unit("");
 	for(const Tier &t : tiers_){
