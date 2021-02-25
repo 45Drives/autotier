@@ -27,6 +27,7 @@
 #include "file.hpp"
 #include "alert.hpp"
 #include "config.hpp"
+#include "openFiles.hpp"
 #include <thread>
 #include <regex>
 
@@ -630,6 +631,7 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		intmax_t file_size = l::file_size(fs::path(fullpath));
 		if(file_size == -1)
 			return -errno;
+		OpenFiles::register_open_file(fullpath);
 		res = open(fullpath, fi->flags);
 		priv->size_at_open_.insert(std::pair<int, uintmax_t>(res, file_size));
 		if(fi->flags & O_CREAT){
@@ -802,6 +804,7 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 		}catch(const std::out_of_range &){
 			Logging::log.warning("release: Could not find fd in size map.");
 		}
+		OpenFiles::release_open_file(fullpath);
 		free(fullpath);
 		priv->fd_to_path_.erase(fi->fh);
 		priv->size_at_open_.erase(fi->fh);
@@ -1271,7 +1274,7 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 		return -ECHILD;
 	
 	char *fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
-	
+	OpenFiles::register_open_file(fullpath);
 	res = open(fullpath, fi->flags, mode);
 	
 #ifdef LOG_METHODS

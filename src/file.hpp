@@ -19,13 +19,20 @@
 
 #pragma once
 
+#define MINUTE 60.0
+#define HOUR (60.0 * MINUTE)
+#define DAY (24.0 * HOUR)
+#define WEEK (7.0 * DAY)
+
 /* popularity calculation
  * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
  * where x is file usage frequency
  */
-#define START_DAMPING  10000.0
+#define START_DAMPING  50000.0
 #define DAMPING      1000000.0
 #define MULTIPLIER      3600.0
+#define REACH_FULL_DAMPING_AFTER (1.0 * WEEK)
+#define SLOPE ((DAMPING - START_DAMPING) / REACH_FULL_DAMPING_AFTER)
 /* DAMPING is how slowly popularity changes.
  * MULTIPLIER is to scale values to accesses per hour.
  */
@@ -51,12 +58,9 @@ class Metadata{
 	friend class boost::serialization::access;
 	friend class File;
 private:
-	uintmax_t access_count_ = 0;
+	uintmax_t access_count_ = 1;
 	/* Number of times the file was accessed since last tiering.
 	 * Resets to 0 after each popularity calculation.
-	 */
-// 	time_t last_popularity_calc_ = 0;
-	/* For finding period to use to calculate access frequency.
 	 */
 	double popularity_ = MULTIPLIER*AVG_USAGE;
 	/* Moving average of file usage frequency in accesses per hour.
@@ -161,10 +165,6 @@ public:
 	/* Calculate new popularity value of file.
 	 * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
 	 * where x is file usage frequency
-	 */
-	bool is_open(void);
-	/* Fork and exec lsof, use return value to determine if the file is
-	 * currently open. There is probably a less expensive way of doing this.
 	 */
 	fs::path full_path(void) const;
 	/* Return full backend path to file via tier.

@@ -19,6 +19,7 @@
 
 #include "tier.hpp"
 #include "alert.hpp"
+#include "openFiles.hpp"
 #include "file.hpp"
 
 extern "C" {
@@ -109,11 +110,11 @@ void Tier::enqueue_file_ptr(File *fptr){
 
 void Tier::transfer_files(void){
 	for(File * fptr : incoming_files_){
-		if(fptr->is_open()){
-			Logging::log.warning("File is open by another process: " + fptr->full_path().string());
+		fs::path old_path = fptr->full_path();
+		if(OpenFiles::is_open(old_path.string())){
+			Logging::log.warning("File is open by another process: " + old_path.string());
 			continue;
 		}
-		fs::path old_path = fptr->full_path();
 		fs::path new_path = path_ / fptr->relative_path();
 		bool copy_success = Tier::move_file(old_path, new_path);
 		if(copy_success){

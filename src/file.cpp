@@ -111,86 +111,10 @@ void File::calc_popularity(double period_seconds){
 	if(period_seconds == 0.0)
 		return;
 	double usage_frequency = metadata_.access_count_ ? double(metadata_.access_count_) / period_seconds : 0.0;
-// 	if(metadata_.access_count_ == 1 && metadata_.last_popularity_calc_){
-// 		// access period slower than tier period
-// 		usage_frequency = double(metadata_.access_count_) / double(now - metadata_.last_popularity_calc_);
-// 		metadata_.last_popularity_calc_ = now;
-// 	}else if(metadata_.access_count_){
-// 		// access period faster than tier period
-// 		usage_frequency = double(metadata_.access_count_) / period_seconds;
-// 		metadata_.last_popularity_calc_ = now;
-// 	}else if(metadata_.last_popularity_calc_){
-// 		// access period slower than two tier periods
-// 		usage_frequency = 1.0 / double(now - metadata_.last_popularity_calc_);
-// 	}else{
-// 		// access period slower than two tier periods
-// 		double diff = now - atime_;
-// 		if(diff < 1.0)
-// 			diff = 1.0;
-// 		usage_frequency = 1.0 / diff;
-// 		metadata_.last_popularity_calc_ = atime_;
-// 	}
-	double damping = std::min((double)(time(NULL) - ctime_) / 100.0 + START_DAMPING, DAMPING); // dynamically change damping as file ages
+	double average_period_age = (double)(time(NULL) - ctime_) + period_seconds / 2.0;
+	double damping = std::min(average_period_age * SLOPE + START_DAMPING, DAMPING) / period_seconds;
 	metadata_.popularity_ = MULTIPLIER * usage_frequency / damping + (1.0 - 1.0 / damping) * metadata_.popularity_;
 	metadata_.access_count_ = 0;
-}
-
-bool File::is_open(void){
-	pid_t pid;
-	int status;
-	int fd;
-	int stdout_copy;
-	int stderr_copy;
-	
-	pid = fork();
-	switch(pid){
-	case -1:
-		Logging::log.warning("Error forking while checking if file is open!");
-		return false;
-	case 0:
-		// child
-		pid = getpid();
-		
-		// redirect output to /dev/null
-		stdout_copy = dup(STDOUT_FILENO);
-		stderr_copy = dup(STDERR_FILENO);
-		fd = open("/dev/null", O_WRONLY);
-		dup2(fd, STDOUT_FILENO);
-		dup2(fd, STDERR_FILENO);
-		close(fd);
-		
-		execlp("lsof", "lsof", full_path().c_str(), (char *)NULL);
-		
-		// undo redirect
-		dup2(stdout_copy, STDOUT_FILENO);
-		close(stdout_copy);
-		dup2(stderr_copy, STDERR_FILENO);
-		close(stderr_copy);
-		
-		Logging::log.error("Error executing lsof! Is it installed?");
-		// error exits, ignore following:
-		// fall through
-	default:
-		// parent
-		if((waitpid(pid, &status, 0)) < 0)
-			Logging::log.warning("Error waiting for lsof to exit.");
-		break;
-	}
-	
-	if(WIFEXITED(status)){
-		switch(WEXITSTATUS(status)){
-		case 0:
-			return true;
-		case 1:
-			return false;
-		default:
-			Logging::log.warning("Unexpected lsof exit status! Exit status: " + std::to_string(WEXITSTATUS(status)));
-			return false;
-		}
-	}else{
-		Logging::log.warning("Error reading lsof exit status!");
-		return false;
-	}
 }
 
 fs::path File::full_path(void) const{
