@@ -1,10 +1,17 @@
+autotier (1.0.3-1focal) focal; urgency=low
+
+  * Rewrite popularity calculation method to be period length agnostic.
+  * Implement unordered map to store paths to open files, removing lsof dependency.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 25 Feb 2021 12:07:00 -0400
+
 autotier (1.0.2-1focal) focal; urgency=high
 
   * Store fuse "global" data in fuse_context->private_data.
   * Fix crash from AdHoc worker thread calling exit() on errors.
   * Fix accidentally reporting file not found in l::is_directory().
 
- -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 3:40:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 15:40:00 -0400
 
 autotier (1.0.1-1focal) focal; urgency=medium
 
@@ -15,10 +22,10 @@ autotier (1.0.1-1focal) focal; urgency=medium
   * Fix bug where ownership and permissions aren't properly copied.
   * Implement extended attribute methods.
 
- -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Feb 2021 4:27:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Feb 2021 16:27:00 -0400
 
 autotier (1.0.0-1focal) focal; urgency=high
 
   * Initial packaging of autotier for Ubuntu Focal.
 
- -- Josh Boudreau <jboudreau@45drives.com>  Tue, 16 Feb 2021 01:14:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 16 Feb 2021 13:14:00 -0400
