@@ -18,18 +18,22 @@
  */
 
 #include "openFiles.hpp"
+#include <mutex>
 
 namespace OpenFiles{
+	std::mutex open_files_mt_;
 	std::unordered_set<std::string> open_files_;
 	/* Holds paths to all currently open files.
 	 */
 }
 
 void OpenFiles::register_open_file(const std::string &path){
+	std::lock_guard<std::mutex> lk(open_files_mt_);
 	open_files_.emplace(path);
 }
 
 void OpenFiles::release_open_file(const std::string &path){
+	std::lock_guard<std::mutex> lk(open_files_mt_);
 	open_files_.erase(path);
 }
 

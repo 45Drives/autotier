@@ -49,6 +49,11 @@ void Tier::subtract_file_size(uintmax_t size){
 	usage_ -= size;
 }
 
+void Tier::size_delta(intmax_t old_size, intmax_t new_size){
+	std::lock_guard<std::mutex> lk(usage_mt_);
+	usage_ += new_size - old_size;
+}
+
 void Tier::add_file_size_sim(uintmax_t size){
 	sim_usage_ += size;
 }
@@ -153,6 +158,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 }
 
 void Tier::usage(uintmax_t usage){
+	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ = usage;
 }
 

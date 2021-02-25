@@ -30,6 +30,7 @@
 #include "openFiles.hpp"
 #include <thread>
 #include <regex>
+#include <unordered_map>
 
 //#define LOG_METHODS // uncomment to enable debug output to journalctl
 
@@ -61,7 +62,13 @@ namespace Global{
 	ConfigOverrides config_overrides_;
 }
 
-struct FusePriv{
+class FusePriv{
+private:
+	std::mutex fd_to_path_mt_;
+	std::unordered_map<int, char *> fd_to_path_;
+	std::mutex size_at_open_mt_;
+	std::unordered_map<int, uintmax_t> size_at_open_;
+public:
 	fs::path config_path_;
 	fs::path mount_point_;
 	TierEngine *autotier_;
@@ -69,8 +76,40 @@ struct FusePriv{
 	std::vector<Tier *> tiers_;
 	std::thread tier_worker_;
 	std::thread adhoc_server_;
-	std::map<int, char *> fd_to_path_;
-	std::map<int, uintmax_t> size_at_open_;
+	~FusePriv(){
+		for(std::unordered_map<int, char *>::iterator itr = fd_to_path_.begin(); itr != fd_to_path_.end(); ++itr)
+			free(itr->second);
+	}
+	void insert_fd_to_path(int fd, char *path){
+		std::lock_guard<std::mutex> lk(fd_to_path_mt_);
+		try{
+			char *val = fd_to_path_.at(fd);
+			// already defined
+			free(val);
+			val = strdup(path);
+		}catch(const std::out_of_range &){
+			// insert new
+			fd_to_path_[fd] = strdup(path);
+		}
+	}
+	void remove_fd_to_path(int fd){
+		std::lock_guard<std::mutex> lk(fd_to_path_mt_);
+		fd_to_path_.erase(fd);
+	}
+	char *fd_to_path(int fd) const{
+		return fd_to_path_.at(fd);
+	}
+	void insert_size_at_open(int fd, uintmax_t size){
+		std::lock_guard<std::mutex> lk(size_at_open_mt_);
+		size_at_open_[fd] = size;
+	}
+	void remove_size_at_open(int fd){
+		std::lock_guard<std::mutex> lk(size_at_open_mt_);
+		size_at_open_.erase(fd);
+	}
+	uintmax_t size_at_open(int fd) const{
+		return size_at_open_.at(fd);
+	}
 };
 
 FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
@@ -93,25 +132,25 @@ namespace l{
 		return fs::is_directory(status);
 	}
 	
-	static void insert_key(int key, char *value, std::map<int, char *> &map){
-		try{
-			char *val = map.at(key);
-			// already defined
-			free(val);
-			val = value;
-		}catch(const std::out_of_range &){
-			// insert new
-			map[key] = value;
-		}
-	}
-	
-	template<class key_t, class value_t>
-	static void clear_map(std::map<key_t, value_t> &map){
-		if(typeid(value_t) == typeid(char *))
-			for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
-				free(itr->second);
-		map.clear();
-	}
+// 	static void insert_key(int key, char *value, std::map<int, char *> &map){
+// 		try{
+// 			char *val = map.at(key);
+// 			// already defined
+// 			free(val);
+// 			val = value;
+// 		}catch(const std::out_of_range &){
+// 			// insert new
+// 			map[key] = value;
+// 		}
+// 	}
+// 	
+// 	template<class key_t, class value_t>
+// 	static void clear_map(std::map<key_t, value_t> &map){
+// 		if(typeid(value_t) == typeid(char *))
+// 			for(typename std::map<key_t, value_t>::iterator itr = map.begin(); itr != map.end(); ++itr)
+// 				free(itr->second);
+// 		map.clear();
+// 	}
 	
 	static Tier *fullpath_to_tier(fs::path fullpath){
 		FusePriv *priv = (FusePriv *)fuse_get_context()->private_data;
@@ -633,7 +672,8 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 			return -errno;
 		OpenFiles::register_open_file(fullpath);
 		res = open(fullpath, fi->flags);
-		priv->size_at_open_.insert(std::pair<int, uintmax_t>(res, file_size));
+		priv->insert_size_at_open(res, file_size);
+		//priv->size_at_open_.insert(std::pair<int, uintmax_t>(res, file_size));
 		if(fi->flags & O_CREAT){
 			struct fuse_context *ctx = fuse_get_context();
 			int chown_res = fchown(res, ctx->uid, ctx->gid);
@@ -655,7 +695,8 @@ static int at_open(const char *path, struct fuse_file_info *fi){
 		return -errno;
 	fi->fh = res;
 	
-	l::insert_key(res, fullpath, priv->fd_to_path_);
+	priv->insert_fd_to_path(res, fullpath);
+// 	l::insert_key(res, fullpath, priv->fd_to_path_);
 	
 	return 0;
 }
@@ -778,11 +819,16 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 	}
 #endif
 	
+	intmax_t old_size = -1;
+	intmax_t new_size = -1;
+	
+	Tier *tptr = nullptr;
+	
 	try{
-		char *fullpath = priv->fd_to_path_.at(fi->fh);
-		Tier *tptr = l::fullpath_to_tier(fullpath);
+		char *fullpath = priv->fd_to_path(fi->fh);
+		tptr = l::fullpath_to_tier(fullpath);
 		try{
-			tptr->subtract_file_size(priv->size_at_open_.at(fi->fh));
+			old_size = priv->size_at_open(fi->fh);
 #ifdef LOG_METHODS
 			{
 			std::stringstream ss;
@@ -790,10 +836,9 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 			Logging::log.message(ss.str(), 0);
 			}
 #endif
-			intmax_t size = l::file_size(fi->fh);
-			if(size == -1)
+			new_size = l::file_size(fi->fh);
+			if(new_size == -1)
 				return -errno;
-			tptr->add_file_size(size);
 #ifdef LOG_METHODS
 			{
 			std::stringstream ss;
@@ -806,11 +851,13 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 		}
 		OpenFiles::release_open_file(fullpath);
 		free(fullpath);
-		priv->fd_to_path_.erase(fi->fh);
-		priv->size_at_open_.erase(fi->fh);
+		priv->remove_fd_to_path(fi->fh);
+		priv->remove_size_at_open(fi->fh);
 	}catch(const std::out_of_range &err){
 		Logging::log.warning("release: Could not find fd in path map.");
 	}
+	if(old_size != -1 && new_size != -1 && tptr)
+		tptr->size_delta(old_size, new_size);
 	res = close(fi->fh);
 	return res;
 }
@@ -1216,8 +1263,7 @@ void at_destroy(void *private_data){
 	
 	delete priv->autotier_;
 	
-	l::clear_map<int, char *>(priv->fd_to_path_);
-	priv->size_at_open_.clear();
+	delete priv;
 }
 
 static int at_access(const char *path, int mask){
@@ -1297,8 +1343,8 @@ static int at_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	
 	Metadata(path, priv->db_, priv->tiers_.front()).update(path, priv->db_);
 	
-	l::insert_key(fi->fh, fullpath, priv->fd_to_path_);
-	priv->size_at_open_[fi->fh] = 0;
+	priv->insert_fd_to_path(fi->fh, fullpath);
+	priv->insert_size_at_open(fi->fh, 0);
 	
 	return 0;
 }
