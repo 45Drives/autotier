@@ -853,7 +853,7 @@ static int at_release(const char *path, struct fuse_file_info *fi){
 		free(fullpath);
 		priv->remove_fd_to_path(fi->fh);
 		priv->remove_size_at_open(fi->fh);
-	}catch(const std::out_of_range &err){
+	}catch(const std::out_of_range &){
 		Logging::log.warning("release: Could not find fd in path map.");
 	}
 	if(old_size != -1 && new_size != -1 && tptr)
