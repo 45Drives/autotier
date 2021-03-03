@@ -22,6 +22,7 @@ if [[ "$#" == 1 && "$1" == "clean" ]]; then
 	rm -f autotier.postrm.debhelper autotier.substvars debhelper-build-stamp files
 	rm -rf .debhelper autotier
 	popd
+	rm -rf dist/ubuntu
 	exit 0
 fi
 
