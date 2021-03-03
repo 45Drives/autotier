@@ -21,6 +21,7 @@
 #include "tierEngine.hpp"
 #include "alert.hpp"
 #include "fusePassthrough.hpp"
+#include "rocksDbHelpers.hpp"
 #include <algorithm>
 #include <chrono>
 #include <sstream>
@@ -46,6 +47,7 @@ void TierEngine::open_db(bool read_only){
 	std::string db_path = (run_path_ / "db").string();
 	rocksdb::Options options;
 	options.create_if_missing = true;
+	options.prefix_extractor.reset(l::NewPathSliceTransform());
 	rocksdb::Status status;
 	if(read_only)
 		status = rocksdb::DB::OpenForReadOnly(options, db_path, &db_);
