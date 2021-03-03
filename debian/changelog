@@ -1,3 +1,9 @@
+autotier (1.0.3-2focal) focal; urgency=low
+
+  * Overhaul packaging using Docker.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 03 Mar 2021 10:57:00 -0400
+
 autotier (1.0.3-1focal) focal; urgency=low
 
   * Rewrite popularity calculation method to be period length agnostic.
