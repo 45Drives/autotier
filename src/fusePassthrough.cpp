@@ -177,6 +177,30 @@ namespace l{
 			return res;
 		return st.st_size;
 	}
+	
+	static void update_keys(std::string old_directory, std::string new_directory, rocksdb::DB *db){
+		/* for each key in database:
+		 *   if key starts with old_directory:
+		 *     rename key to new_directory/relative(key, old_directory)
+		 */
+		if(old_directory[0] == '/'){
+			old_directory = old_directory.substr(1, std::string::npos);
+		}
+		if(new_directory[0] == '/'){
+			new_directory = new_directory.substr(1, std::string::npos);
+		}
+		rocksdb::ReadOptions read_options;
+		rocksdb::Iterator *itr = db->NewIterator(read_options);
+		for(itr->Seek(old_directory); itr->Valid() && itr->key().starts_with(old_directory); itr->Next()){// ensure inside changed directory
+			Metadata f(itr->key().data(), db);
+			if(f.not_found())
+				continue;
+			std::string old_path = itr->key().ToString();
+			fs::path new_path = new_directory / fs::relative(old_path, old_directory);
+			f.update(new_path.c_str(), db);
+			db->Delete(rocksdb::WriteOptions(), old_path);
+		}
+	}
 }
 
 // methods
@@ -457,19 +481,29 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 	if(flags)
 		return -EINVAL;
 	
-	Metadata f(from, priv->db_);
-	if(f.not_found())
-		return -ENOENT;
-	fs::path tier_path = f.tier_path();
+	if(l::is_directory(from)){
+		for(const Tier *tptr : priv->tiers_){
+			res = rename((tptr->path() / from).c_str(), (tptr->path() / to).c_str());
+			if(res == -1)
+				return -errno;
+		}
+		l::update_keys(from+1, to+1, priv->db_);
+	}else{
+		Metadata f(from, priv->db_);
+		if(f.not_found())
+			return -ENOENT;
+		fs::path tier_path = f.tier_path();
+		
+		res = rename((tier_path / from).c_str(), (tier_path / to).c_str());
+		if(res == -1)
+			return -errno;
+		
+		f.update(to, priv->db_);
+		
+		if(!priv->db_->Delete(rocksdb::WriteOptions(), from+1).ok())
+			return -1;
+	}
 	
-	res = rename((tier_path / from).c_str(), (tier_path / to).c_str());
-	if(res == -1)
-		return -errno;
-	
-	f.update(to, priv->db_);
-	
-	if(!priv->db_->Delete(rocksdb::WriteOptions(), from+1).ok())
-		return -1;
 	return res;
 }
 
