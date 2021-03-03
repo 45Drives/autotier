@@ -1,10 +1,10 @@
-TARGET = autotier
+TARGET = dist/from_source/autotier
 LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lstdc++ -lrocksdb
 CC = g++
 CFLAGS = -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64 
 
-OBJECTS = $(patsubst %.cpp, %.o, $(wildcard src/*.cpp))
-HEADERS = $(wildcard src/*.hpp)
+SOURCE_FILES := $(wildcard src/*.cpp)
+OBJECT_FILES := $(patsubst src/%.cpp, build/%.o, $(SOURCE_FILES))
 
 TEST_OBJECTS = tests/view_db.o src/file.o src/tier.o src/alert.o
 
@@ -21,34 +21,37 @@ all: default
 debug: CFLAGS := -g -DLOG_METHODS $(CFLAGS)
 debug: $(TARGET)
 
-%.o: %.cpp $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
+$(OBJECT_FILES): build/%.o : src/%.cpp
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/%.cpp, $@) -o $@
+
+$(TARGET): $(OBJECT_FILES)
+	mkdir -p dist/from_source
+	$(CC) $(OBJECT_FILES) -Wall $(LIBS) -o $@
 
 clean: clean-build clean-target
 
 clean-target:
-	-rm -f $(TARGET)
+	-rm -rf dist/from_source
 
 clean-build:
-	-rm -f src/*.o
+	-rm -rf build
 
 install: all inst-man-pages inst-config inst-completion
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/usr/bin
 	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)
-	ln -sf $(PREFIX)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
+	ln -sf $(PREFIX)/$(notdir $(TARGET)) $(DESTDIR)/usr/bin/$(notdir $(TARGET))
 
 uninstall: rm-man-pages rm-completion
-	-rm -f $(DESTDIR)$(PREFIX)/$(TARGET)
-	-rm -f $(DESTDIR)/usr/bin/$(TARGET)
+	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(TARGET))
+	-rm -f $(DESTDIR)/usr/bin/$(notdir $(TARGET))
 
 tests: $(TEST_OBJECTS)
-	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o test_db
+	mkdir -p dist/tests
+	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o dist/tests/test_db
 
 inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8
