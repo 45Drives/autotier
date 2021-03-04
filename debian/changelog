@@ -5,6 +5,7 @@ autotier (1.0.4-1focal) focal; urgency=high
   * Add global mutex lock to guard writing to database.
   * Optional old_key argument for Metadata::update() to delete old DB entry
     atomically.
+  * Break out fuse methods into separate files and put in fuse_ops namespace.
 
  -- Josh Boudreau <jboudreau@45drives.com>  Thu, 04 Mar 2021 10:50:00 -0400
 
