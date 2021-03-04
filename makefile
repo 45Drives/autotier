@@ -1,9 +1,9 @@
 TARGET = dist/from_source/autotier
 LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lstdc++ -lrocksdb
 CC = g++
-CFLAGS = -std=c++11 -Wall -Wextra -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64 
+CFLAGS = -std=c++11 -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
-SOURCE_FILES := $(wildcard src/*.cpp)
+SOURCE_FILES := $(shell find src/impl -name *.cpp)
 OBJECT_FILES := $(patsubst src/%.cpp, build/%.o, $(SOURCE_FILES))
 
 TEST_OBJECTS = tests/view_db.o src/file.o src/tier.o src/alert.o

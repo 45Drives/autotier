@@ -17,247 +17,10 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "version.hpp"
 #include "tierEngine.hpp"
 #include "alert.hpp"
-#include "fusePassthrough.hpp"
-#include "rocksDbHelpers.hpp"
-#include <algorithm>
-#include <chrono>
+#include "version.hpp"
 #include <sstream>
-#include <cmath>
-#include <iomanip>
-#include <atomic>
-
-extern "C" {
-	#include <fcntl.h>
-}
-
-int TierEngine::lock_mutex(void){
-	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL, 0700);
-	close(result);
-	return result;
-}
-
-void TierEngine::unlock_mutex(void){
-	fs::remove(run_path_ / "autotier.lock");
-}
-
-void TierEngine::open_db(bool read_only){
-	std::string db_path = (run_path_ / "db").string();
-	rocksdb::Options options;
-	options.create_if_missing = true;
-	options.prefix_extractor.reset(l::NewPathSliceTransform());
-	rocksdb::Status status;
-	if(read_only)
-		status = rocksdb::DB::OpenForReadOnly(options, db_path, &db_);
-	else
-		status = rocksdb::DB::Open(options, db_path, &db_);
-	if(!status.ok()){
-		Logging::log.error("Failed to open RocksDB database: " + db_path);
-	}
-}
-
-TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only)
-		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides, read_only), run_path_(config_.run_path()){
-	open_db(read_only);
-}
-
-TierEngine::~TierEngine(void){
-	delete db_;
-}
-
-std::list<Tier> &TierEngine::get_tiers(void){
-	return tiers_;
-}
-
-rocksdb::DB *TierEngine::get_db(void){
-	return db_;
-}
-
-Tier *TierEngine::tier_lookup(fs::path p){
-	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		if(t->path() == p)
-			return &(*t);
-	}
-	return nullptr;
-}
-
-Tier *TierEngine::tier_lookup(std::string id){
-	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		if(t->id() == id)
-			return &(*t);
-	}
-	return nullptr;
-}
-
-void TierEngine::begin(bool daemon_mode){
-	Logging::log.message("autotier started.", 1);
-	auto last_tier_time = std::chrono::steady_clock::now() - config_.tier_period_s();
-	do{
-		auto tier_time = std::chrono::steady_clock::now();
-		auto wake_time = tier_time + config_.tier_period_s();
-		tier(tier_time - last_tier_time);
-		last_tier_time = std::chrono::steady_clock::now();
-		// don't wait for oneshot execution
-		while(daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_){
-			execute_queued_work();
-			sleep_until(wake_time);
-		}
-	}while(daemon_mode && !stop_flag_);
-}
-
-void TierEngine::tier(std::chrono::steady_clock::duration period){
-	launch_crawlers(&TierEngine::emplace_file);
-	// one popularity calculation per loop
-	calc_popularity(period);
-	// mutex lock
-	if(lock_mutex() == -1){
-		Logging::log.warning("autotier already moving files.");
-	}else{
-		// mutex locked
-		sort();
-		simulate_tier();
-		move_files();
-		Logging::log.message("Tiering complete.", 1);
-		unlock_mutex();
-	}
-	files_.clear();
-}
-
-void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage)){
-	Logging::log.message("Gathering files.", 2);
-	// get ordered list of files in each tier
-	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		std::atomic<uintmax_t> usage(0);
-		crawl(t->path(), &(*t), function, usage);
-		t->usage(usage);
-	}
-}
-
-void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage){
-	// TODO: Replace this with multithreaded BFS
-	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
-		fs::file_status status = fs::symlink_status(*itr);
-		if(fs::is_directory(status)){
-			crawl(*itr, tptr, function, usage);
-		}else if(!is_symlink(status)){
-			(this->*function)(*itr, tptr, usage);
-		}
-	}
-}
-
-void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
-	files_.emplace_back(file.path(), db_, tptr);
-	uintmax_t size = files_.back().size();
-	usage += size;
-	if(files_.back().is_pinned()){
-		files_.pop_back();
-	}else{
-		tptr->subtract_file_size_sim(size); // remove file size from current usage
-	}
-}
-
-void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
-	(void) usage;
-	File f(file, db_, tptr);
-	if(f.is_pinned()){
-		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 0);
-	}
-}
-
-void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
-	(void) usage;
-	File f(file, db_, tptr);
-	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 0);
-	files_.clear();
-}
-
-void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
-	Logging::log.message("Calculating file popularity.", 2);
-	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
-	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
-	for(std::vector<File>::iterator f = files_.begin(); f != files_.end(); ++f){
-		f->calc_popularity(period_d);
-	}
-}
-
-void TierEngine::sort(void){
-	Logging::log.message("Sorting files.", 2);
-	// TODO: use std::execution::par for parallel sort after changing files_ to vector
-	// NOTE: std::execution::par requires C++17
-	std::sort(files_.begin(), files_.end(),
-		[](const File &a, const File &b){
-			if(a.popularity() == b.popularity()){
-				struct timeval a_t = a.atime();
-				struct timeval b_t = b.atime();
-				if(a_t.tv_sec == b_t.tv_sec)
-					return a_t.tv_usec > b_t.tv_usec;
-				return a_t.tv_sec > b_t.tv_sec;
-			}
-			return a.popularity() > b.popularity();
-		}
-	);
-}
-
-void TierEngine::simulate_tier(void){
-	Logging::log.message("Finding files' tiers.", 2);
-	for(Tier &t : tiers_)
-		t.get_capacity_and_usage();
-	std::vector<File>::iterator fptr = files_.begin();
-	std::list<Tier>::iterator tptr = tiers_.begin();
-	while(fptr != files_.end()){
-		if(tptr->full_test(*fptr)){
-			if(std::next(tptr) != tiers_.end()){
-				// move to next tier
-				++tptr;
-			} // else: out of space!
-		}
-		tptr->add_file_size_sim(fptr->size());
-		if(fptr->tier_ptr() != &(*tptr)) tptr->enqueue_file_ptr(&(*fptr));
-		++fptr;
-	}
-}
-
-void TierEngine::move_files(void){
-	/*  Currently, this starts at the lowest tier, assuming it has the most free space, and
-	 * moves all incoming files from their current tiers before moving on to the next lowest
-	 * tier. There should be a better way to shuffle all the files around to avoid over-filling
-	 * a tier by doing them one at a time.
-	 */
-	Logging::log.message("Moving files.",2);
-	for(std::list<Tier>::reverse_iterator titr = tiers_.rbegin(); titr != tiers_.rend(); titr++){
-		// Maybe multithread this if fs::copy_file is thread-safe?
-		titr->transfer_files();
-	}
-}
-
-void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
-}
-
-#define TABLE_HEADER_LINE
-#define UNIT_GAP 1
-#define ABSW     7
-#define ABSU     3 + UNIT_GAP
-#define PERCENTW 6
-#define PERCENTU 1 + UNIT_GAP
-
-inline int find_max_width(const std::vector<std::string> &names){
-	int res = -1;
-	for(const std::string &name : names){
-		int length = name.length();
-		if(length > res) res = length;
-	}
-	return res;
-}
-
-void TierEngine::stop(void){
-	std::lock_guard<std::mutex> lk(sleep_mt_);
-	stop_flag_ = true;
-	sleep_cv_.notify_one();
-}
 
 void TierEngine::process_adhoc_requests(void){
 	std::vector<std::string> payload;
@@ -368,6 +131,24 @@ void TierEngine::process_pin_unpin(const AdHoc &work){
 		send_fifo_payload(payload, run_path_ / "response.pipe");
 	}catch(const fifo_exception &err){
 		Logging::log.warning(err.what());
+	}
+}
+
+#define TABLE_HEADER_LINE
+#define UNIT_GAP 1
+#define ABSW     7
+#define ABSU     3 + UNIT_GAP
+#define PERCENTW 6
+#define PERCENTU 1 + UNIT_GAP
+
+namespace l{
+	inline int find_max_width(const std::vector<std::string> &names){
+		int res = -1;
+		for(const std::string &name : names){
+			int length = name.length();
+			if(length > res) res = length;
+		}
+		return res;
 	}
 }
 
@@ -497,7 +278,7 @@ void TierEngine::process_status(const AdHoc &work){
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 			names.push_back(tptr->id());
 		}
-		int namew = find_max_width(names);
+		int namew = l::find_max_width(names);
 		{
 			// Header
 			ss << std::setw(namew) << std::left << "Tier";
@@ -578,64 +359,4 @@ void TierEngine::process_status(const AdHoc &work){
 	}catch(const fifo_exception &err){
 		Logging::log.warning(err.what());
 	}
-}
-
-void TierEngine::execute_queued_work(void){
-	while(!adhoc_work_.empty()){
-		AdHoc work = adhoc_work_.pop();
-		switch(work.cmd_){
-			case ONESHOT:
-				tier(std::chrono::seconds(-1)); // don't affect period
-				break;
-			case PIN:
-				pin_files(work.args_);
-				break;
-			case UNPIN:
-				unpin_files(work.args_);
-				break;
-			default:
-				Logging::log.warning("Trying to execute bad ad hoc command.");
-				break;
-		}
-	}
-}
-
-void TierEngine::pin_files(const std::vector<std::string> &args){
-	Tier *tptr;
-	std::string tier_id = args.front();
-	if((tptr = tier_lookup(tier_id)) == nullptr){
-		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
-		return;
-	}
-	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
-		fs::path mounted_path = *fptr;
-		fs::path relative_path = fs::relative(mounted_path, mount_point_);
-		Metadata f(relative_path.c_str(), db_);
-		if(f.not_found()){
-			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
-			continue;
-		}
-		Tier *old_tptr = tier_lookup(fs::path(f.tier_path()));
-		File file(old_tptr->path() / relative_path, db_, old_tptr);
-		file.pin();
-		tptr->enqueue_file_ptr(&file);
-	}
-	tptr->transfer_files();
-}
-
-void TierEngine::unpin_files(const std::vector<std::string> &args){
-	for(const std::string &mounted_path : args){
-		fs::path relative_path = fs::relative(mounted_path, mount_point_);
-		Metadata f(relative_path.c_str(), db_);
-		if(f.not_found()){
-			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
-			continue;
-		}
-		f.pinned(false);
-		f.update(relative_path.c_str(), db_);
-	}
-}
-
-void TierEngine::mount_point(const fs::path &mount_point){
-	mount_point_ = mount_point;
 }
