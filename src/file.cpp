@@ -18,9 +18,9 @@
  */
 
 #include "file.hpp"
+#include "popularityCalc.hpp"
 #include "alert.hpp"
 #include "tier.hpp"
-#include "rocksDbHelpers.hpp"
 #include <sstream>
 
 extern "C" {
@@ -28,76 +28,6 @@ extern "C" {
 	#include <sys/stat.h>
 	#include <fcntl.h>
 	#include <sys/wait.h>
-}
-
-Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
-	std::string str;
-	if(path[0] == '/') path++;
-	rocksdb::Status s = db->Get(rocksdb::ReadOptions(), path, &str);
-	if(s.ok()){
-		std::stringstream ss(str);
-		boost::archive::text_iarchive ia(ss);
-		this->serialize(ia, 0);
-	}else if(tptr){
-		tier_path_ = tptr->path().string();
-		update(path, db);
-	}else{
-		not_found_ = true;
-	}
-}
-
-void Metadata::update(std::string relative_path, rocksdb::DB *db, std::string *old_key){
-	if(relative_path.front() == '/')
-		relative_path = relative_path.substr(1, std::string::npos);
-	std::stringstream ss;
-	{
-		boost::archive::text_oarchive oa(ss);
-		this->serialize(oa, 0);
-	}
-	{
-		std::lock_guard<std::mutex> lk(l::rocksdb::global_lock_);
-		rocksdb::WriteBatch batch;
-		if(old_key){
-			if(old_key->front() == '/')
-				*old_key = old_key->substr(1, std::string::npos);
-			batch.Delete(*old_key);
-		}
-		batch.Put(relative_path, ss.str());
-		db->Write(rocksdb::WriteOptions(), &batch);
-	}
-}
-
-void Metadata::touch(void){
-	access_count_++;
-}
-
-std::string Metadata::tier_path(void) const{
-	return tier_path_;
-}
-
-void Metadata::tier_path(const std::string &path){
-	tier_path_ = path;
-}
-
-bool Metadata::pinned(void) const{
-	return pinned_;
-}
-
-void Metadata::pinned(bool val){
-	pinned_ = val;
-}
-
-bool Metadata::not_found(void) const{
-	return not_found_;
-}
-
-std::string Metadata::dump_stats(void) const{
-	std::stringstream ss;
-	ss << "tier_path_: " << tier_path_ << std::endl;
-	ss << "access_count_: " << access_count_ << std::endl;
-	ss << "popularity_: " << popularity_ << std::endl;
-	ss << "pinned: " << std::boolalpha << pinned_ << std::noboolalpha << std::endl;
-	return ss.str();
 }
 
 File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)

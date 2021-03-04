@@ -24,7 +24,7 @@
 #include "fusePassthrough.hpp"
 #include "tier.hpp"
 #include "tierEngine.hpp"
-#include "file.hpp"
+#include "metadata.hpp"
 #include "alert.hpp"
 #include "config.hpp"
 #include "openFiles.hpp"
@@ -32,7 +32,6 @@
 #include <thread>
 #include <regex>
 #include <unordered_map>
-#include <rocksdb/snapshot.h>
 
 //#define LOG_METHODS // uncomment to enable debug output to journalctl
 
