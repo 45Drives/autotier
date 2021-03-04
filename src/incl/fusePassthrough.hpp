@@ -25,12 +25,17 @@
 
 #pragma once
 
-#include <list>
 #include <rocksdb/db.h>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 struct ConfigOverrides;
+
+namespace Global{
+	extern fs::path config_path_;
+	extern fs::path mount_point_;
+	extern ConfigOverrides config_overrides_;
+}
 
 class FusePassthrough{
 private:
@@ -43,4 +48,3 @@ public:
 	/* creates struct of FUSE function pointers and calls fuse_main()
 	 */
 };
-
