@@ -33,7 +33,7 @@ class Metadata{
 	friend class boost::serialization::access;
 	friend class File;
 private:
-	uintmax_t access_count_ = 1;
+	uintmax_t access_count_ = 0;
 	/* Number of times the file was accessed since last tiering.
 	 * Resets to 0 after each popularity calculation.
 	 */
