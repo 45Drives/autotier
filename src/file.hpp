@@ -98,7 +98,7 @@ public:
 	~Metadata(void) = default;
 	/* Default destructor.
 	 */
-	void update(const char *relative_path, rocksdb::DB *db);
+	void update(std::string relative_path, rocksdb::DB *db, std::string *old_key = nullptr);
 	/* Put metadata into database with relative_path as the key.
 	 */
 	void touch(void);

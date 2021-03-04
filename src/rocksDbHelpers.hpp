@@ -22,6 +22,7 @@
 #include <rocksdb/db.h>
 #include <rocksdb/slice_transform.h>
 #include <string>
+#include <mutex>
 
 namespace l{
 	class PathSliceTransform : public rocksdb::SliceTransform{
@@ -43,4 +44,8 @@ namespace l{
 	};
 	
 	extern const PathSliceTransform *NewPathSliceTransform();
+	
+	namespace rocksdb{
+		extern std::mutex global_lock_;
+	}
 }

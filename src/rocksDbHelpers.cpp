@@ -22,3 +22,9 @@
 const l::PathSliceTransform *l::NewPathSliceTransform(){
 	return new PathSliceTransform();
 }
+
+namespace l{
+	namespace rocksdb{
+		std::mutex global_lock_;
+	}
+}

@@ -20,6 +20,7 @@
 #include "file.hpp"
 #include "alert.hpp"
 #include "tier.hpp"
+#include "rocksDbHelpers.hpp"
 #include <sstream>
 
 extern "C" {
@@ -45,14 +46,25 @@ Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
 	}
 }
 
-void Metadata::update(const char *relative_path, rocksdb::DB *db){
-	if(relative_path[0] == '/') relative_path++;
+void Metadata::update(std::string relative_path, rocksdb::DB *db, std::string *old_key){
+	if(relative_path.front() == '/')
+		relative_path = relative_path.substr(1, std::string::npos);
 	std::stringstream ss;
 	{
 		boost::archive::text_oarchive oa(ss);
 		this->serialize(oa, 0);
 	}
-	rocksdb::Status s = db->Put(rocksdb::WriteOptions(), relative_path, ss.str());
+	{
+		std::lock_guard<std::mutex> lk(l::rocksdb::global_lock_);
+		rocksdb::WriteBatch batch;
+		if(old_key){
+			if(old_key->front() == '/')
+				*old_key = old_key->substr(1, std::string::npos);
+			batch.Delete(*old_key);
+		}
+		batch.Put(relative_path, ss.str());
+		db->Write(rocksdb::WriteOptions(), &batch);
+	}
 }
 
 void Metadata::touch(void){
@@ -104,7 +116,7 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 }
 
 File::~File(){
-	metadata_.update(relative_path_.c_str(), db_);
+	metadata_.update(relative_path_.string(), db_);
 }
 
 void File::calc_popularity(double period_seconds){

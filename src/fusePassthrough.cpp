@@ -28,6 +28,7 @@
 #include "alert.hpp"
 #include "config.hpp"
 #include "openFiles.hpp"
+#include "rocksDbHelpers.hpp"
 #include <thread>
 #include <regex>
 #include <unordered_map>
@@ -179,10 +180,10 @@ namespace l{
 		return st.st_size;
 	}
 	
-	static void update_keys(
+	static void update_keys_in_directory(
 		std::string old_directory,
 		std::string new_directory,
-		rocksdb::DB *db
+		::rocksdb::DB *db
 	){
 		// Remove leading /.
 		if(old_directory.front() == '/'){
@@ -204,10 +205,10 @@ namespace l{
 		}
 		
 		// Batch changes to atomically update keys
-		rocksdb::WriteBatch batch;
+		::rocksdb::WriteBatch batch;
 		
-		rocksdb::ReadOptions read_options;
-		rocksdb::Iterator *itr = db->NewIterator(read_options);
+		::rocksdb::ReadOptions read_options;
+		::rocksdb::Iterator *itr = db->NewIterator(read_options);
 		for(itr->Seek(old_directory); itr->Valid() && itr->key().starts_with(old_directory); itr->Next()){
 			std::string old_path = itr->key().ToString();
 			fs::path new_path = new_directory / fs::relative(old_path, old_directory);
@@ -215,7 +216,10 @@ namespace l{
 			batch.Put(new_path.string(), itr->value());
 		}
 		delete itr;
-		db->Write(rocksdb::WriteOptions(), &batch);
+		{
+			std::lock_guard<std::mutex> lk(l::rocksdb::global_lock_);
+			db->Write(::rocksdb::WriteOptions(), &batch);
+		}
 	}
 }
 
@@ -417,8 +421,12 @@ static int at_unlink(const char *path){
 	if(res == -1)
 		return -errno;
 	
-	if(!priv->db_->Delete(rocksdb::WriteOptions(), path+1).ok())
-		return -1;
+	{
+		std::lock_guard<std::mutex> lk(l::rocksdb::global_lock_);
+		if(!priv->db_->Delete(rocksdb::WriteOptions(), path+1).ok())
+			return -1;
+	}
+	
 	return res;
 }
 
@@ -503,7 +511,7 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 			if(res == -1)
 				return -errno;
 		}
-		l::update_keys(from+1, to+1, priv->db_);
+		l::update_keys_in_directory(from+1, to+1, priv->db_);
 	}else{
 		Metadata f(from, priv->db_);
 		if(f.not_found())
@@ -514,10 +522,8 @@ static int at_rename(const char *from, const char *to, unsigned int flags){
 		if(res == -1)
 			return -errno;
 		
-		f.update(to, priv->db_);
-		
-		if(!priv->db_->Delete(rocksdb::WriteOptions(), from+1).ok())
-			return -1;
+		std::string key_to_delete(from);
+		f.update(to, priv->db_, &key_to_delete);
 	}
 	
 	return res;
@@ -1121,7 +1127,7 @@ static int at_opendir(const char *path, struct fuse_file_info *fi){
 	if(d == NULL)
 		return -ENOMEM;
 	
-	for(int i = 0; i < priv->tiers_.size(); i++){
+	for(std::vector<Tier *>::size_type i = 0; i < priv->tiers_.size(); i++){
 		fs::path backend_path = priv->tiers_[i]->path() / path;
 		d->dps[i] = opendir(backend_path.c_str());
 		d->backends[i] = strdup(backend_path.c_str());
