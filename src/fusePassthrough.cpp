@@ -31,6 +31,7 @@
 #include <thread>
 #include <regex>
 #include <unordered_map>
+#include <rocksdb/snapshot.h>
 
 //#define LOG_METHODS // uncomment to enable debug output to journalctl
 
@@ -178,28 +179,43 @@ namespace l{
 		return st.st_size;
 	}
 	
-	static void update_keys(std::string old_directory, std::string new_directory, rocksdb::DB *db){
-		/* for each key in database:
-		 *   if key starts with old_directory:
-		 *     rename key to new_directory/relative(key, old_directory)
-		 */
-		if(old_directory[0] == '/'){
+	static void update_keys(
+		std::string old_directory,
+		std::string new_directory,
+		rocksdb::DB *db
+	){
+		// Remove leading /.
+		if(old_directory.front() == '/'){
 			old_directory = old_directory.substr(1, std::string::npos);
 		}
-		if(new_directory[0] == '/'){
+		if(new_directory.front() == '/'){
 			new_directory = new_directory.substr(1, std::string::npos);
 		}
+		
+		/* Ensure that only paths containing exclusively the changed directory are updated.
+		 * EX: subdir and subdir2 exist. If subdir is updated, test should check for "subdir/"
+		 * to avoid changing subdir2 aswell.
+		 */
+		if(old_directory.back() != '/'){
+			old_directory += '/';
+		}
+		if(new_directory.back() != '/'){
+			new_directory += '/';
+		}
+		
+		// Batch changes to atomically update keys
+		rocksdb::WriteBatch batch;
+		
 		rocksdb::ReadOptions read_options;
 		rocksdb::Iterator *itr = db->NewIterator(read_options);
-		for(itr->Seek(old_directory); itr->Valid() && itr->key().starts_with(old_directory); itr->Next()){// ensure inside changed directory
-			Metadata f(itr->key().data(), db);
-			if(f.not_found())
-				continue;
+		for(itr->Seek(old_directory); itr->Valid() && itr->key().starts_with(old_directory); itr->Next()){
 			std::string old_path = itr->key().ToString();
 			fs::path new_path = new_directory / fs::relative(old_path, old_directory);
-			f.update(new_path.c_str(), db);
-			db->Delete(rocksdb::WriteOptions(), old_path);
+			batch.Delete(itr->key());
+			batch.Put(new_path.string(), itr->value());
 		}
+		delete itr;
+		db->Write(rocksdb::WriteOptions(), &batch);
 	}
 }
 
