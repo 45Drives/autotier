@@ -1,6 +1,10 @@
 autotier (1.0.4-1focal) focal; urgency=high
 
   * Fix renaming directories containing files.
+  * Pass std::string instead of const char * to Metadata::update().
+  * Add global mutex lock to guard writing to database.
+  * Optional old_key argument for Metadata::update() to delete old DB entry
+    atomically.
 
  -- Josh Boudreau <jboudreau@45drives.com>  Thu, 04 Mar 2021 10:50:00 -0400
 
