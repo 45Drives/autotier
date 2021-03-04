@@ -615,10 +615,8 @@ void TierEngine::pin_files(const std::vector<std::string> &args){
 			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
 			continue;
 		}
-		Logging::log.message("old tier path: " + f.tier_path(), 0);
 		Tier *old_tptr = tier_lookup(fs::path(f.tier_path()));
 		File file(old_tptr->path() / relative_path, db_, old_tptr);
-		Logging::log.message("old full path: " + file.full_path().string(), 0);
 		file.pin();
 		tptr->enqueue_file_ptr(&file);
 	}
