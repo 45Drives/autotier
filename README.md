@@ -16,7 +16,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ### Installing from Source
 * Install dependencies:  
-	`# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev`
+	`# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev`
 * `$ git clone https://github.com/45drives/autotier`
 * `$ cd autotier`
 * `$ git checkout <version>` (v1.0.4 is the latest release)
