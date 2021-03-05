@@ -42,6 +42,9 @@ clean-target:
 clean-build:
 	-rm -rf build
 
+clean-tests:
+	-rm -rf dist/tests
+
 install: all inst-man-pages inst-config inst-completion
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/usr/bin
@@ -57,7 +60,6 @@ tests: view-db
 view-db:
 	mkdir -p dist/tests
 	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/metadata.cpp -Wall $(LIBS) -o dist/tests/view_db
-
 
 inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8
