@@ -19,6 +19,7 @@
 
 #include "tierEngine.hpp"
 #include "alert.hpp"
+#include <execution>
 
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
@@ -100,7 +101,11 @@ void TierEngine::sort(void){
 	Logging::log.message("Sorting files.", 2);
 	// TODO: use std::execution::par for parallel sort after changing files_ to vector
 	// NOTE: std::execution::par requires C++17
-	std::sort(files_.begin(), files_.end(),
+	std::sort(
+#ifndef NO_PAR_SORT
+		std::execution::par,
+#endif
+		files_.begin(), files_.end(),
 		[](const File &a, const File &b){
 			if(a.popularity() == b.popularity()){
 				struct timeval a_t = a.atime();

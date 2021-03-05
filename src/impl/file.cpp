@@ -30,6 +30,18 @@ extern "C" {
 	#include <sys/wait.h>
 }
 
+File::File(void) :
+	size_(0),
+	tier_ptr_(nullptr),
+	times_{{0}, {0}},
+	atime_(0),
+	ctime_(0),
+	relative_path_(""),
+	db_(nullptr),
+	metadata_(){
+		
+}
+
 File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 		: relative_path_(fs::relative(full_path, tptr->path())), metadata_(relative_path_.c_str(), db, tptr){
 	tier_ptr_ = tptr;
@@ -43,6 +55,18 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 	atime_ = times_[0].tv_sec;
 	ctime_ = info.st_ctim.tv_sec;
 	db_ = db;
+}
+
+File::File(const File &other) :
+	size_(other.size_),
+	tier_ptr_(other.tier_ptr_),
+	times_{other.times_[0], other.times_[1]},
+	atime_(other.atime_),
+	ctime_(other.ctime_),
+	relative_path_(other.relative_path_),
+	db_(other.db_),
+	metadata_(other.metadata_){
+		
 }
 
 File::~File(){

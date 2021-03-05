@@ -55,9 +55,15 @@ private:
 	/* Metadata of object retrieved from database.
 	 */
 public:
+	File(void);
+	/* Empty constructor.
+	 */
 	File(fs::path full_path, rocksdb::DB *db, Tier *tptr);
 	/* File constructor used while tiering.
 	 * Grabs metadata from db and other info from stat().
+	 */
+	File(const File &other);
+	/* Copy constructor.
 	 */
 	~File();
 	/* Destructor - calls metadata.update(relative_path_.c_str(), db_)
