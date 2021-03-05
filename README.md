@@ -7,7 +7,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Current Release
-* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.0.4-beta/autotier_1.0.4-1focal_amd64.deb```
+* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.0.4/autotier_1.0.4-1focal_amd64.deb```
 * Install deb: `# dpkg -i autotier_1.0.4-1focal_amd64.deb`
 * Edit configuration file: `/etc/autotier.conf`
 * Mount filesystem:
