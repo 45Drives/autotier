@@ -19,6 +19,7 @@
 
 #include "tier.hpp"
 #include "alert.hpp"
+#include "openFiles.hpp"
 #include "file.hpp"
 
 extern "C" {
@@ -46,6 +47,11 @@ void Tier::add_file_size(uintmax_t size){
 void Tier::subtract_file_size(uintmax_t size){
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ -= size;
+}
+
+void Tier::size_delta(intmax_t old_size, intmax_t new_size){
+	std::lock_guard<std::mutex> lk(usage_mt_);
+	usage_ += new_size - old_size;
 }
 
 void Tier::add_file_size_sim(uintmax_t size){
@@ -109,11 +115,11 @@ void Tier::enqueue_file_ptr(File *fptr){
 
 void Tier::transfer_files(void){
 	for(File * fptr : incoming_files_){
-		if(fptr->is_open()){
-			Logging::log.warning("File is open by another process: " + fptr->full_path().string());
+		fs::path old_path = fptr->full_path();
+		if(OpenFiles::is_open(old_path.string())){
+			Logging::log.warning("File is open by another process: " + old_path.string());
 			continue;
 		}
-		fs::path old_path = fptr->full_path();
 		fs::path new_path = path_ / fptr->relative_path();
 		bool copy_success = Tier::move_file(old_path, new_path);
 		if(copy_success){
@@ -152,6 +158,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 }
 
 void Tier::usage(uintmax_t usage){
+	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ = usage;
 }
 

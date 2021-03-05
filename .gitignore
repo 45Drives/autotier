@@ -26,12 +26,6 @@
 *.a
 *.lib
 
-# Executables
-*.exe
-*.out
-*.app
-autotier
-
 # Kate swap file
 *.kate-swp
 
@@ -46,6 +40,9 @@ debian/autotier.postrm.debhelper
 debian/debhelper-build-stamp
 debian/files
 debian/.debhelper
+
+# build ouptut
+dist
 
 # tests
 test_db

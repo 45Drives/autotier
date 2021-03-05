@@ -1,0 +1,8 @@
+FROM ubuntu
+
+LABEL description="Container in which to build ubuntu applications"
+
+ENV TZ=America/Glace_Bay
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt update && apt install -y g++ make libboost-all-dev librocksdb-dev build-essential fakeroot devscripts debhelper libtbb-dev libfuse3-dev

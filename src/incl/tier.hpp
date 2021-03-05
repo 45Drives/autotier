@@ -83,6 +83,9 @@ public:
 	void subtract_file_size(uintmax_t size);
 	/* Subtract size bytes from usage.
 	 */
+	void size_delta(intmax_t old_size, intmax_t new_size);
+	/* Subtract old_size then add new_size.
+	 */
 	void add_file_size_sim(uintmax_t size);
 	/* Add size bytes to sim_usage_.
 	 */

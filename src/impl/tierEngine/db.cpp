@@ -17,30 +17,21 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* fusePassthrough.cpp contains all the fuse filesystem calls needed to
- * implement the filesystem. It creates a TierEngine object pointer and runs
- * begin() and process_adhoc_requests() as threads in the at_init() method, and
- * joins the threads in the at_destroy() method.
- */
+#include "tierEngine.hpp"
+#include "rocksDbHelpers.hpp"
+#include "alert.hpp"
 
-#pragma once
-
-#include <list>
-#include <rocksdb/db.h>
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
-
-struct ConfigOverrides;
-
-class FusePassthrough{
-private:
-public:
-	FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides);
-	/* calls open_db and saves pointers to each tier of tiers_
-	 */
-	~FusePassthrough(void) = default;
-	int mount_fs(fs::path mountpoint, char *fuse_opts);
-	/* creates struct of FUSE function pointers and calls fuse_main()
-	 */
-};
-
+void TierEngine::open_db(bool read_only){
+	std::string db_path = (run_path_ / "db").string();
+	rocksdb::Options options;
+	options.create_if_missing = true;
+	options.prefix_extractor.reset(l::NewPathSliceTransform());
+	rocksdb::Status status;
+	if(read_only)
+		status = rocksdb::DB::OpenForReadOnly(options, db_path, &db_);
+	else
+		status = rocksdb::DB::Open(options, db_path, &db_);
+	if(!status.ok()){
+		Logging::log.error("Failed to open RocksDB database: " + db_path);
+	}
+}
