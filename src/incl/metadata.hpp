@@ -32,6 +32,7 @@ class Metadata{
 	 */
 	friend class boost::serialization::access;
 	friend class File;
+	friend class MetadataViewer;
 private:
 	uintmax_t access_count_ = 0;
 	/* Number of times the file was accessed since last tiering.
@@ -64,14 +65,24 @@ private:
 		ar & pinned_;
 	}
 public:
+	Metadata(void);
+	/* Empty constructor.
+	 */
+	~Metadata(void) = default;
+	/* Default destructor.
+	 */
+	Metadata(const std::string &serialized);
+	/* Construct from slice.
+	 */
+	Metadata(const Metadata &other);
+	/* Copy constructor.
+	 */
+#ifndef BAREBONES_METADATA
 	Metadata(const char *path, rocksdb::DB *db, Tier *tptr = nullptr);
 	/* Try to retrieve data from db. If not found and tptr != nullptr,
 	 * new metadata object is initialized and put into the database.
 	 * If not found and tptr == nullptr, metadata is left undefined and
 	 * not_found_ is set to true.
-	 */
-	~Metadata(void) = default;
-	/* Default destructor.
 	 */
 	void update(std::string relative_path, rocksdb::DB *db, std::string *old_key = nullptr);
 	/* Put metadata into database with relative_path as the key.
@@ -97,4 +108,5 @@ public:
 	std::string dump_stats(void) const;
 	/* Return metadata as formatted string.
 	 */
+#endif
 };

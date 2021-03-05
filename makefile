@@ -1,12 +1,10 @@
 TARGET = dist/from_source/autotier
 LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lstdc++ -lrocksdb
 CC = g++
-CFLAGS = -std=c++11 -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
+CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
 SOURCE_FILES := $(shell find src/impl -name *.cpp)
-OBJECT_FILES := $(patsubst src/%.cpp, build/%.o, $(SOURCE_FILES))
-
-TEST_OBJECTS = tests/view_db.o src/file.o src/tier.o src/alert.o
+OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SOURCE_FILES))
 
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
@@ -14,18 +12,23 @@ endif
 
 .PHONY: default all clean clean-build clean-target install uninstall debug
 
-default: CFLAGS := -O2 $(CFLAGS)
+default: CFLAGS := -std=c++17 -O2 $(CFLAGS)
+default: LIBS := -ltbb $(LIBS)
 default: $(TARGET)
 all: default
 
-debug: CFLAGS := -g -DLOG_METHODS $(CFLAGS)
+debug: CFLAGS := -std=c++17 -g -DLOG_METHODS $(CFLAGS)
+debug: LIBS := -ltbb $(LIBS)
 debug: $(TARGET)
+
+no-par-sort: CFLAGS := -std=c++11 $(CFLAGS)
+no-par-sort: $(TARGET)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(OBJECT_FILES): build/%.o : src/%.cpp
+$(OBJECT_FILES): build/%.o : src/impl/%.cpp
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/%.cpp, $@) -o $@
+	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
 $(TARGET): $(OBJECT_FILES)
 	mkdir -p dist/from_source
@@ -49,9 +52,12 @@ uninstall: rm-man-pages rm-completion
 	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(TARGET))
 	-rm -f $(DESTDIR)/usr/bin/$(notdir $(TARGET))
 
-tests: $(TEST_OBJECTS)
+tests: view-db
+
+view-db:
 	mkdir -p dist/tests
-	$(CC) $(TEST_OBJECTS) -Wall $(LIBS) -o dist/tests/test_db
+	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/metadata.cpp -Wall $(LIBS) -o dist/tests/view_db
+
 
 inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8

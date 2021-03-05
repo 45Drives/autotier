@@ -22,6 +22,32 @@
 #include "rocksDbHelpers.hpp"
 #include <sstream>
 
+Metadata::Metadata(void) :
+	access_count_(0),
+	popularity_(0.0),
+	not_found_(false),
+	pinned_(false),
+	tier_path_(""){
+	
+}
+
+Metadata::Metadata(const std::string &serialized){
+	std::stringstream ss(serialized);
+	boost::archive::text_iarchive ia(ss);
+	this->serialize(ia, 0);
+}
+
+Metadata::Metadata(const Metadata &other) :
+	access_count_(other.access_count_),
+	popularity_(other.popularity_),
+	not_found_(other.not_found_),
+	pinned_(other.pinned_),
+	tier_path_(other.tier_path_){
+	
+}
+
+#ifndef BAREBONES_METADATA
+
 Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
 	std::string str;
 	if(path[0] == '/') path++;
@@ -91,3 +117,5 @@ std::string Metadata::dump_stats(void) const{
 	ss << "pinned: " << std::boolalpha << pinned_ << std::noboolalpha << std::endl;
 	return ss.str();
 }
+
+#endif
