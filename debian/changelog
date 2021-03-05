@@ -6,8 +6,9 @@ autotier (1.0.4-1focal) focal; urgency=high
   * Optional old_key argument for Metadata::update() to delete old DB entry
     atomically.
   * Break out fuse methods into separate files and put in fuse_ops namespace.
+  * Use std::execution::par for sorting vector of files.
 
- -- Josh Boudreau <jboudreau@45drives.com>  Thu, 04 Mar 2021 10:50:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Fri, 05 Mar 2021 12:17:00 -0400
 
 autotier (1.0.3-2focal) focal; urgency=low
 
