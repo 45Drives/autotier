@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:focal
 
 LABEL description="Container in which to build ubuntu applications"
 
