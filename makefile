@@ -1,10 +1,18 @@
-TARGET = dist/from_source/autotier
-LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lstdc++ -lrocksdb
+FS_TARGET = dist/from_source/autotierfs
+CLI_TARGET = dist/from_source/autotier
+FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb
+CLI_LIBS = -lboost_system -lboost_filesystem
 CC = g++
 CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
-SOURCE_FILES := $(shell find src/impl -name *.cpp)
-OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SOURCE_FILES))
+FS_SOURCE_FILES := $(shell find src/impl/autotierfs -name *.cpp)
+FS_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(FS_SOURCE_FILES))
+
+CLI_SOURCE_FILES := $(shell find src/impl/autotier -name *.cpp)
+CLI_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(CLI_SOURCE_FILES))
+
+SHARED_SOURCE_FILES := $(shell find src/impl/shared -name *.cpp)
+SHARED_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SHARED_SOURCE_FILES))
 
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
@@ -13,26 +21,30 @@ endif
 .PHONY: default all clean clean-build clean-target install uninstall debug
 
 default: CFLAGS := -std=c++17 -O2 $(CFLAGS)
-default: LIBS := -ltbb $(LIBS)
-default: $(TARGET)
+default: FS_LIBS := -ltbb $(FS_LIBS)
+default: $(FS_TARGET) $(CLI_TARGET)
 all: default
 
 debug: CFLAGS := -std=c++17 -g -DLOG_METHODS $(CFLAGS)
-debug: LIBS := -ltbb $(LIBS)
-debug: $(TARGET)
+debug: FS_LIBS := -ltbb $(FS_LIBS)
+debug: $(FS_TARGET) $(CLI_TARGET)
 
 no-par-sort: CFLAGS := -std=c++11 $(CFLAGS)
-no-par-sort: $(TARGET)
+no-par-sort: $(FS_TARGET) $(CLI_TARGET)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(OBJECT_FILES): build/%.o : src/impl/%.cpp
+$(FS_OBJECT_FILES) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES): build/%.o : src/impl/%.cpp
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
-$(TARGET): $(OBJECT_FILES)
+$(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES)
 	mkdir -p dist/from_source
-	$(CC) $(OBJECT_FILES) -Wall $(LIBS) -o $@
+	$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(FS_LIBS) -o $@
+
+$(CLI_TARGET): $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES)
+	mkdir -p dist/from_source
+	$(CC) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(CLI_LIBS) -o $@
 
 clean: clean-build clean-target
 

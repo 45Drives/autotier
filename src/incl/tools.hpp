@@ -25,7 +25,7 @@
 namespace fs = boost::filesystem;
 
 #define NUM_COMMANDS 9
-enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER, MOUNTPOINT};
+enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER};
 
 //enum FIFO_WHO {SERVER, CLIENT};
 class fifo_exception : public std::exception{
@@ -113,6 +113,7 @@ public:
 	 */
 };
 
-void usage(void);
+void fs_usage(void);
+void cli_usage(void);
 /* print usage message to std::cout
  */

@@ -21,7 +21,7 @@
 
 #include <string>
 
-enum output_t {STD, SYSLOG, FUSELOG};
+enum output_t {STD, SYSLOG};
 
 class Logger{
 private:

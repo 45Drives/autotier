@@ -20,29 +20,10 @@
 #include "config.hpp"
 #include "alert.hpp"
 #include "tier.hpp"
+#include "stripWhitespace.hpp"
 #include <sstream>
 #include <regex>
 #include <cmath>
-
-inline void strip_whitespace(std::string &str){
-	std::size_t strItr;
-	// back ws
-	if((strItr = str.find('#')) == std::string::npos){ // strItr point to '#' or end
-		strItr = str.length();
-	}
-	if(strItr != 0) // protect from underflow
-		strItr--; // point to last character
-	while(strItr && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
-		strItr--;
-	} // strItr points to last character
-	str = str.substr(0,strItr + 1);
-	// front ws
-	strItr = 0;
-	while(strItr < str.length() && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
-		strItr++;
-	} // strItr points to first character
-	str = str.substr(strItr, str.length() - strItr);
-}
 
 void parse_quota(const std::string &value, Tier *tptr){
 	std::smatch m;
