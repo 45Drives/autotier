@@ -60,12 +60,16 @@ clean-tests:
 install: all inst-man-pages inst-config inst-completion
 	mkdir -p $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)/usr/bin
-	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)
-	ln -sf $(PREFIX)/$(notdir $(TARGET)) $(DESTDIR)/usr/bin/$(notdir $(TARGET))
+	install -m 755 $(FS_TARGET) $(DESTDIR)$(PREFIX)
+	install -m 755 $(CLI_TARGET) $(DESTDIR)$(PREFIX)
+	ln -sf $(PREFIX)/$(notdir $(FS_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
+	ln -sf $(PREFIX)/$(notdir $(CLI_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
 
 uninstall: rm-man-pages rm-completion
-	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(TARGET))
-	-rm -f $(DESTDIR)/usr/bin/$(notdir $(TARGET))
+	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(FS_TARGET))
+	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(CLI_TARGET))
+	-rm -f $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
+	-rm -f $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
 
 tests: view-db
 
@@ -77,9 +81,11 @@ inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8
 	gzip -k doc/man/autotier.8
 	mv doc/man/autotier.8.gz $(DESTDIR)/usr/share/man/man8/
+	ln -snf autotier.8.gz  $(DESTDIR)/usr/share/man/man8/autotierfs.8.gz
 
 rm-man-pages:
 	-rm -f $(DESTDIR)/usr/share/man/man8/autotier.8.gz
+	-rm -f $(DESTDIR)/usr/share/man/man8/autotierfs.8.gz
 
 inst-config:
 	mkdir -p $(DESTDIR)/etc
@@ -88,6 +94,8 @@ inst-config:
 inst-completion:
 	mkdir -p $(DESTDIR)/usr/share/bash-completion/completions
 	cp doc/completion/autotier.bash-completion $(DESTDIR)/usr/share/bash-completion/completions/autotier
+	cp doc/completion/autotierfs.bash-completion $(DESTDIR)/usr/share/bash-completion/completions/autotierfs
 
 rm-completion:
 	-rm -f $(DESTDIR)/usr/share/bash-completion/completions/autotier
+	-rm -f $(DESTDIR)/usr/share/bash-completion/completions/autotierfs
