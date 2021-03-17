@@ -3,7 +3,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH AUTOTIER 8 "February 25 2021" "autotier 1.0.4"
+.TH AUTOTIER 8 "February 25 2021" "autotier 1.1.0"
 .\" Please adjust this date whenever revising the manpage.
 
 .SH NAME
@@ -12,9 +12,9 @@ between storage tiers based on frequency of use, file age, and tier fullness.
 
 .SH SYNOPSIS
 .SS MOUNTING FILESYSTEM
-.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
+.BI "autotierfs " "\fR[\fP-choqvV\fR]\fP mountpoint " "\fR[-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS AD HOC COMMANDS
-.BI "autotier " "\fR[\fPflags\fR]\fP command \fR[\fParg1 arg2 \fR...]\fP"
+.BI "autotier " "\fR[\fP-chqvV\fR]\fP command \fR[\fParg1 arg2 \fR...]\fP"
 
 .SH DESCRIPTION
 .B autotier
@@ -68,16 +68,16 @@ to mute logo output.
 
 .SH MOUNTING
 .SS MANUALLY
-.BI "autotier " "\fR[\fPflags\fR]\fP mountpoint " "\fR[\-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
+.BI "autotierfs " "\fR[\fPflags\fR]\fP mountpoint " "\fR[\-o\fP " "fuse\fR,\fPoptions\fR,...]\fP"
 .SS IN FSTAB
-.B autotier
+.B autotierfs
 .I mountpoint
 .IR fuse , options ",..."
 0 0
 .SS RECOMMENDED FSTAB SETTINGS
-.B autotier
+.B autotierfs
 .I mountpoint
-.IR default_permissions , allow_other ",..."
+.IR default_permissions , allow_other
 0 0
 
 .SH AD HOC COMMANDS
