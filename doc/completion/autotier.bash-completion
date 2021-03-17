@@ -58,51 +58,28 @@ _AutotierCompleteBash () {
 		case "$cur" in
 			-*)
 				COMPREPLY=(
-					$(compgen -W '-c --config -h --help -o --fuse-options -q --quiet -v --verbose -V --version' -- $cur)
+					$(compgen -W '-c --config -h --help -j --json -q --quiet -v --verbose -V --version' -- $cur)
 				)
 				;;
 			*)
-				case "$prev" in
-					-o|--fuse-options)
-						compopt -o nospace
-						cur=$(echo $cur | sed 's/=/\\=/g')
-						local cur_pre
-						local cur_post_eq
-						cur_pre=$(printf "$cur" | sed 's/^\(.*,\)[^,]*$/\1/')
-						cur_post_eq=$(printf "$cur" | sed 's/^.*=\([^=]*\)$/\1/')
-						local AT_FUSE_OPTS=("allow_other" "default_permissions" "rootmode\=" "user_id\=" "group_id\=" "fsname\=" "subtype\=" "allow_root" "auto_unmount" "kernel_cache" "auto_cache" "umask\=" "uid\=" "gid\=" "entry_timeout\=" "negative_timeout\=" "attr_timeout\=" "ac_attr_timeout\=" "noforget" "remember\=" "modules\=" "setuid\=" "drop_privileges\=")
-						if [[ "$cur" =~ ^.*,.*$ ]]; then
-							for i in $(seq 0 ${#AT_FUSE_OPTS[@]}); do
-								AT_FUSE_OPTS[$i]="$cur_pre${AT_FUSE_OPTS[$i]}"
-							done
-						fi
-						COMPREPLY=($(compgen -W '${AT_FUSE_OPTS[@]}' -- $cur))
-						if [[ ${#COMPREPLY[@]} == 1 && $cur == ${COMPREPLY[0]} ]]; then
-							COMPREPLY=("${COMPREPLY[0]},")
-						fi
+				if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
+					COMPREPLY=()
+				else
+					compopt -o default
+					if [[ $command_used == 0 ]]; then
+						COMPREPLY=(
+							$(compgen -W '${commands[@]}' -- $cur)
+						)
+					else
+						COMPREPLY=()
+					fi
+					if [[ ($multi_file == 1 && ${#COMPREPLY[@]} == 0) ]]; then
+						local IFS=$'\n'
+						compopt -o filenames
+						COMPREPLY=($(compgen -f -- $cur))
 						return 0
-						;;
-					*)
-						if [[ " ${no_arg_commands[@]} " =~ " ${prev} " ]]; then
-							COMPREPLY=()
-						else
-							compopt -o default
-							if [[ $command_used == 0 ]]; then
-								COMPREPLY=(
-									$(compgen -W '${commands[@]}' -- $cur)
-								)
-							else
-								COMPREPLY=()
-							fi
-							if [[ ($command_used == 0 && ${#COMPREPLY[@]} == 0) || ($multi_file == 1 && ${#COMPREPLY[@]} == 0) ]]; then
-								local IFS=$'\n'
-								compopt -o filenames
-								COMPREPLY=($(compgen -f -- $cur))
-								return 0
-							fi
-						fi
-						;;
-				esac
+					fi
+				fi
 				;;
 		esac
 	fi
