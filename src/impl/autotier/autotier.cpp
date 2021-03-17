@@ -35,7 +35,7 @@ fs::path get_run_path(const fs::path &config_path){
 	// open file
 	std::ifstream config_file(config_path.string());
 	if(!config_file){
-		Logging::log.error("Failed to open config file.", false);
+		Logging::log.error("Failed to open config file.");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -136,13 +136,13 @@ int main(int argc, char *argv[]){
 	if(optind < argc){
 		cmd = get_command_index(argv[optind]);
 	}else{
-		Logging::log.error("No command passed.", false);
+		Logging::log.error("No command passed.");
 		cli_usage();
 		exit(EXIT_FAILURE);
 	}
 	
 	if(cmd == -1){
-		Logging::log.error("Invalid command: " + std::string(argv[optind]), false);
+		Logging::log.error("Invalid command: " + std::string(argv[optind]));
 		cli_usage();
 		exit(EXIT_FAILURE);
 	}
@@ -167,11 +167,15 @@ int main(int argc, char *argv[]){
 			std::list<std::string> paths;
 			while(optind < argc)
 				paths.push_back(argv[optind++]);
-			if(paths.empty())
+			if(paths.empty()){
 				Logging::log.error("No arguments passed.");
+				exit(EXIT_FAILURE);
+			}
 			sanitize_paths(paths);
-			if(paths.empty())
+			if(paths.empty()){
 				Logging::log.error("No remaining valid paths.");
+				exit(EXIT_FAILURE);
+			}
 			for(const std::string &path : paths)
 				payload.emplace_back(path);
 		}else if(cmd == STATUS){
@@ -182,7 +186,7 @@ int main(int argc, char *argv[]){
 		
 		fs::path run_path = get_run_path(config_path);
 		if(run_path == ""){
-			Logging::log.error("Could not find metadata path.", false);
+			Logging::log.error("Could not find metadata path.");
 			exit(EXIT_FAILURE);
 		}
 		
@@ -207,27 +211,11 @@ int main(int argc, char *argv[]){
 			}
 		}else{
 			for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
-				Logging::log.error(*itr, false);
+				Logging::log.error(*itr);
 			}
 			exit(EXIT_FAILURE);
 		}
 	}
-// 		case LPIN:
-// 			Logging::log.message("Pinned files:", 0);
-// 			{
-// 				bool read_only = true;
-// 				TierEngine autotier(config_path, config_overrides, read_only);
-// 				autotier.launch_crawlers(&TierEngine::print_file_pins);
-// 			}
-// 			break;
-// 		case LPOP:
-// 			Logging::log.message("File popularity:", 0);
-// 			{
-// 				bool read_only = true;
-// 				TierEngine autotier(config_path, config_overrides, read_only);
-// 				autotier.launch_crawlers(&TierEngine::print_file_popularity);
-// 			}
-// 			break;
 	
 	return 0;
 }

@@ -94,8 +94,10 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 	// open file
 	std::ifstream config_file(config_path.string());
 	if(!config_file){
-		if(read_only)
+		if(read_only){
 			Logging::log.error("Failed to open config file.");
+			exit(EXIT_FAILURE);
+		}
 		config_file.close();
 		init_config_file(config_path);
 		config_file.open(config_path.string());
@@ -160,8 +162,10 @@ Config::Config(const fs::path &config_path, const ConfigOverrides &config_overri
 	
 	// open file
 	std::ifstream config_file(config_path.string());
-	if(!config_file)
+	if(!config_file){
 		Logging::log.error("Failed to open config file.");
+		exit(EXIT_FAILURE);
+	}
 	
 	while(config_file){
 		getline(config_file, line);
@@ -236,9 +240,15 @@ int Config::load_global(std::ifstream &config_file, std::string &id){
 void Config::init_config_file(const fs::path &config_path) const{
 	boost::system::error_code ec;
 	fs::create_directories(config_path.parent_path(), ec);
-	if(ec) Logging::log.error("Error creating path: " + config_path.parent_path().string());
+	if(ec){
+		Logging::log.error("Error creating path: " + config_path.parent_path().string());
+		exit(EXIT_FAILURE);
+	}
 	std::ofstream f(config_path.string());
-	if(!f) Logging::log.error("Error opening config file: " + config_path.string());
+	if(!f){
+		Logging::log.error("Error opening config file: " + config_path.string());
+		exit(EXIT_FAILURE);
+	}
 	f <<
 	"# autotier config\n"
 	"[Global]                       # global settings\n"
@@ -262,14 +272,14 @@ inline void validate_backend_path(const fs::path &path, const std::string &prefi
 	bool is_directory = false;
 	bool no_perm = false;
 	if(path.is_relative()){
-		Logging::log.error(prefix + ": " + path_desc + " must be an absolute path: \"" + path.string() + "\"", false);
+		Logging::log.error(prefix + ": " + path_desc + " must be an absolute path: \"" + path.string() + "\"");
 		errors = true;
 		return;
 	}
 	try{
 		is_directory = fs::is_directory(path);
 	}catch(const fs::filesystem_error &e){
-		Logging::log.error(prefix + ": Failed to check " + path_desc + ": " + std::string(e.what()), false);
+		Logging::log.error(prefix + ": Failed to check " + path_desc + ": " + std::string(e.what()));
 		errors = true;
 		no_perm = true;
 	}
@@ -277,7 +287,7 @@ inline void validate_backend_path(const fs::path &path, const std::string &prefi
 		try{
 			is_directory = fs::create_directories(path);
 		}catch(const fs::filesystem_error &e){
-			Logging::log.error(prefix + ": Failed to create " + path_desc + ": " + std::string(e.what()), false);
+			Logging::log.error(prefix + ": Failed to create " + path_desc + ": " + std::string(e.what()));
 			errors = true;
 			no_perm = true;
 		}
@@ -288,12 +298,12 @@ inline void validate_backend_path(const fs::path &path, const std::string &prefi
 			mode |= W_OK;
 		if(access(path.c_str(), mode) != 0){
 			int err = errno;
-			Logging::log.error(prefix + ": Cannot access " + path_desc + ": " + std::string(strerror(err)) + ": \"" + path.string() + "\"", false);
+			Logging::log.error(prefix + ": Cannot access " + path_desc + ": " + std::string(strerror(err)) + ": \"" + path.string() + "\"");
 			errors = true;
 		}
 	}
 	if(!is_directory && !no_perm){
-		Logging::log.error(prefix + ": " + path_desc + " is not a directory: " + path.string(), false);
+		Logging::log.error(prefix + ": " + path_desc + " is not a directory: " + path.string());
 		errors = true;
 	}
 }
@@ -310,11 +320,11 @@ void Config::verify(const fs::path &config_path, const std::list<Tier> *tiers, b
 
 void Config::verify_global(bool read_only, bool &errors) const{
 	if(log_level_ == -1){
-		Logging::log.error("Invalid log level. (Log Level)", false);
+		Logging::log.error("Invalid log level. (Log Level)");
 		errors = true;
 	}
 	if(tier_period_s_ == std::chrono::seconds(-1)){
-		Logging::log.error("Invalid tier period. (Tier Period)", false);
+		Logging::log.error("Invalid tier period. (Tier Period)");
 		errors = true;
 	}
 	bool create_if_missing = true;
@@ -323,10 +333,10 @@ void Config::verify_global(bool read_only, bool &errors) const{
 
 void Config::verify_tiers(const std::list<Tier> &tiers, bool &errors) const{
 	if(tiers.empty()){
-		Logging::log.error("No tiers defined.", false);
+		Logging::log.error("No tiers defined.");
 		errors = true;
 	}else if(tiers.size() == 1){
-		Logging::log.error("Only one tier is defined. Two or more are needed.", false);
+		Logging::log.error("Only one tier is defined. Two or more are needed.");
 		errors = true;
 	}else{
 		for(const Tier &tier : tiers){

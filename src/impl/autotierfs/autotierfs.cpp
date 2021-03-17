@@ -106,7 +106,7 @@ int main(int argc, char *argv[]){
 	/* Grab mountpoint.
 	 */
 	if(optind >= argc){
-		Logging::log.error("No mountpoint passed.", false);
+		Logging::log.error("No mountpoint passed.");
 		fs_usage();
 		exit(EXIT_FAILURE);
 	}
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]){
 	 */
 	mountpoint = argv[optind];
 	if(!is_directory(mountpoint)){
-		Logging::log.error("Invalid mountpoint or command: " + mountpoint.string(), false);
+		Logging::log.error("Invalid mountpoint or command: " + mountpoint.string());
 		fs_usage();
 		exit(EXIT_FAILURE);
 	}

@@ -68,7 +68,7 @@ void Logger::warning(const std::string &msg) const{
 	}
 }
 
-void Logger::error(const std::string &msg, bool exit_) const{
+void Logger::error(const std::string &msg) const{
 	switch(output_){
 		case STD:
 			std::cerr << "Error: " << msg << std::endl;
@@ -77,7 +77,6 @@ void Logger::error(const std::string &msg, bool exit_) const{
 			syslog(LOG_ALERT, "%s", msg.c_str());
 			break;
 	}
-	if(exit_) exit(EXIT_FAILURE);
 }
 
 void Logger::set_level(int log_level){

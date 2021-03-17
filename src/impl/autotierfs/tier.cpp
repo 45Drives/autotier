@@ -72,8 +72,10 @@ double Tier::quota_percent(void) const{
 
 void Tier::get_capacity_and_usage(void){
 	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1))
+	if((statvfs(path_.c_str(), &fs_stats) == -1)){
 		Logging::log.error("statvfs() failed on " + path_.string());
+		exit(EXIT_FAILURE);
+	}
 	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
 	sim_usage_ = 0;
 }
@@ -141,11 +143,11 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 		fs::copy_file(old_path, new_tmp_path); // move item to slow tier
 	}catch(boost::filesystem::filesystem_error const & e){
 		copy_success = false;
-		Logging::log.error("Copy failed: " + std::string(e.what()), false);
+		Logging::log.error("Copy failed: " + std::string(e.what()));
 		if(e.code() == boost::system::errc::file_exists){
-			Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string(), false);
+			Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
 		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			Logging::log.error("No action required, file was deleted by another process.", false);
+			Logging::log.error("No action required, file was deleted by another process.");
 		}
 	}
 	if(copy_success){

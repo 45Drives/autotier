@@ -33,5 +33,6 @@ void TierEngine::open_db(bool read_only){
 		status = rocksdb::DB::Open(options, db_path, &db_);
 	if(!status.ok()){
 		Logging::log.error("Failed to open RocksDB database: " + db_path);
+		exit(EXIT_FAILURE);
 	}
 }

@@ -102,6 +102,9 @@ public:
 	void pinned(bool val);
 	/* Set pinned flag.
 	 */
+	double popularity(void) const;
+	/* Return popularity.
+	 */
 	bool not_found(void) const;
 	/* Test if metadata was found in database.
 	 */
