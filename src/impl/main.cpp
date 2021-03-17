@@ -199,13 +199,6 @@ int main(int argc, char *argv[]){
 				/* Other commands can just execute in the calling process
 				 * by opening the database as read-only.
 				 */
-// 			case STATUS:
-// 				{
-// 					bool read_only = true;
-// 					TierEngine autotier(config_path, config_overrides, read_only);
-// 					autotier.status(json);
-// 				}
-// 				break;
 			case CONFIG:
 				Logging::log.message("Config file: (" + config_path.string() + ")", 0);
 				{
