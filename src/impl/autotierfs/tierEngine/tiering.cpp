@@ -19,7 +19,10 @@
 
 #include "tierEngine.hpp"
 #include "alert.hpp"
+
+#ifndef NO_PAR_SORT
 #include <execution>
+#endif
 
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
