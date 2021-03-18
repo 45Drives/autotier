@@ -7,19 +7,19 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Current Release
-* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.0.4/autotier_1.0.4-1focal_amd64.deb```
-* Install deb: `# dpkg -i autotier_1.0.4-1focal_amd64.deb`
+* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1.0/autotier_1.1.0-1focal_amd64.deb```
+* Install deb: `# dpkg -i autotier_1.1.0-1focal_amd64.deb`
 * Edit configuration file: `/etc/autotier.conf`
 * Mount filesystem:
-	* manually: `# autotier /path/to/mountpoint -o allow_other,default_permissions`
-	* fstab: `/usr/bin/autotier	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
+	* manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
+	* fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
 
 ### Installing from Source
 * Install dependencies:  
 	```# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
 * `$ git clone https://github.com/45drives/autotier`
 * `$ cd autotier`
-* `$ git checkout <version>` (v1.0.4 is the latest release)
+* `$ git checkout <version>` (v1.1.0 is the latest release)
 * `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
 * `# make install`
 * Edit configuration file
