@@ -29,7 +29,7 @@ debug: CFLAGS := -std=c++17 -g -DLOG_METHODS $(CFLAGS)
 debug: FS_LIBS := -ltbb $(FS_LIBS)
 debug: $(FS_TARGET) $(CLI_TARGET)
 
-no-par-sort: CFLAGS := -std=c++11 $(CFLAGS)
+no-par-sort: CFLAGS := -std=c++11 -DNO_PAR_SORT -O2 $(CFLAGS)
 no-par-sort: $(FS_TARGET) $(CLI_TARGET)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
