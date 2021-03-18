@@ -1,7 +1,7 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
 FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb
-CLI_LIBS = -lboost_system -lboost_filesystem
+CLI_LIBS = -static -lboost_system -lboost_filesystem
 CC = g++
 CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
