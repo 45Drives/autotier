@@ -7,8 +7,8 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Current Release
-* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1.1/autotier_1.1.1-1focal_amd64.deb```
-* Install deb: `# dpkg -i autotier_1.1.1-1focal_amd64.deb`
+* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.2-1focal_amd64.deb```
+* Install deb: `# dpkg -i autotier_1.1.2-1focal_amd64.deb`
 * Edit configuration file: `/etc/autotier.conf`
 * Mount filesystem:
 	* manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
