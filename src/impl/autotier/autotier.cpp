@@ -194,6 +194,7 @@ int main(int argc, char *argv[]){
 			send_fifo_payload(payload, run_path / "request.pipe");
 		}catch(const fifo_exception &err){
 			Logging::log.error(err.what());
+			exit(126);
 		}
 		
 		Logging::log.message("Waiting for filesystem response...", 2);
@@ -202,6 +203,7 @@ int main(int argc, char *argv[]){
 			get_fifo_payload(payload, run_path / "response.pipe");
 		}catch(const fifo_exception &err){
 			Logging::log.error(err.what());
+			exit(EXIT_FAILURE);
 		}
 		
 		if(payload.front() == "OK"){
