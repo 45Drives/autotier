@@ -19,7 +19,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 	```# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
 * `$ git clone https://github.com/45drives/autotier`
 * `$ cd autotier`
-* `$ git checkout <version>` (v1.1.0 is the latest release)
+* `$ git checkout <version>` (v1.1 is the latest tag)
 * `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
 * `# make install`
 * Edit configuration file
