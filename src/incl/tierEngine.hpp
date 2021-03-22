@@ -191,6 +191,12 @@ public:
 	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
 	 * uses Logger::format_bytes() for printing current usage and watermark.
 	 */
+	void process_list_popularity(void);
+	/* Print popularity of each file.
+	 */
+	void process_list_pins(void);
+	/* Print pineed files.
+	 */
 	void execute_queued_work(void);
 	/* Tiering thread calls this when woken to execute the queued work.
 	 */

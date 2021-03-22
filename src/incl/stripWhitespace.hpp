@@ -17,21 +17,8 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
-#include "rocksDbHelpers.hpp"
-#include "alert.hpp"
+#pragma once
 
-void TierEngine::open_db(bool read_only){
-	std::string db_path = (run_path_ / "db").string();
-	rocksdb::Options options;
-	options.create_if_missing = true;
-	options.prefix_extractor.reset(l::NewPathSliceTransform());
-	rocksdb::Status status;
-	if(read_only)
-		status = rocksdb::DB::OpenForReadOnly(options, db_path, &db_);
-	else
-		status = rocksdb::DB::Open(options, db_path, &db_);
-	if(!status.ok()){
-		Logging::log.error("Failed to open RocksDB database: " + db_path);
-	}
-}
+#include <string>
+
+void strip_whitespace(std::string &str);

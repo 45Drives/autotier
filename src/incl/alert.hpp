@@ -21,7 +21,7 @@
 
 #include <string>
 
-enum output_t {STD, SYSLOG, FUSELOG};
+enum output_t {STD, SYSLOG};
 
 class Logger{
 private:
@@ -50,11 +50,8 @@ public:
 	/* Print message (to stderr if output_ == STD) prepended with "Warning: ".
 	 * Use this for non-fatal errors.
 	 */
-	void error(const std::string &msg, bool exit_ = true) const;
+	void error(const std::string &msg) const;
 	/* Print message (to stderr if output_ == STD) prepended with "Error: ".
-	 * Exits with EXIT_FAILURE if exit_ is left as true.
-	 * exit_ is used to delay exiting until later if there are
-	 * multiple errors to print.
 	 */
 	void set_level(int log_level_);
 	/* Set log level.

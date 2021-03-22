@@ -105,6 +105,10 @@ void Metadata::pinned(bool val){
 	pinned_ = val;
 }
 
+double Metadata::popularity(void) const{
+	return popularity_;
+}
+
 bool Metadata::not_found(void) const{
 	return not_found_;
 }

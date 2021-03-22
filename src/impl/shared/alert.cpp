@@ -25,7 +25,6 @@
 
 extern "C"{
 	#include <syslog.h>
-	#include <fuse_log.h>
 }
 
 namespace Logging{
@@ -54,9 +53,6 @@ void Logger::message(const std::string &msg, int lvl) const{
 			case SYSLOG:
 				syslog(LOG_INFO, "%s", msg.c_str());
 				break;
-			case FUSELOG:
-				fuse_log(FUSE_LOG_INFO, "%s", msg.c_str());
-				break;
 		}
 	}
 }
@@ -69,13 +65,10 @@ void Logger::warning(const std::string &msg) const{
 		case SYSLOG:
 			syslog(LOG_WARNING, "%s", msg.c_str());
 			break;
-		case FUSELOG:
-			fuse_log(FUSE_LOG_WARNING, "%s", msg.c_str());
-			break;
 	}
 }
 
-void Logger::error(const std::string &msg, bool exit_) const{
+void Logger::error(const std::string &msg) const{
 	switch(output_){
 		case STD:
 			std::cerr << "Error: " << msg << std::endl;
@@ -83,11 +76,7 @@ void Logger::error(const std::string &msg, bool exit_) const{
 		case SYSLOG:
 			syslog(LOG_ALERT, "%s", msg.c_str());
 			break;
-		case FUSELOG:
-			fuse_log(FUSE_LOG_ALERT, "%s", msg.c_str());
-			break;
 	}
-	if(exit_) exit(EXIT_FAILURE);
 }
 
 void Logger::set_level(int log_level){

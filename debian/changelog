@@ -1,3 +1,22 @@
+autotier (1.1.2-1focal) focal; urgency=high
+
+  * Fix bug where CLI tool does not exit after catching error.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Fri, 19 Mar 2021 11:43:00 -0400
+
+autotier (1.1.1-1focal) focal; urgency=high
+
+  * Fix bug while renaming directories in Ubuntu.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 18 Mar 2021 15:20:00 -0400
+
+autotier (1.1.0-1focal) focal; urgency=medium
+
+  * Split binaries into autotierfs and autotier, the first being the
+    filesystem and the second being the CLI tool.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 17 Mar 2021 14:54:00 -0400
+
 autotier (1.0.4-1focal) focal; urgency=high
 
   * Fix renaming directories containing files.

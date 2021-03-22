@@ -49,6 +49,12 @@ void TierEngine::process_adhoc_requests(void){
 			case STATUS:
 				process_status(work);
 				break;
+			case LPOP:
+				process_list_popularity();
+				break;
+			case LPIN:
+				process_list_pins();
+				break;
 			default:
 				Logging::log.warning("Received bad ad hoc command.");
 				payload.clear();
@@ -219,7 +225,7 @@ void TierEngine::process_status(const AdHoc &work){
 	try{
 		json_ss >> std::boolalpha >> json;
 	}catch (const std::ios_base::failure &){
-		Logging::log.error("Could not extract boolean from string.", false);
+		Logging::log.error("Could not extract boolean from string.");
 		payload.emplace_back("ERR");
 		payload.emplace_back("Could not determine whether to use table or JSON output.");
 		try{
@@ -354,6 +360,43 @@ void TierEngine::process_status(const AdHoc &work){
 	while(getline(ss, line)){
 		payload.emplace_back(line);
 	}
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
+}
+
+void TierEngine::process_list_popularity(void){
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	std::stringstream ss;
+	ss << "File : Popularity (accesses per hour)" << std::endl;
+	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
+	for(it->SeekToFirst(); it->Valid(); it->Next()){
+		Metadata f(it->value().ToString());
+		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
+	}
+	payload.emplace_back(ss.str());
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
+}
+
+void TierEngine::process_list_pins(void){
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	std::stringstream ss;
+	ss << "File : Tier Path" << std::endl;
+	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
+	for(it->SeekToFirst(); it->Valid(); it->Next()){
+		Metadata f(it->value().ToString());
+		if(f.pinned())
+			ss << it->key().ToString() << " : " << f.tier_path() << std::endl;
+	}
+	payload.emplace_back(ss.str());
 	try{
 		send_fifo_payload(payload, run_path_ / "response.pipe");
 	}catch(const fifo_exception &err){

@@ -19,7 +19,6 @@
 
 #include "tools.hpp"
 #include "alert.hpp"
-#include "file.hpp"
 #include <iostream>
 #include <regex>
 #include <vector>
@@ -50,7 +49,7 @@ int get_command_index(const char *cmd){
 		if(regex_match(cmd, command_list[itr]))
 			return itr;
 	}
-	return MOUNTPOINT;
+	return -1;
 }
 
 void sanitize_paths(std::list<std::string> &paths){
@@ -217,17 +216,14 @@ int WorkPipe::clear_flags(int flags) const{
 	return fcntl(fd_, F_SETFL, curr_flags & ~flags);
 }
 
-void usage(){
+void cli_usage(){
 	Logging::log.message(
 		"autotier Copyright (C) 2019-2021  Josh Boudreau <jboudreau@45drives.com>\n"
 		"This program is released under the GNU General Public License v3.\n"
 		"See <https://www.gnu.org/licenses/> for more details.\n"
 		"\n"
 		"Usage:\n"
-		"  mount filesystem:\n"
-		"    autotier [<flags>] <mountpoint> [-o <fuse,options,...>]\n"
-		"  ad hoc commands:\n"
-		"    autotier [<flags>] <command> [<arg1 arg2 ...>]\n"
+		"  autotier [<flags>] <command> [<arg1 arg2 ...>]\n"
 		"Commands:\n"
 		"  config      - display current configuration file\n"
 		"  help        - display this message\n"
@@ -242,6 +238,29 @@ void usage(){
 		"              - remove pin from file(s)\n"
 		"  which-tier <\"path/to/file\" \"path/to/file\" ...>\n"
 		"              - list which tier each argument is in\n"
+		"Flags:\n"
+		"  -c, --config <path/to/config>\n"
+		"              - override configuration file path (default /etc/autotier.conf)\n"
+		"  -h, --help  - display this message and cancel current command\n"
+		"  -q, --quiet - set log level to 0 (no output)\n"
+		"  -v, --verbose\n"
+		"              - set log level to 2 (debug output)\n"
+		"  -V, --version\n"
+		"              - print version and exit\n"
+		"              - if log level >= 1, logo will also print\n"
+		"              - combine with -q to mute logo output",
+		0
+	);
+}
+
+void fs_usage(){
+	Logging::log.message(
+		"autotierfs Copyright (C) 2019-2021  Josh Boudreau <jboudreau@45drives.com>\n"
+		"This program is released under the GNU General Public License v3.\n"
+		"See <https://www.gnu.org/licenses/> for more details.\n"
+		"\n"
+		"Usage:\n"
+		"  autotierfs [<flags>] <mountpoint> [-o <fuse,options,...>]\n"
 		"Flags:\n"
 		"  -c, --config <path/to/config>\n"
 		"              - override configuration file path (default /etc/autotier.conf)\n"

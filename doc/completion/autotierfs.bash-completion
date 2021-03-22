@@ -1,0 +1,79 @@
+_AutotierFSCompleteBash () {
+	local cur
+	local prev
+	local file_arg_commands
+	local tier_arg_commands
+	local no_arg_commands
+	local before_prev
+	local conf
+	local word_list
+	local commands
+	local command_used
+	
+	conf=/etc/autotier.conf
+	
+	for i in $(seq 1 ${COMP_CWORD}); do
+		if [[ "${COMP_WORDS[$i-1]}" == "-c" || "${COMP_WORDS[$i-1]}" == "--config" ]]; then
+			if [[ -f "${COMP_WORDS[$i]}" ]]; then
+				conf=${COMP_WORDS[$i]}
+			fi
+		fi
+		if [[ " ${commands[@]} " =~ " ${COMP_WORDS[$i-1]} " ]]; then
+			command_used=1
+		fi
+	done
+	
+	COMPREPLY=()
+	
+	cur=${COMP_WORDS[COMP_CWORD]}
+	
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+	
+	file_arg_commands=("-c" "--config")
+	if [[ " ${file_arg_commands[@]} " =~ " ${prev} " ]]; then
+		local IFS=$'\n'
+		compopt -o filenames
+		COMPREPLY=($(compgen -f -- $cur))
+		return 0
+	else
+		case "$cur" in
+			-*)
+				COMPREPLY=(
+					$(compgen -W '-c --config -h --help -o --fuse-options -q --quiet -v --verbose -V --version' -- $cur)
+				)
+				;;
+			*)
+				case "$prev" in
+					-o|--fuse-options)
+						compopt -o nospace
+						cur=$(echo $cur | sed 's/=/\\=/g')
+						local cur_pre
+						local cur_post_eq
+						cur_pre=$(printf "$cur" | sed 's/^\(.*,\)[^,]*$/\1/')
+						cur_post_eq=$(printf "$cur" | sed 's/^.*=\([^=]*\)$/\1/')
+						local AT_FUSE_OPTS=("allow_other" "default_permissions" "rootmode\=" "user_id\=" "group_id\=" "fsname\=" "subtype\=" "allow_root" "auto_unmount" "kernel_cache" "auto_cache" "umask\=" "uid\=" "gid\=" "entry_timeout\=" "negative_timeout\=" "attr_timeout\=" "ac_attr_timeout\=" "noforget" "remember\=" "modules\=" "setuid\=" "drop_privileges\=")
+						if [[ "$cur" =~ ^.*,.*$ ]]; then
+							for i in $(seq 0 ${#AT_FUSE_OPTS[@]}); do
+								AT_FUSE_OPTS[$i]="$cur_pre${AT_FUSE_OPTS[$i]}"
+							done
+						fi
+						COMPREPLY=($(compgen -W '${AT_FUSE_OPTS[@]}' -- $cur))
+						if [[ ${#COMPREPLY[@]} == 1 && $cur == ${COMPREPLY[0]} ]]; then
+							COMPREPLY=("${COMPREPLY[0]},")
+						fi
+						return 0
+						;;
+					*)
+						local IFS=$'\n'
+						compopt -o filenames
+						COMPREPLY=($(compgen -f -- $cur))
+						return 0
+						;;
+				esac
+				;;
+		esac
+	fi
+	return 0
+}
+
+complete -F _AutotierFSCompleteBash autotierfs

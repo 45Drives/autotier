@@ -17,20 +17,24 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
-#include "alert.hpp"
+#include "stripWhitespace.hpp"
 
-void TierEngine::print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
-	(void) usage;
-	File f(file, db_, tptr);
-	if(f.is_pinned()){
-		Logging::log.message(f.relative_path().string() + " is pinned to " + f.tier_ptr()->id() , 0);
+void strip_whitespace(std::string &str){
+	std::size_t strItr;
+	// back ws
+	if((strItr = str.find('#')) == std::string::npos){ // strItr point to '#' or end
+		strItr = str.length();
 	}
-}
-
-void TierEngine::print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
-	(void) usage;
-	File f(file, db_, tptr);
-	Logging::log.message(f.relative_path().string() + " popularity: " + std::to_string(f.popularity()), 0);
-	files_.clear();
+	if(strItr != 0) // protect from underflow
+		strItr--; // point to last character
+	while(strItr && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
+		strItr--;
+	} // strItr points to last character
+	str = str.substr(0,strItr + 1);
+	// front ws
+	strItr = 0;
+	while(strItr < str.length() && (str.at(strItr) == ' ' || str.at(strItr) == '\t')){ // remove whitespace
+		strItr++;
+	} // strItr points to first character
+	str = str.substr(strItr, str.length() - strItr);
 }
