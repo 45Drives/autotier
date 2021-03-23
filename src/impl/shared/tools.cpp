@@ -31,6 +31,7 @@ extern "C" {
 	#include <sys/stat.h>
 	#include <fcntl.h>
 	#include <unistd.h>
+	#include <grp.h>
 }
 
 int get_command_index(const char *cmd){
@@ -90,6 +91,8 @@ void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &
 		request_pipe = new WorkPipe(pipe_path, O_WRONLY | O_NONBLOCK);
 	}catch(const int &errno_){
 		switch(errno_){
+			case ENOENT:
+				throw(fifo_exception("Pipe does not exist, has autotier been mounted?"));
 			case EACCES:
 				throw(fifo_exception("No permission to create pipe."));
 			case EEXIST:
@@ -119,6 +122,8 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 		response_pipe = new WorkPipe(pipe_path, O_RDONLY);
 	}catch(const int &errno_){
 		switch(errno_){
+			case ENOENT:
+				throw(fifo_exception("Pipe does not exist!"));
 			case EACCES:
 				throw(fifo_exception("No permission to create pipe."));
 			case EEXIST:
@@ -152,9 +157,20 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 }
 
 WorkPipe::WorkPipe(fs::path pipe_path, int flags){
-	int res = mkfifo(pipe_path.c_str(), 0755);
-	if(res == -1){
-		if(errno != EEXIST) throw errno; // allow fail if exists
+	if(access(pipe_path.c_str(), F_OK) != 0){
+		// create pipe
+		mode_t new_mask = 002;
+		mode_t old_mask = umask(new_mask);
+		if(mkfifo(pipe_path.c_str(), 0660) == -1){
+			if(errno != EEXIST) throw errno; // allow fail if exists
+		}
+		umask(old_mask);
+		struct group *group = getgrnam("autotier");
+		if(group != nullptr){
+			if(chown(pipe_path.c_str(), -1, group->gr_gid) == -1){
+				throw errno;
+			}
+		}
 	}
 	fd_ = open(pipe_path.c_str(), flags);
 	if(fd_ == -1){
