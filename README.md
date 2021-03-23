@@ -7,24 +7,24 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Current Release
-* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb```
-* Install deb: `# dpkg -i autotier_1.1.3-1focal_amd64.deb`
-* [Edit configuration file.](#configuration)
-* [Mount filesystem.](#mounting)
-* Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+1. Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb```
+1. Install deb: `# dpkg -i autotier_1.1.3-1focal_amd64.deb`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Installing from Source
-* Install dependencies:  
+1. Install dependencies:  
 	```# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
-* `$ git clone https://github.com/45drives/autotier`
-* `$ cd autotier`
-* `$ git checkout <version>` (v1.1 is the latest tag)
-* `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
-* `# make install`
-* [Edit configuration file.](#configuration)
-* [Mount filesystem.](#mounting)
-* Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+1. `$ git clone https://github.com/45drives/autotier`
+1. `$ cd autotier`
+1. `$ git checkout <version>` (v1.1 is the latest tag)
+1. `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
+1. `# make install`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Uninstallation
