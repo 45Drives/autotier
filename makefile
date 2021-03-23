@@ -65,7 +65,7 @@ install: all inst-man-pages inst-config inst-completion
 	ln -sf $(PREFIX)/$(notdir $(FS_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
 	ln -sf $(PREFIX)/$(notdir $(CLI_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
 ifneq ($(PACKAGING),1)
-	groupadd autotier
+	groupadd -f autotier
 endif
 
 uninstall: rm-man-pages rm-completion
