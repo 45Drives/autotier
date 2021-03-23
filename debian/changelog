@@ -3,6 +3,7 @@ autotier (1.1.3-1focal) focal; urgency=low
   * Create autotier group during install.
   * Set ownership of run path and pipes to root:autotier to allow for
     members of autotier group to execute CLI commands.
+  * Report mountpoint in autotier status.
 
  -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Mar 2021 12:04:00 -0400
 
