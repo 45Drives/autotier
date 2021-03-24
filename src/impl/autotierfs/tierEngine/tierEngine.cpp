@@ -18,12 +18,11 @@
  */
 
 #include "tierEngine.hpp"
-#include "runPath.hpp"
 #include "alert.hpp"
 
 TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only)
 		: stop_flag_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides, read_only), run_path_(config_.run_path()){
-	if(l::create_run_path(run_path_) != 0){
+	if(create_run_path() != 0){
 		Logging::log.error("Could not initialize metadata directory.");
 		exit(EXIT_FAILURE);
 	}

@@ -17,7 +17,7 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "runPath.hpp"
+#include "tierEngine.hpp"
 #include "alert.hpp"
 
 extern "C" {
@@ -26,25 +26,33 @@ extern "C" {
 	#include <grp.h>
 }
 
-int l::create_run_path(const fs::path &path){
-	if(access(path.c_str(), F_OK) != 0){
+int TierEngine::create_run_path(void) const{
+	if(access(run_path_.c_str(), F_OK) != 0){
 		try{
-			fs::create_directories(path);
+			fs::create_directories(run_path_);
 		}catch(const boost::system::error_code &ec){
 			Logging::log.error("Error while creating run path: " + ec.message());
 			return -1;
 		}
 	}
-	mode_t new_mask = 002;
-	mode_t old_mask = umask(new_mask);
-	if(chmod(path.c_str(), 0775) == -1){
-		Logging::log.error(std::string("Error while running chmod on run path: ") + strerror(errno));
+	struct stat st;
+	if(stat(run_path_.c_str(), &st) == -1){
+		Logging::log.error(std::string("Error while running stat on run path: ") + strerror(errno));
 		return -1;
 	}
-	umask(old_mask);
+	if(st.st_mode != 0775){
+		mode_t new_mask = 002;
+		mode_t old_mask = umask(new_mask);
+		int res = chmod(run_path_.c_str(), 0775);
+		umask(old_mask);
+		if(res == -1){
+			Logging::log.error(std::string("Error while running chmod on run path: ") + strerror(errno));
+			return -1;
+		}
+	}
 	struct group *group = getgrnam("autotier");
-	if(group != nullptr){
-		if(chown(path.c_str(), -1, group->gr_gid) == -1){
+	if(group != nullptr && st.st_gid != group->gr_gid){
+		if(chown(run_path_.c_str(), -1, group->gr_gid) == -1){
 			Logging::log.error(std::string("Error while running chown on run path: ") + strerror(errno));
 			return -1;
 		}
