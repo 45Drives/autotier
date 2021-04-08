@@ -1,0 +1,16 @@
+FROM centos:8
+
+LABEL description="Container in which to build el8 applications"
+
+ENV TZ=America/Glace_Bay
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN dnf install -y rpm-build rpm-devel rpmlint make python3 bash diffutils patch rpmdevtools boost-devel tbb-devel gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ fuse3-devel
+ENV PATH=/opt/rh/gcc-toolset-9/root/usr/bin:$PATH
+
+RUN mkdir -p /home/rpm/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS,tmp}
+
+RUN echo %_topdir /home/rpm/rpmbuild > /etc/rpm/macros
+RUN echo %_tmppath %{_topdir}/tmp >> /etc/rpm/macros
+
+RUN chmod -R 777 /home/rpm
