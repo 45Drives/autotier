@@ -5,8 +5,23 @@ LABEL description="Container in which to build el8 applications"
 ENV TZ=America/Glace_Bay
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+RUN dnf group install -y "Development Tools"
 RUN dnf install -y rpm-build rpm-devel rpmlint make python3 bash diffutils patch rpmdevtools boost-devel tbb-devel gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ fuse3-devel
 ENV PATH=/opt/rh/gcc-toolset-9/root/usr/bin:$PATH
+
+# install powertools
+RUN dnf install -y dnf-plugins-core
+RUN dnf config-manager -y --set-enabled powertools
+
+# install rocksdb devel
+RUN dnf install -y gflags gflags-devel snappy snappy-devel zlib zlib-devel bzip2 bzip2-devel lz4-devel libzstd-devel wget boost-static lz4-libs zlib-static
+RUN wget https://github.com/facebook/rocksdb/archive/v6.1.2.zip && \
+	unzip v6.1.2.zip && \
+	cd rocksdb-6.1.2 && \
+	PORTABLE=1 DISABLE_WARNING_AS_ERROR=1 make -j8 static_lib && \
+	INSTALL_PATH=/usr make install-static && \
+	cd .. && \
+	rm -rf rocksdb-6.1.2 v6.1.2.zip
 
 RUN mkdir -p /home/rpm/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS,tmp}
 
