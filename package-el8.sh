@@ -58,7 +58,7 @@ tar -czvf $SOURCE_NAME.tar.gz $SOURCE_NAME
 popd
 
 # build rpm from source tar and place it dist/el8 by mirroring dist/el8 to rpmbuild/RPMS
-docker run -u $(id -u):$(id -g) -w /home/rpm/rpmbuild -it -v$SOURCE_LOC:/home/rpm/rpmbuild/SOURCES -v$(pwd)/dist/el8:/home/rpm/rpmbuild/RPMS -v$(pwd)/el8:/home/rpm/rpmbuild/SPECS --rm cephgeorep-el8-builder rpmbuild -ba SPECS/autotier.spec
+docker run -u $(id -u):$(id -g) -w /home/rpm/rpmbuild -it -v$SOURCE_LOC:/home/rpm/rpmbuild/SOURCES -v$(pwd)/dist/el8:/home/rpm/rpmbuild/RPMS -v$(pwd)/el8:/home/rpm/rpmbuild/SPECS --rm autotier-el8-builder rpmbuild -ba SPECS/autotier.spec
 res=$?
 if [ $res -ne 0 ]; then
 	echo "Packaging failed."
