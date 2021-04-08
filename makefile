@@ -5,6 +5,9 @@ CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a
 CC = g++
 CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
+FS_LIBS += $(EXTRA_LIBS)
+CFLAGS += $(EXTRA_CFLAGS)
+
 FS_SOURCE_FILES := $(shell find src/impl/autotierfs -name *.cpp)
 FS_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(FS_SOURCE_FILES))
 
