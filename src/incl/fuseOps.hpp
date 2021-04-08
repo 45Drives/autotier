@@ -23,6 +23,7 @@
 
 #include <rocksdb/db.h>
 #include <thread>
+#include <mutex>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
