@@ -21,7 +21,7 @@ between storage tiers based on frequency of use, file age, and tier fullness.
 %setup -q
 
 %build
-make -j8
+make EXTRA_CFLAGS="-DEL8" EXTRA_LIBS="-lz -lzstd -llz4 -lbz2 -lsnappy" -j8
 
 %install
 make DESTDIR=%{buildroot} PACKAGING=1 install
