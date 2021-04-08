@@ -83,8 +83,10 @@ int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
 		.read_buf					= fuse_ops::read_buf,
 		.flock						= fuse_ops::flock,
 		.fallocate					= fuse_ops::fallocate,
+#ifndef EL8
 		.copy_file_range 			= fuse_ops::copy_file_range,
 		.lseek						= fuse_ops::lseek,
+#endif
 	};
 	std::vector<char *>argv = {strdup("autotier"), strdup(mountpoint.c_str())};
 	if(fuse_opts){

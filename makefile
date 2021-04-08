@@ -1,9 +1,12 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
 FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb
-CLI_LIBS = -static -lboost_system -lboost_filesystem
+CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a
 CC = g++
 CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
+
+FS_LIBS += $(EXTRA_LIBS)
+CFLAGS += $(EXTRA_CFLAGS)
 
 FS_SOURCE_FILES := $(shell find src/impl/autotierfs -name *.cpp)
 FS_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(FS_SOURCE_FILES))
@@ -64,6 +67,9 @@ install: all inst-man-pages inst-config inst-completion
 	install -m 755 $(CLI_TARGET) $(DESTDIR)$(PREFIX)
 	ln -sf $(PREFIX)/$(notdir $(FS_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
 	ln -sf $(PREFIX)/$(notdir $(CLI_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
+ifneq ($(PACKAGING),1)
+	groupadd -f autotier
+endif
 
 uninstall: rm-man-pages rm-completion
 	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(FS_TARGET))

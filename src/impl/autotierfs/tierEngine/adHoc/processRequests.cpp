@@ -257,7 +257,8 @@ void TierEngine::process_status(const AdHoc &work){
 				"\"quota\":" + std::to_string(total_quota_capacity) + ","
 				"\"quota_pretty\":\"" + Logging::log.format_bytes(total_quota_capacity) + "\","
 				"\"usage\":" + std::to_string(total_usage) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(total_usage) + "\""
+				"\"usage_pretty\":\"" + Logging::log.format_bytes(total_usage) + "\","
+				"\"path\":\"" + mount_point_.string() + "\""
 			"},"
 			"\"tiers\":[";
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
@@ -331,6 +332,8 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
 			ss << std::setw(PERCENTU) << "%"; // unit
+			ss << " ";
+			ss << std::left << mount_point_.string();
 			ss << std::endl;
 		}
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){

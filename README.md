@@ -7,29 +7,32 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Current Release
-* Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.2-1focal_amd64.deb```
-* Install deb: `# dpkg -i autotier_1.1.2-1focal_amd64.deb`
-* Edit configuration file: `/etc/autotier.conf`
-* Mount filesystem:
-	* manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
-	* fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
+1. Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb```
+1. Install deb: `# dpkg -i autotier_1.1.3-1focal_amd64.deb`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Installing from Source
-* Install dependencies:  
+1. Install dependencies:  
 	```# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
-* `$ git clone https://github.com/45drives/autotier`
-* `$ cd autotier`
-* `$ git checkout <version>` (v1.1 is the latest tag)
-* `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
-* `# make install`
-* Edit configuration file
-* Mount filesystem  
+1. `$ git clone https://github.com/45drives/autotier`
+1. `$ cd autotier`
+1. `$ git checkout <version>` (v1.1 is the latest tag)
+1. `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
+1. `# make install`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Uninstallation
 From dpkg: `# dpkg --remove autotier`  
 From source: `# make uninstall` from root of cloned repo
 
 ## Configuration
+Default configuration file location: `/etc/autotier.conf`.
 ### Global Config
 For global configuration of `autotier`, options are placed below the `[Global]` header. Example:
 ```
@@ -73,10 +76,7 @@ See `man cephgeorep` after installing for full usage details.
 ### Command Line Tool Usage
 ```
 Usage:
-  mount filesystem:
-    autotier [<flags>] <mountpoint> [-o <fuse,options,...>]
-  ad hoc commands:
-    autotier [<flags>] <command> [<arg1 arg2 ...>]
+  autotier [<flags>] <command> [<arg1 arg2 ...>]
 Commands:
   config      - display current configuration file
   help        - display this message
@@ -95,8 +95,6 @@ Flags:
   -c, --config <path/to/config>
               - override configuration file path (default /etc/autotier.conf)
   -h, --help  - display this message and cancel current command
-  -o, --fuse-options <comma,separated,list>
-              - mount options to pass to fuse (see man mount.fuse)
   -q, --quiet - set log level to 0 (no output)
   -v, --verbose
               - set log level to 2 (debug output)
@@ -121,6 +119,27 @@ Remove pins:
 List pinned files:  
 `autotier list-pins`
 
+### Filesystem Usage
+```
+Usage:
+  autotierfs [<flags>] <mountpoint> [-o <fuse,options,...>]
+Flags:
+  -c, --config <path/to/config>
+              - override configuration file path (default /etc/autotier.conf)
+  -h, --help  - display this message and cancel current command
+  -o, --fuse-options <comma,separated,list>
+              - mount options to pass to fuse (see man mount.fuse)
+  -q, --quiet - set log level to 0 (no output)
+  -v, --verbose
+              - set log level to 2 (debug output)
+  -V, --version
+              - print version and exit
+              - if log level >= 1, logo will also print
+              - combine with -q to mute logo output
+```
+#### Mounting
+* manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
+* fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
 ---
 ```
    ┓

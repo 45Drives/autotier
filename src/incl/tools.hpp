@@ -30,12 +30,12 @@ enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHT
 //enum FIFO_WHO {SERVER, CLIENT};
 class fifo_exception : public std::exception{
 private:
-	const char *what_;
+	std::string what_;
 public:
 	fifo_exception(const char *what) : what_(what) {}
 	fifo_exception(const std::string &what) : what_(what.c_str()) {}
 	const char *what(void) const noexcept{
-		return what_;
+		return &what_[0];
 	}
 };
 

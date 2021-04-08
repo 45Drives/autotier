@@ -97,6 +97,9 @@ public:
 	~TierEngine(void);
 	/* Closes database.
 	 */
+	int create_run_path(void) const;
+	/* Creates path for FIFOs and database, chowning to root:autotier
+	 */
 	std::list<Tier> &get_tiers(void);
 	/* Returns reference to list of tiers. Used in fusePassthrough.cpp to
 	 * get references to each tier for finding full backend paths.
