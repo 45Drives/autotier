@@ -72,7 +72,7 @@ Quota = 100 %
 ```
 
 ## Usage
-See `man cephgeorep` after installing for full usage details.
+See `man autotier` after installing for full usage details.
 ### Command Line Tool Usage
 ```
 Usage:
