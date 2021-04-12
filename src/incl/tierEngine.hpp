@@ -213,4 +213,7 @@ public:
 	void mount_point(const fs::path &mount_point);
 	/* Set the mount_point_ variable.
 	 */
+	bool strict_period(void) const;
+	/* Return config_.strict_period().
+	 */
 };

@@ -73,6 +73,10 @@ private:
 	std::chrono::seconds tier_period_s_ = std::chrono::seconds(-1);
 	/* Polling period to check whether to send new files in seconds.
 	 */
+	int strict_period_ = false;
+	/* If 1, tiering only happens once per period; if 0, writing
+	 * into tier that is over quota will trigger file tiering.
+	 */
 	fs::path run_path_ = "/var/lib/autotier";
 	/* Path to database and FIFOs. Default location: /var/lib/autotier
 	 */
@@ -101,6 +105,9 @@ public:
 	 */
 	std::chrono::seconds tier_period_s(void) const;
 	/* Get tier_period_s_.
+	 */
+	bool strict_period(void) const;
+	/* Return true if strict_period_ == 1, else 0.
 	 */
 	fs::path run_path(void) const;
 	/* Get run_path_.

@@ -227,6 +227,13 @@ int Config::load_global(std::ifstream &config_file, std::string &id){
 			}catch(const std::invalid_argument &){
 				tier_period_s_ = std::chrono::seconds(-1);
 			}
+		}else if(key == "Strict Period"){
+			if(regex_match(value, std::regex("true", std::regex_constants::icase)))
+				strict_period_ = 1;
+			else if(regex_match(value, std::regex("false", std::regex_constants::icase)))
+				strict_period_ = 0;
+			else
+				strict_period_ = -1;
 		}else if(key == "Metadata Path"){
 			run_path_ = value;
 		}else{ // else if ...
@@ -327,6 +334,10 @@ void Config::verify_global(bool read_only, bool &errors) const{
 		Logging::log.error("Invalid tier period. (Tier Period)");
 		errors = true;
 	}
+	if(strict_period_ == -1){
+		Logging::log.error("Invalid boolean value. (Strict Period)");
+		errors = true;
+	}
 	bool create_if_missing = true;
 	validate_backend_path(run_path_, "Global", "Metadata Path", errors, read_only, create_if_missing);
 }
@@ -353,6 +364,10 @@ std::chrono::seconds Config::tier_period_s(void) const{
 	return tier_period_s_;
 }
 
+bool Config::strict_period(void) const{
+	return strict_period_ == 1;
+}
+
 fs::path Config::run_path(void) const{
 	return run_path_;
 }
@@ -361,6 +376,7 @@ void Config::dump(const std::list<Tier> &tiers) const{
 	Logging::log.message("[Global]", 1);
 	Logging::log.message("Log Level = " + std::to_string(log_level_), 1);
 	Logging::log.message("Tier Period = " + std::to_string(tier_period_s_.count()), 1);
+	Logging::log.message("Strict Period = " + (strict_period_ == 1? std::string("true") : std::string("false")), 1);
 	Logging::log.message("", 1);
 	for(const Tier &t : tiers){
 		Logging::log.message("[" + t.id() + "]", 1);
