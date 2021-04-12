@@ -39,6 +39,7 @@ From dpkg: `# dpkg --remove autotier`
 From source: `# make uninstall` from root of cloned repo
 
 ## Configuration
+See `man autotier` after installing for full configuration details.  
 Default configuration file location: `/etc/autotier.conf`.
 ### Global Config
 For global configuration of `autotier`, options are placed below the `[Global]` header. Example:
