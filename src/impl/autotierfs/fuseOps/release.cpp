@@ -25,6 +25,7 @@
 #include "alert.hpp"
 #include "tier.hpp"
 #include "openFiles.hpp"
+#include "tierEngine.hpp"
 
 #ifdef LOG_METHODS
 #include <sstream>
@@ -85,8 +86,11 @@ namespace fuse_ops{
 		}catch(const std::out_of_range &){
 			Logging::log.warning("release: Could not find fd in path map.");
 		}
-		if(old_size != -1 && new_size != -1 && tptr)
+		if(old_size != -1 && new_size != -1 && tptr){
 			tptr->size_delta(old_size, new_size);
+			if(!priv->autotier_->strict_period() && tptr->usage_bytes() > tptr->quota_bytes())
+				priv->autotier_->tier(std::chrono::seconds(-1));
+		}
 		res = ::close(fi->fh);
 		return res;
 	}
