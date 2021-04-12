@@ -150,6 +150,15 @@ flags.
 .BI "Tier Period \fR=\fP " "n"
 Number of seconds between each tiering of files. Must be an integer in the range [0, INT64_MAX].
 .TP
+.BI "Strict Period \fR=\fP " "true\fR|\fPfalse"
+If
+.IR true ,
+file tiering strictly happens once per period. If
+.IR false ,
+tiering can be triggered after writing to a file
+when the tier is past it's quota. Default value is
+.IR false .
+.TP
 .BI "Metadata Path \fR=\fP " "/full/path/to/metadata"
 Optional. If undefined,
 .B autotier
