@@ -1,3 +1,10 @@
+autotier (1.1.4-1focal) focal; urgency=medium
+
+  * Tiering of files is automatically triggered if tier is over quota after
+    writing to a file. To disable, added config option `Strict Period = true`.
+    
+ -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
+
 autotier (1.1.3-1focal) focal; urgency=low
 
   * Create autotier group during install.

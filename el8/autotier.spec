@@ -3,7 +3,7 @@
 %define        __os_install_post %{_dbpath}/brp-compress
 
 Name:           autotier
-Version:        1.1.3
+Version:        1.1.4
 Release:        1%{?dist}
 Summary:        Tiered FUSE Passthrough Filesystem
 
@@ -42,5 +42,9 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
-* Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3.-1
+* Mon Apr 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.4-1
+- Tiering of files is automatically triggered if tier is over quota after
+  writing to a file. To disable, added config option `Strict Period = true`.
+
+* Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.
