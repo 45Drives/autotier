@@ -45,6 +45,10 @@ groupadd -f autotier
 * Mon Apr 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.4-1
 - Tiering of files is automatically triggered if tier is over quota after
   writing to a file. To disable, added config option `Strict Period = true`.
+- Added disabling of tier period by setting to a negative number so a cron
+  job for `autotier oneshot` can be used to trigger tiering.
+- Added optional argument to `autotier oneshot` to pass a fudged tier period
+  so popularity can be calculated with cron job triggering.
 
 * Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.
