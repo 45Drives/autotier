@@ -94,8 +94,12 @@ Show all pinned files along with the tier they are pinned to.
 .B list-popularity
 Print all files in filesystem along with their popularity scores (accesses per hour).
 .TP
-.B oneshot
-Execute tiering of files immediately.
+.BI oneshot " \fR[\fPfake tier period\fR]\fP"
+Execute tiering of files immediately. A fake tier period (integer, seconds) can optionally be passed if using
+.B cron
+to trigger tiering so file popularity can still be calculated. Normally, file popularity is not modified
+by
+.BR "autotier oneshot" .
 .TP
 .BI "pin \fR\*(lq\fP" "tier name" "\fR\*(rq\fP " "path/to/file " \fR[\fP "path/to/file \fR...]\fP"
 Move files into the given tier and keep them there regardless of their popularity scores.
