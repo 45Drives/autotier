@@ -26,18 +26,25 @@
 
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
-	auto last_tier_time = std::chrono::steady_clock::now() - config_.tier_period_s();
-	do{
-		auto tier_time = std::chrono::steady_clock::now();
-		auto wake_time = tier_time + config_.tier_period_s();
-		tier(tier_time - last_tier_time);
-		last_tier_time = std::chrono::steady_clock::now();
-		// don't wait for oneshot execution
-		while(daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_){
+	if(config_.tier_period_s() < std::chrono::seconds(0)){
+		while(daemon_mode && !stop_flag_){
 			execute_queued_work();
-			sleep_until(wake_time);
+			sleep_until_woken();
 		}
-	}while(daemon_mode && !stop_flag_);
+	}else{
+		auto last_tier_time = std::chrono::steady_clock::now() - config_.tier_period_s();
+		do{
+			auto tier_time = std::chrono::steady_clock::now();
+			auto wake_time = tier_time + config_.tier_period_s();
+			tier(tier_time - last_tier_time);
+			last_tier_time = std::chrono::steady_clock::now();
+			// don't wait for oneshot execution
+			while(daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_){
+				execute_queued_work();
+				sleep_until(wake_time);
+			}
+		}while(daemon_mode && !stop_flag_);
+	}
 }
 
 void TierEngine::tier(std::chrono::steady_clock::duration period){
@@ -157,4 +164,9 @@ void TierEngine::move_files(void){
 void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
 	std::unique_lock<std::mutex> lk(sleep_mt_);
 	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
+}
+
+void TierEngine::sleep_until_woken(void){
+	std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait(lk, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }

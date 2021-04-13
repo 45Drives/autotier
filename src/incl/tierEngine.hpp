@@ -85,11 +85,11 @@ private:
 	void unlock_mutex(void);
 	/* Deletes mutex lock file.
 	 */
-	void open_db(bool read_only);
-	/* Opens RocksDB database, if read_only is true, opened read-only.
+	void open_db(void);
+	/* Opens RocksDB database.
 	 */
 public:
-	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only = false);
+	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides);
 	/* Loads config, picks run
 	 * path with pick_run_path(), constructs mutex_path,
 	 * opens database with open_db()
@@ -168,6 +168,10 @@ public:
 	void sleep_until(std::chrono::steady_clock::time_point t);
 	/* call wait_until on the condition variable. Puts thread
 	 * to sleep until time reaches t or woken by sleep_cv_.notify_one()
+	 */
+	void sleep_until_woken(void);
+	/* call wait on the condition variable. Puts thread
+	 * to sleep until woken by sleep_cv_.notify_one()
 	 */
 	void stop(void);
 	/* Obtain sleep_mt_, set stop_flag_ to true,
