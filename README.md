@@ -86,7 +86,7 @@ See `man autotier` after installing for full usage details.
 Usage:
   autotier [<flags>] <command> [<arg1 arg2 ...>]
 Commands:
-  config      - display current configuration file
+  config      - display current configuration values
   help        - display this message
   list-pins   - show all pinned files
   list-popularity

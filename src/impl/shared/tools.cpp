@@ -241,7 +241,7 @@ void cli_usage(){
 		"Usage:\n"
 		"  autotier [<flags>] <command> [<arg1 arg2 ...>]\n"
 		"Commands:\n"
-		"  config      - display current configuration file\n"
+		"  config      - display current configuration values\n"
 		"  help        - display this message\n"
 		"  list-pins   - show all pinned files\n"
 		"  list-popularity\n"
