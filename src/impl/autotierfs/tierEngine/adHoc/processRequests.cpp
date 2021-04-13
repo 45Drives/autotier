@@ -43,17 +43,20 @@ void TierEngine::process_adhoc_requests(void){
 			case UNPIN:
 				process_pin_unpin(work);
 				break;
-			case WHICHTIER:
-				process_which_tier(work);
-				break;
 			case STATUS:
 				process_status(work);
+				break;
+			case CONFIG:
+				process_config();
+				break;
+			case LPIN:
+				process_list_pins();
 				break;
 			case LPOP:
 				process_list_popularity();
 				break;
-			case LPIN:
-				process_list_pins();
+			case WHICHTIER:
+				process_which_tier(work);
 				break;
 			default:
 				Logging::log.warning("Received bad ad hoc command.");
@@ -174,61 +177,6 @@ namespace l{
 			if(length > res) res = length;
 		}
 		return res;
-	}
-}
-
-void TierEngine::process_which_tier(AdHoc &work){
-	std::vector<std::string> payload;
-	payload.emplace_back("OK");
-	int namew = 0;
-	int tierw = 0;
-	for(std::string &arg : work.args_){
-		if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
-			arg = fs::relative(arg, mount_point_).string();
-		}
-		int len = arg.length();
-		if(len > namew)
-			namew = len;
-	}
-	int file_header_len = std::string("File").length();
-	if(file_header_len > namew)
-		namew = file_header_len;
-	for(const Tier &tier : tiers_){
-		int len = tier.id().length() + 2; // 2 quotes
-		if(len > tierw)
-			tierw = len;
-	}
-	std::stringstream header;
-	header << std::setw(namew) << std::left << "File" << "  ";
-	header << std::setw(tierw) << std::left << "Tier" << "  ";
-	header << std::left << "Backend Path";
-#ifdef TABLE_HEADER_LINE
-	header << std::endl;
-	auto fill = header.fill();
-	header << std::setw(80) << std::setfill('-') << "";
-	header.fill(fill);
-#endif
-	payload.emplace_back(header.str());
-	for(const std::string &arg : work.args_){
-		std::stringstream record;
-		record << std::setw(namew) << std::left << arg << "  ";
-		Metadata f(arg.c_str(), db_);
-		if(f.not_found()){
-				record << "not found.";
-		}else{
-			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
-			if(tptr == nullptr)
-				record << std::setw(tierw) << std::left << "UNK" << "  ";
-			else
-				record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
-			record << std::left << (fs::path(f.tier_path()) / arg).string();
-		}
-		payload.emplace_back(record.str());
-	}
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
 	}
 }
 
@@ -389,16 +337,11 @@ void TierEngine::process_status(const AdHoc &work){
 	}
 }
 
-void TierEngine::process_list_popularity(void){
+void TierEngine::process_config(void){
 	std::vector<std::string> payload;
 	payload.emplace_back("OK");
 	std::stringstream ss;
-	ss << "File : Popularity (accesses per hour)" << std::endl;
-	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
-	for(it->SeekToFirst(); it->Valid(); it->Next()){
-		Metadata f(it->value().ToString());
-		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
-	}
+	config_.dump(tiers_, ss);
 	payload.emplace_back(ss.str());
 	try{
 		send_fifo_payload(payload, run_path_ / "response.pipe");
@@ -419,6 +362,79 @@ void TierEngine::process_list_pins(void){
 			ss << it->key().ToString() << " : " << f.tier_path() << std::endl;
 	}
 	payload.emplace_back(ss.str());
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
+}
+
+void TierEngine::process_list_popularity(void){
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	std::stringstream ss;
+	ss << "File : Popularity (accesses per hour)" << std::endl;
+	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
+	for(it->SeekToFirst(); it->Valid(); it->Next()){
+		Metadata f(it->value().ToString());
+		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
+	}
+	payload.emplace_back(ss.str());
+	try{
+		send_fifo_payload(payload, run_path_ / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.warning(err.what());
+	}
+}
+
+void TierEngine::process_which_tier(AdHoc &work){
+	std::vector<std::string> payload;
+	payload.emplace_back("OK");
+	int namew = 0;
+	int tierw = 0;
+	for(std::string &arg : work.args_){
+		if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
+			arg = fs::relative(arg, mount_point_).string();
+		}
+		int len = arg.length();
+		if(len > namew)
+			namew = len;
+	}
+	int file_header_len = std::string("File").length();
+	if(file_header_len > namew)
+		namew = file_header_len;
+	for(const Tier &tier : tiers_){
+		int len = tier.id().length() + 2; // 2 quotes
+		if(len > tierw)
+			tierw = len;
+	}
+	std::stringstream header;
+	header << std::setw(namew) << std::left << "File" << "  ";
+	header << std::setw(tierw) << std::left << "Tier" << "  ";
+	header << std::left << "Backend Path";
+#ifdef TABLE_HEADER_LINE
+	header << std::endl;
+	auto fill = header.fill();
+	header << std::setw(80) << std::setfill('-') << "";
+	header.fill(fill);
+#endif
+	payload.emplace_back(header.str());
+	for(const std::string &arg : work.args_){
+		std::stringstream record;
+		record << std::setw(namew) << std::left << arg << "  ";
+		Metadata f(arg.c_str(), db_);
+		if(f.not_found()){
+				record << "not found.";
+		}else{
+			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
+			if(tptr == nullptr)
+				record << std::setw(tierw) << std::left << "UNK" << "  ";
+			else
+				record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
+			record << std::left << (fs::path(f.tier_path()) / arg).string();
+		}
+		payload.emplace_back(record.str());
+	}
 	try{
 		send_fifo_payload(payload, run_path_ / "response.pipe");
 	}catch(const fifo_exception &err){

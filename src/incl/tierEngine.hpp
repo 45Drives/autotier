@@ -190,19 +190,22 @@ public:
 	void process_pin_unpin(const AdHoc &work);
 	/* Enqueue pin or unpin AdHoc command into adhoc_work_.
 	 */
-	void process_which_tier(AdHoc &work);
-	/* Return table of each argument file along with its corresponding tier name
-	 * and full backend path.
-	 */
 	void process_status(const AdHoc &work);
 	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
 	 * uses Logger::format_bytes() for printing current usage and watermark.
 	 */
-	void process_list_popularity(void);
-	/* Print popularity of each file.
+	void process_config(void);
+	/* Dump current configuration settings from memory.
 	 */
 	void process_list_pins(void);
 	/* Print pineed files.
+	 */
+	void process_list_popularity(void);
+	/* Print popularity of each file.
+	 */
+	void process_which_tier(AdHoc &work);
+	/* Return table of each argument file along with its corresponding tier name
+	 * and full backend path.
 	 */
 	void execute_queued_work(void);
 	/* Tiering thread calls this when woken to execute the queued work.
