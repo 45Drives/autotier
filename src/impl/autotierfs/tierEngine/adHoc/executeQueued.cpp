@@ -25,7 +25,10 @@ void TierEngine::execute_queued_work(void){
 		AdHoc work = adhoc_work_.pop();
 		switch(work.cmd_){
 			case ONESHOT:
-				tier(std::chrono::seconds(-1)); // don't affect period
+				if(work.args_.empty())
+					tier(std::chrono::seconds(-1)); // don't affect period
+				else
+					tier(std::chrono::seconds(stoi(work.args_[0]))); // won't throw, args_[0] is already validated
 				break;
 			case PIN:
 				pin_files(work.args_);
