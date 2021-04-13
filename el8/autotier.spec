@@ -51,6 +51,8 @@ groupadd -f autotier
   so popularity can be calculated with cron job triggering.
 - `autotier config` now dumps configuration values from memory of mounted
   filesystem rather than just printing contents of file.
+- Implemented parallel moving of files while tiering with one thread per
+  tier for maximum concurrency.
 
 * Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.

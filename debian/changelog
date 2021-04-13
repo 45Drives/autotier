@@ -8,6 +8,8 @@ autotier (1.1.4-1focal) focal; urgency=medium
     so popularity can be calculated with cron job triggering.
   * `autotier config` now dumps configuration values from memory of mounted
     filesystem rather than just printing contents of file.
+  * Implemented parallel moving of files while tiering with one thread per
+    tier for maximum concurrency.
     
  -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
 
