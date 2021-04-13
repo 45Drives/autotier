@@ -25,6 +25,8 @@
 namespace fs = boost::filesystem;
 
 #define DEFAULT_CONFIG_PATH "/etc/autotier.conf"
+#define TIER_PERIOD_DISBLED -1
+#define LOG_LEVEL_NOT_SET -1
 
 template<class T>
 /* ConfigOverride is used with command line flags
@@ -66,34 +68,28 @@ class Tier;
 
 class Config{
 private:
-	int log_level_ = -1;
+	int log_level_ = LOG_LEVEL_NOT_SET;
 	/* value read from config file which may be overridden in main()
 	 * by CLI flags [ --verbose | --quiet ]
 	 */
-	std::chrono::seconds tier_period_s_ = std::chrono::seconds(-1);
+	std::chrono::seconds tier_period_s_ = std::chrono::seconds(TIER_PERIOD_DISBLED);
 	/* Polling period to check whether to send new files in seconds.
 	 */
-	int strict_period_ = false;
-	/* If 1, tiering only happens once per period; if 0, writing
+	bool strict_period_ = false;
+	/* If true, tiering only happens once per period; if false, writing
 	 * into tier that is over quota will trigger file tiering.
 	 */
 	fs::path run_path_ = "/var/lib/autotier";
 	/* Path to database and FIFOs. Default location: /var/lib/autotier
 	 */
-	void verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only = false) const;
-	void verify_global(bool read_only, bool &errors) const;
-	void verify_tiers(const std::list<Tier> &tiers, bool &errors) const;
-	/* ensures all config options are legal
-	 * returns true if no errors found, false otherwise
-	 */
-	int load_global(std::ifstream &config_file, std::string &id);
+	int load_global(std::ifstream &config_file, std::string &id, bool & errors);
 	/* called by load() when [global] config header is found
 	 */
 	void init_config_file(const fs::path &config_path) const;
 	/* When config file DNE, this is called to create and initialize one.
 	 */
 public:
-	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides, bool read_only = false);
+	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides);
 	/* open config file at config_path, parse global and tier options,
 	 * populate list of tiers
 	 */
