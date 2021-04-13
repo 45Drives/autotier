@@ -49,6 +49,8 @@ groupadd -f autotier
   job for `autotier oneshot` can be used to trigger tiering.
 - Added optional argument to `autotier oneshot` to pass a fudged tier period
   so popularity can be calculated with cron job triggering.
+- `autotier config` now dumps configuration values from memory of mounted
+  filesystem rather than just printing contents of file.
 
 * Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.
