@@ -363,16 +363,16 @@ fs::path Config::run_path(void) const{
 	return run_path_;
 }
 
-void Config::dump(const std::list<Tier> &tiers) const{
-	Logging::log.message("[Global]", 1);
-	Logging::log.message("Log Level = " + std::to_string(log_level_), 1);
-	Logging::log.message("Tier Period = " + std::to_string(tier_period_s_.count()), 1);
-	Logging::log.message("Strict Period = " + (strict_period_ == 1? std::string("true") : std::string("false")), 1);
-	Logging::log.message("", 1);
+void Config::dump(const std::list<Tier> &tiers, std::stringstream &ss) const{
+	ss << "[Global]" << std::endl;
+	ss << "Log Level = " + std::to_string(log_level_) << std::endl;
+	ss << "Tier Period = " + std::to_string(tier_period_s_.count()) << std::endl;
+	ss << "Strict Period = " + (strict_period_ == 1? std::string("true") : std::string("false")) << std::endl;
+	ss << " " << std::endl;
 	for(const Tier &t : tiers){
-		Logging::log.message("[" + t.id() + "]", 1);
-		Logging::log.message("Path = " + t.path().string(), 1);
-		Logging::log.message("Quota = " + std::to_string(t.quota_percent()) + " % (" + Logging::log.format_bytes(t.quota_bytes()) + ")", 1);
-		Logging::log.message("", 1);
+		ss << "[" + t.id() + "]" << std::endl;
+		ss << "Path = " + t.path().string() << std::endl;
+		ss << "Quota = " + std::to_string(t.quota_percent()) + " % (" + Logging::log.format_bytes(t.quota_bytes()) + ")" << std::endl;
+		ss << " " << std::endl;
 	}
 }

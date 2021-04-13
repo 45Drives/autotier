@@ -108,7 +108,7 @@ public:
 	fs::path run_path(void) const;
 	/* Get run_path_.
 	 */
-	void dump(const std::list<Tier> &tiers) const;
+	void dump(const std::list<Tier> &tiers, std::stringstream &ss) const;
 	/* print out loaded options from config file for the global section
 	 * and for each tier
 	 */
