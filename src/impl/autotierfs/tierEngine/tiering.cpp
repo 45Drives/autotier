@@ -19,6 +19,7 @@
 
 #include "tierEngine.hpp"
 #include "alert.hpp"
+#include <thread>
 
 #ifndef NO_PAR_SORT
 #include <execution>
@@ -149,15 +150,13 @@ void TierEngine::simulate_tier(void){
 }
 
 void TierEngine::move_files(void){
-	/*  Currently, this starts at the lowest tier, assuming it has the most free space, and
-	 * moves all incoming files from their current tiers before moving on to the next lowest
-	 * tier. There should be a better way to shuffle all the files around to avoid over-filling
-	 * a tier by doing them one at a time.
-	 */
+	std::vector<std::thread> threads;
 	Logging::log.message("Moving files.",2);
-	for(std::list<Tier>::reverse_iterator titr = tiers_.rbegin(); titr != tiers_.rend(); titr++){
-		// Maybe multithread this if fs::copy_file is thread-safe?
-		titr->transfer_files();
+	for(std::list<Tier>::iterator titr = tiers_.begin(); titr != tiers_.end(); ++titr){
+		threads.emplace_back(&Tier::transfer_files, titr);
+	}
+	for(auto &thread : threads){
+		thread.join();
 	}
 }
 
