@@ -81,7 +81,7 @@ tests: view-db
 
 view-db:
 	mkdir -p dist/tests
-	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/metadata.cpp -Wall $(LIBS) -o dist/tests/view_db
+	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/autotierfs/metadata.cpp -Wall -lboost_serialization -lrocksdb -o dist/tests/view_db
 
 inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8
