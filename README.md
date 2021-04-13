@@ -6,9 +6,16 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 ![autotier example](doc/mounted_fs_status.png)
 
 ## Installation
-### Current Release
-1. Get deb: ```$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb```
+### Ubuntu
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb`
 1. Install deb: `# dpkg -i autotier_1.1.3-1focal_amd64.deb`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+	* `# usermod -aG autotier <user>` (takes effect on next login)
+
+### EL8
+1. Install rpm: `# yum install https://github.com/45Drives/autotier/releases/download/v1.1/autotier-1.1.3-1.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
@@ -32,6 +39,7 @@ From dpkg: `# dpkg --remove autotier`
 From source: `# make uninstall` from root of cloned repo
 
 ## Configuration
+See `man autotier` after installing for full configuration details.  
 Default configuration file location: `/etc/autotier.conf`.
 ### Global Config
 For global configuration of `autotier`, options are placed below the `[Global]` header. Example:
