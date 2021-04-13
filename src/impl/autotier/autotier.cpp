@@ -149,15 +149,7 @@ int main(int argc, char *argv[]){
 	
 	/* Process ad hoc command.
 		*/
-	if(cmd == CONFIG){
-		Logging::log.message("Config file: (" + config_path.string() + ")", 0);
-		{
-			std::ifstream f(config_path.string());
-			std::stringstream ss;
-			ss << f.rdbuf();
-			Logging::log.message(ss.str(), 0);
-		}
-	}else if(cmd == HELP){
+	if(cmd == HELP){
 		cli_usage();
 	}else{
 		std::vector<std::string> payload;
