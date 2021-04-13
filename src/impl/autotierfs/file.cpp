@@ -74,7 +74,7 @@ File::~File(){
 }
 
 void File::calc_popularity(double period_seconds){
-	if(period_seconds == 0.0)
+	if(period_seconds <= 0.0)
 		return;
 	double usage_frequency = metadata_.access_count_ ? double(metadata_.access_count_) / period_seconds : 0.0;
 	double average_period_age = (double)(time(NULL) - ctime_) + period_seconds / 2.0;
