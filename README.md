@@ -91,7 +91,8 @@ Commands:
   list-pins   - show all pinned files
   list-popularity
               - print list of all tier files sorted by frequency of use
-  oneshot     - execute tiering only once
+  oneshot [<fake tier period>]
+              - execute tiering only once
               - a fake period (integer, seconds) can be passed when using
                 with cron so file popularity can still be calculated
   pin <"tier name"> <"path/to/file" "path/to/file" ...>
