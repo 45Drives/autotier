@@ -147,7 +147,7 @@ namespace fuse_ops{
 				everything by one. */
 				nextoff++;
 		#endif
-				if(!skip_dup_dir){
+				if(!skip_dup_dir && !std::regex_match(d->entry->d_name, temp_file_re)){
 					if(filler(buf, d->entry->d_name, &st, nextoff, fill_flags))
 						break;
 				}
