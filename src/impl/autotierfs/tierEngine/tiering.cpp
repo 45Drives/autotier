@@ -20,6 +20,7 @@
 #include "tierEngine.hpp"
 #include "alert.hpp"
 #include <thread>
+#include <regex>
 
 #ifndef NO_PAR_SORT
 #include <execution>
@@ -78,11 +79,12 @@ void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entr
 
 void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage){
 	// TODO: Replace this with multithreaded BFS
+	std::regex temp_file_re("\\.[^/]*\\.autotier\\.hide$");
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
 		fs::file_status status = fs::symlink_status(*itr);
 		if(fs::is_directory(status)){
 			crawl(*itr, tptr, function, usage);
-		}else if(!is_symlink(status)){
+		}else if(!is_symlink(status) && !std::regex_match(itr->path().string(), temp_file_re)){
 			(this->*function)(*itr, tptr, usage);
 		}
 	}
