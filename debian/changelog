@@ -10,6 +10,7 @@ autotier (1.1.4-1focal) focal; urgency=medium
     filesystem rather than just printing contents of file.
   * Implemented parallel moving of files while tiering with one thread per
     tier for maximum concurrency.
+  * Fix bug where readdir was still showing backend autotier files.
     
  -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
 

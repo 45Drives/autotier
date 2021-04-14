@@ -53,6 +53,7 @@ groupadd -f autotier
   filesystem rather than just printing contents of file.
 - Implemented parallel moving of files while tiering with one thread per
   tier for maximum concurrency.
+- Fix bug where readdir was still showing backend autotier files.
 
 * Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.
