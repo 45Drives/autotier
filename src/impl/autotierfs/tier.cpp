@@ -21,6 +21,7 @@
 #include "alert.hpp"
 #include "openFiles.hpp"
 #include "file.hpp"
+#include <thread>
 
 extern "C" {
 	#include <sys/stat.h>
@@ -139,17 +140,26 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 		create_directories(new_path.parent_path());
 	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
 	bool copy_success = true;
-	try{
-		fs::copy_file(old_path, new_tmp_path); // move item to slow tier
-	}catch(boost::filesystem::filesystem_error const & e){
-		copy_success = false;
-		Logging::log.error("Copy failed: " + std::string(e.what()));
-		if(e.code() == boost::system::errc::file_exists){
-			Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
-		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			Logging::log.error("No action required, file was deleted by another process.");
+	bool out_of_space = false;
+	do{
+		try{
+			fs::copy_file(old_path, new_tmp_path); // move item to slow tier
+			copy_success = true;
+			out_of_space = false;
+		}catch(const boost::filesystem::filesystem_error &e){
+			copy_success = false;
+			Logging::log.error("Copy failed: " + std::string(e.what()));
+			if(e.code() == boost::system::errc::file_exists){
+				Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
+			}else if(e.code() == boost::system::errc::no_such_file_or_directory){
+				Logging::log.error("No action required, file was deleted by another process.");
+			}else if(e.code() == boost::system::errc::no_space_on_device){
+				out_of_space = true;
+				Logging::log.warning("Tier ran out of space while moving files, trying again. ");
+				std::this_thread::yield(); // let another thread run
+			}
 		}
-	}
+	}while(out_of_space);
 	if(copy_success){
 		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
