@@ -22,6 +22,7 @@
  */
 
 #include "fuseOps.hpp"
+#include "tierEngine.hpp"
 
 #ifdef LOG_METHODS
 #include "alert.hpp"
@@ -44,11 +45,34 @@ namespace fuse_ops{
 		Logging::log.message(ss.str(), 0);
 		}
 #endif
+		bool out_of_space = false;
+		FusePriv *priv = nullptr;
 		
-		res = ::pwrite(fi->fh, buf, size, offset);
-		
-		if(res == -1)
-			return -errno;
+		do{
+			res = ::pwrite(fi->fh, buf, size, offset);
+			out_of_space = false;
+			if(res == -1){
+				int error = errno;
+				if(error == ENOSPC){
+					out_of_space = true;
+					if(!priv){
+						fuse_context *ctx = fuse_get_context();
+						priv = (FusePriv *)ctx->private_data;
+						if(!priv)
+							return -error;
+					}
+					if(priv->autotier_->strict_period())
+						return -error;
+					else{
+						bool tier_res = priv->autotier_->tier(std::chrono::seconds(-1));
+						while(!tier_res && priv->autotier_->currently_tiering()){
+							std::this_thread::sleep_for(std::chrono::milliseconds(10));
+						}
+					}
+				}else
+					return -error;
+			}
+		}while(out_of_space);
 		
 		return res;
 	}
@@ -62,7 +86,32 @@ namespace fuse_ops{
 		dst.buf[0].fd = fi->fh;
 		dst.buf[0].pos = offset;
 		
-		ssize_t bytes_copied = fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+		bool out_of_space = false;
+		FusePriv *priv = nullptr;
+		
+		ssize_t bytes_copied;
+		
+		do{
+			bytes_copied = fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+			out_of_space = false;
+			if(bytes_copied == -ENOSPC){
+				out_of_space = true;
+				if(!priv){
+					fuse_context *ctx = fuse_get_context();
+					priv = (FusePriv *)ctx->private_data;
+					if(!priv)
+						return -ENOSPC;
+				}
+				if(priv->autotier_->strict_period())
+					return -ENOSPC;
+				else{
+					bool tier_res = priv->autotier_->tier(std::chrono::seconds(-1));
+					while(!tier_res && priv->autotier_->currently_tiering()){
+						std::this_thread::sleep_for(std::chrono::milliseconds(10));
+					}
+				}
+			}
+		}while(out_of_space);
 		
 		return bytes_copied;
 	}
