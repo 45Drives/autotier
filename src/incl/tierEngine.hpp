@@ -44,6 +44,13 @@ private:
 	 * or cancel sleeping after being woken to do ad hoc
 	 * command work.
 	 */
+	bool currently_tiering_;
+	/* Set and cleared in tier()
+	 */
+	std::mutex lock_file_mt_;
+	/* Used to ensure currently_tiering_ is set atomically with locking the
+	 * file mutex.
+	 */
 	std::mutex sleep_mt_;
 	/* Useless lock to release for the condition_variable
 	 * to use wait_until.
@@ -120,10 +127,11 @@ public:
 	/* Tier files with tier(), do ad hoc work, and
 	 * sleep until next period or woken by more work.
 	 */
-	void tier(std::chrono::steady_clock::duration period);
+	bool tier(std::chrono::steady_clock::duration period);
 	/* Find files, update their popularities, sort the files
 	 * by popularity, and finally move the files to their
-	 * respective tiers.
+	 * respective tiers. Returns true if tiering happened,
+	 * false if failed to lock mutex.
 	 */
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage));
 	/* Call crawl() for each tier in tiers.
@@ -172,6 +180,9 @@ public:
 	void sleep_until_woken(void);
 	/* call wait on the condition variable. Puts thread
 	 * to sleep until woken by sleep_cv_.notify_one()
+	 */
+	bool currently_tiering(void) const;
+	/* Check if currently tiering.
 	 */
 	void stop(void);
 	/* Obtain sleep_mt_, set stop_flag_ to true,
