@@ -148,6 +148,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 			out_of_space = false;
 		}catch(const boost::filesystem::filesystem_error &e){
 			copy_success = false;
+			out_of_space = false;
 			Logging::log.error("Copy failed: " + std::string(e.what()));
 			if(e.code() == boost::system::errc::file_exists){
 				Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
