@@ -149,14 +149,17 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
 		}catch(const boost::filesystem::filesystem_error &e){
 			copy_success = false;
 			out_of_space = false;
-			Logging::log.error("Copy failed: " + std::string(e.what()));
 			if(e.code() == boost::system::errc::file_exists){
+				Logging::log.error("Copy failed: " + std::string(e.what()));
 				Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
 			}else if(e.code() == boost::system::errc::no_such_file_or_directory){
+				Logging::log.error("Copy failed: " + std::string(e.what()));
 				Logging::log.error("No action required, file was deleted by another process.");
 			}else if(e.code() == boost::system::errc::no_space_on_device){
+				// TODO: implement writing in chunks so that on failure it doesn't have to start from the beginning
 				out_of_space = true;
 				Logging::log.warning("Tier ran out of space while moving files, trying again. ");
+				fs::remove(new_tmp_path);
 				std::this_thread::yield(); // let another thread run
 			}
 		}
