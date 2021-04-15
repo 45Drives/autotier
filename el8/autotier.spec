@@ -54,6 +54,8 @@ groupadd -f autotier
 - Implemented parallel moving of files while tiering with one thread per
   tier for maximum concurrency.
 - Fix bug where readdir was still showing backend autotier files.
+- Tiering of files is automatically triggered if tier is out of space, and
+  write() call blocks until tiering is done and the write is tried again.
 
 * Thu Apr 08 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.3-1
 - First EL8 build.
