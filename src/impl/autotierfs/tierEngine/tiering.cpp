@@ -52,24 +52,24 @@ void TierEngine::begin(bool daemon_mode){
 bool TierEngine::tier(std::chrono::steady_clock::duration period){
 	// mutex lock
 	{
-		std::lock_guard<std::mutex> lk(lock_file_mt_);
-		if(lock_mutex() == -1){
+		std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
+		if(!lk.owns_lock() || lock_mutex() == -1){
 			Logging::log.warning("autotier already moving files.");
 			return false;
 		}
 		currently_tiering_ = true;
+		launch_crawlers(&TierEngine::emplace_file);
+		// one popularity calculation per loop
+		calc_popularity(period);
+		// mutex locked
+		sort();
+		simulate_tier();
+		move_files();
+		Logging::log.message("Tiering complete.", 1);
+		files_.clear();
+		currently_tiering_ = false;
+		unlock_mutex();
 	}
-	launch_crawlers(&TierEngine::emplace_file);
-	// one popularity calculation per loop
-	calc_popularity(period);
-	// mutex locked
-	sort();
-	simulate_tier();
-	move_files();
-	Logging::log.message("Tiering complete.", 1);
-	files_.clear();
-	currently_tiering_ = false;
-	unlock_mutex();
 	return true;
 }
 
