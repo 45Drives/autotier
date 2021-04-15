@@ -50,21 +50,21 @@ void TierEngine::begin(bool daemon_mode){
 }
 
 void TierEngine::tier(std::chrono::steady_clock::duration period){
-	launch_crawlers(&TierEngine::emplace_file);
-	// one popularity calculation per loop
-	calc_popularity(period);
 	// mutex lock
 	if(lock_mutex() == -1){
 		Logging::log.warning("autotier already moving files.");
 	}else{
+		launch_crawlers(&TierEngine::emplace_file);
+		// one popularity calculation per loop
+		calc_popularity(period);
 		// mutex locked
 		sort();
 		simulate_tier();
 		move_files();
 		Logging::log.message("Tiering complete.", 1);
+		files_.clear();
 		unlock_mutex();
 	}
-	files_.clear();
 }
 
 void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage)){
