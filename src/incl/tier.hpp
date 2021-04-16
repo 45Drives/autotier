@@ -125,11 +125,11 @@ public:
 	void enqueue_file_ptr(File *fptr);
 	/* Push file pointer into incoming_files_.
 	 */
-	void transfer_files(void);
+	void transfer_files(int buff_sz);
 	/* Iterate through incoming_files_ and move each file into
 	 * the tier.
 	 */
-	bool move_file(const fs::path &old_path, const fs::path &new_path) const;
+	bool move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz) const;
 	/* Called in transfer_files() to actually copy the file and
 	 * remove the old one.
 	 */

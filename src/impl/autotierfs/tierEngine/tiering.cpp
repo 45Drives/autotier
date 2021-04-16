@@ -161,7 +161,7 @@ void TierEngine::move_files(void){
 	std::vector<std::thread> threads;
 	Logging::log.message("Moving files.",2);
 	for(std::list<Tier>::iterator titr = tiers_.begin(); titr != tiers_.end(); ++titr){
-		threads.emplace_back(&Tier::transfer_files, titr);
+		threads.emplace_back(&Tier::transfer_files, titr, config_.copy_buff_sz());
 	}
 	for(auto &thread : threads){
 		thread.join();

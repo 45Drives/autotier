@@ -351,6 +351,10 @@ void Config::init_config_file(const fs::path &config_path) const{
 	f.close();
 }
 
+int Config::copy_buff_sz(void) const{
+	return copy_buff_sz_;
+}
+
 std::chrono::seconds Config::tier_period_s(void) const{
 	return tier_period_s_;
 }

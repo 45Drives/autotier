@@ -72,6 +72,9 @@ private:
 	/* value read from config file which may be overridden in main()
 	 * by CLI flags [ --verbose | --quiet ]
 	 */
+	int copy_buff_sz_ = 1024*1024; // 1MiB default
+	/* Size of buffer for copy a file from one tier to another.
+	 */
 	std::chrono::seconds tier_period_s_ = std::chrono::seconds(TIER_PERIOD_DISBLED);
 	/* Polling period to check whether to send new files in seconds.
 	 */
@@ -98,6 +101,9 @@ public:
 	 */
 	~Config() = default;
 	/* Default destructor.
+	 */
+	int copy_buff_sz(void) const;
+	/* Get copy_buff_sz_.
 	 */
 	std::chrono::seconds tier_period_s(void) const;
 	/* Get tier_period_s_.
