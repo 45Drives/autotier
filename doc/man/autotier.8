@@ -171,6 +171,23 @@ defaults to using
 as the path to store metadata in. To mount
 .B autotier
 as an unprivileged user, set this path to somewhere with write permissions for that user.
+.TP
+.BI "Copy Buffer Size \fR=\fP " " n [prefix][i]B"
+Size of buffer to use while moving a file from one tier to another. Smaller buffers will use less memory, but larger
+buffers may be more efficient while tiering.
+.I n
+is a positive real number and
+.I prefix
+= 
+.IR K | M | G | T | P | E | Z | Y .
+Include
+.I i
+between the 
+.I prefix
+and
+.I B
+to use base-1024 units instead of base-1000. Default size is
+.IR "1 MiB" .
 
 .SS TIER DEFINITIONS
 Pick a friendly name for the tier and use that as the header name.

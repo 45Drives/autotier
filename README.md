@@ -7,15 +7,15 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Ubuntu
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1/autotier_1.1.3-1focal_amd64.deb`
-1. Install deb: `# dpkg -i autotier_1.1.3-1focal_amd64.deb`
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.4/autotier_1.1.4-1focal_amd64.deb`
+1. Install deb: `# dpkg -i autotier_1.1.4-1focal_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### EL8
-1. Install rpm: `# yum install https://github.com/45Drives/autotier/releases/download/v1.1/autotier-1.1.3-1.el8.x86_64.rpm`
+1. Install rpm: `# yum install https://github.com/45Drives/autotier/releases/download/v1.1.4/autotier-1.1..4-1.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
@@ -47,6 +47,7 @@ For global configuration of `autotier`, options are placed below the `[Global]` 
 [Global]                       # global settings
 Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
 Tier Period = 100              # number of seconds between file move batches
+Copy Buffer Size = 1 MiB       # size of buffer for moving files between tiers
 ```
 The global config section can be placed before, after, or between tier definitions.
 ### Tier Config
@@ -65,6 +66,7 @@ Below is a complete example of a configuration file:
 [Global]                       # global settings
 Log Level = 1                  # 0 = none, 1 = normal, 2 = debug
 Tier Period = 1000             # number of seconds between file move batches
+Copy Buffer Size = 1 MiB       # size of buffer for moving files between tiers
 
 [Tier 1]                       # tier name (can be anything)
 Path = /mnt/ssd_tier           # full path to tier storage pool
@@ -151,9 +153,10 @@ Flags:
 #### Mounting
 * manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
 * fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
-### Using cron
+### Using cron  
 To have `cron` schedule file tiering, first disable automatic tiering by setting `Tier Period = -1` in `/etc/autotier.conf`.
-Then in the cron entry, call `autotier oneshot <n>`, where `n` is the approximate tier period in seconds for calculating file popularity. This extra argument is needed because `autotier oneshot` does not normally affect file popularity.
+Then in the cron entry, call `autotier oneshot <n>`, where `n` is the approximate tier period in seconds for calculating file popularity. This extra argument is needed because `autotier oneshot` does not normally affect file popularity.  
+
 ---
 ```
    ┓
