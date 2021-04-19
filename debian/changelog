@@ -13,6 +13,8 @@ autotier (1.1.4-1focal) focal; urgency=medium
   * Fix bug where readdir was still showing backend autotier files.
   * Tiering of files is automatically triggered if tier is out of space, and
     write() call blocks until tiering is done and the write is tried again.
+  * Added Copy Buffer Size configration parameter to specify block size
+    while moving files between tiers.
     
  -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
 
