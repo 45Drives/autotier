@@ -160,19 +160,18 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 		while((bytes_read = read(source_fd, buff, buff_sz)) > 0){
 			out_of_space = false;
 			bytes_written = write(dest_fd, buff, bytes_read);
-			if(bytes_written == (off_t)-1){
-				if(errno == ENOSPC){
-					out_of_space = true;
-					res = lseek(source_fd, offset, SEEK_SET);
-					if(res == (off_t)-1)
-						goto copy_error_out;
-					res = lseek(dest_fd, offset, SEEK_SET);
-					if(res == (off_t)-1)
-						goto copy_error_out;
-					Logging::log.message("Tier ran out of space while moving files, trying again.", 2);
-					std::this_thread::yield(); // let another thread run
-				}else
+			if((bytes_written == (off_t)-1 && errno == ENOSPC) || bytes_written < bytes_read){
+				if(bytes_written != (off_t)-1)
+					offset += bytes_written; // seek to latest written byte
+				out_of_space = true;
+				res = lseek(source_fd, offset, SEEK_SET);
+				if(res == (off_t)-1)
 					goto copy_error_out;
+				res = lseek(dest_fd, offset, SEEK_SET);
+				if(res == (off_t)-1)
+					goto copy_error_out;
+				Logging::log.message("Tier ran out of space while moving files, trying again.", 2);
+				std::this_thread::yield(); // let another thread run
 			}else if(bytes_written != bytes_read)
 				goto copy_error_out;
 			else // copy okay
@@ -196,7 +195,8 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	return copy_success;
 	
 copy_error_out:
-	Logging::log.error(std::string("Copy failed: ") + strerror(errno));
+	char *why = strerror(errno);
+	Logging::log.error(std::string("Copy failed: ") + why);
 	return false;
 }
 
