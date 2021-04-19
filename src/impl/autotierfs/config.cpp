@@ -63,33 +63,21 @@ void validate_backend_path(const fs::path &path, const std::string &prefix, cons
 	}
 }
 
-void parse_quota(const std::string &value, Tier *tptr, bool &errors){
+uintmax_t parse_bytes(const std::string &value, const std::string &section, const std::string &param, bool &errors){
 	std::smatch m;
-	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
-		try{
-			int quota_percent = std::stoi(m.str(1));
-			if(quota_percent > 100 || quota_percent < 0){
-				Logging::log.error(tptr->id() + ": Invalid percent in quota: " + value);
-				errors = true;
-			}
-			tptr->quota_percent(quota_percent);
-		}catch(const std::invalid_argument &){
-			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
-			errors = true;
-			return;
-		}
-	}else if(regex_search(value, m, std::regex("^(\\d+)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
+	if(regex_search(value, m, std::regex("^(\\d+\\.?\\d*)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
 		double num;
 		try{
 			num = std::stod(m[1]);
 			if(num < 0.0){
-				Logging::log.error(tptr->id() + ": Quota cannot be negative: " + value);
+				Logging::log.error(section + ": " + param + " cannot be negative: " + value);
 				errors = true;
+				return -1;
 			}
 		}catch(const std::invalid_argument &){
-			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
+			Logging::log.error(section + ": Invalid " + param + ": " + value);
 			errors = true;
-			return;
+			return -1;
 		}
 		char prefix = (m.str(2).empty())? 0 : m.str(2).front();
 		double base = (m.str(3).empty())? 1000.0 : 1024.0;
@@ -131,15 +119,39 @@ void parse_quota(const std::string &value, Tier *tptr, bool &errors){
 				exp = 8.0;
 				break;
 			default:
-				Logging::log.error(tptr->id() + ": Invalid quota unit: " + value);
+				Logging::log.error(section + ": Invalid " + param + " unit: " + value);
 				errors = true;
-				return;
+				return -1;
 		}
-		tptr->quota_bytes(num * pow(base, exp));
+		return num * pow(base, exp);
+	}
+	Logging::log.error("Regex check for bytes failed: " + value);
+	errors = true;
+	return -1;
+}
+
+void parse_quota(const std::string &value, Tier *tptr, bool &errors){
+	std::smatch m;
+	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
+		try{
+			int quota_percent = std::stoi(m.str(1));
+			if(quota_percent > 100 || quota_percent < 0){
+				Logging::log.error(tptr->id() + ": Invalid percent in quota: " + value);
+				errors = true;
+			}
+			tptr->quota_percent(quota_percent);
+		}catch(const std::invalid_argument &){
+			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
+			errors = true;
+		}
 	}else{
-		Logging::log.error(tptr->id() + ": Invalid quota: " + value);
-		errors = true;
-		return;
+		uintmax_t quota = parse_bytes(value, tptr->id(), "Quota", errors);
+		if(quota != (uintmax_t)-1)
+			tptr->quota_bytes(quota);
+		else{
+			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
+			errors = true;
+		}
 	}
 }
 
@@ -312,6 +324,8 @@ int Config::load_global(std::ifstream &config_file, std::string &id, bool &error
 			}
 		}else if(key == "Metadata Path"){
 			run_path_ = value;
+		}else if(key == "Copy Buffer Size"){
+			copy_buff_sz_ = parse_bytes(value, "Global", "Copy Buffer Size", errors);
 		}else{ // else if ...
 			Logging::log.warning("Unknown global field: " + key + " = " + value);
 		}
@@ -337,6 +351,7 @@ void Config::init_config_file(const fs::path &config_path) const{
 	"[Global]                       # global settings\n"
 	"Log Level = 1                  # 0 = none, 1 = normal, 2 = debug\n"
 	"Tier Period = 1000             # number of seconds between file move batches\n"
+	"Copy Buffer Size = 1 MiB       # size of buffer for moving files between tiers\n"
 	"\n"
 	"[Tier 1]                       # tier name\n"
 	"Path =                         # full path to tier storage pool\n"
@@ -369,14 +384,15 @@ fs::path Config::run_path(void) const{
 
 void Config::dump(const std::list<Tier> &tiers, std::stringstream &ss) const{
 	ss << "[Global]" << std::endl;
-	ss << "Log Level = " + std::to_string(log_level_) << std::endl;
-	ss << "Tier Period = " + std::to_string(tier_period_s_.count()) << std::endl;
-	ss << "Strict Period = " + (strict_period_ == 1? std::string("true") : std::string("false")) << std::endl;
+	ss << "Log Level = " << log_level_ << std::endl;
+	ss << "Tier Period = " << tier_period_s_.count() << std::endl;
+	ss << "Strict Period = " << (strict_period_ == 1? "true" : "false") << std::endl;
+	ss << "Copy Buffer Size = " << Logging::log.format_bytes(copy_buff_sz_) << std::endl;
 	ss << " " << std::endl;
 	for(const Tier &t : tiers){
-		ss << "[" + t.id() + "]" << std::endl;
-		ss << "Path = " + t.path().string() << std::endl;
-		ss << "Quota = " + std::to_string(t.quota_percent()) + " % (" + Logging::log.format_bytes(t.quota_bytes()) + ")" << std::endl;
+		ss << "[" << t.id() << "]" << std::endl;
+		ss << "Path = " << t.path().string() << std::endl;
+		ss << "Quota = " << t.quota_percent() << " % (" << Logging::log.format_bytes(t.quota_bytes()) << ")" << std::endl;
 		ss << " " << std::endl;
 	}
 }
