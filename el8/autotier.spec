@@ -31,7 +31,7 @@ make DESTDIR=%{buildroot} clean
 
 %files
 %defattr(-,root,root,-)
-%config %{_sysconfdir}/autotier.conf
+%config(noreplace) %{_sysconfdir}/autotier.conf
 %{_bindir}/*
 /opt/45drives/%{name}/*
 %docdir /usr/share/man/man8
