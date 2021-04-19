@@ -63,7 +63,7 @@ void TierEngine::pin_files(const std::vector<std::string> &args){
 		file.pin();
 		tptr->enqueue_file_ptr(&file);
 	}
-	tptr->transfer_files();
+	tptr->transfer_files(config_.copy_buff_sz());
 }
 
 void TierEngine::unpin_files(const std::vector<std::string> &args){
