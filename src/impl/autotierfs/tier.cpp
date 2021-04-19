@@ -151,7 +151,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	source_fd = open(old_path.c_str(), O_RDONLY);
 	if(source_fd == -1)
 		goto copy_error_out;
-	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
 	if(dest_fd == -1)
 		goto copy_error_out;
 	off_t bytes_read;
