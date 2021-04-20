@@ -154,7 +154,13 @@ int main(int argc, char *argv[]){
 	}else{
 		std::vector<std::string> payload;
 		payload.push_back(argv[optind++]); // push command name
-		if(cmd == PIN) payload.push_back(argv[optind++]); // push tier name
+		if(cmd == PIN){
+			if(optind == argc){
+				Logging::log.error("No arguments passed.");
+				exit(EXIT_FAILURE);
+			}
+			payload.push_back(argv[optind++]); // push tier name
+		}
 		if(cmd == PIN || cmd == UNPIN || cmd == WHICHTIER){
 			std::list<std::string> paths;
 			while(optind < argc)
