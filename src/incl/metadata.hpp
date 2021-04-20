@@ -78,7 +78,7 @@ public:
 	/* Copy constructor.
 	 */
 #ifndef BAREBONES_METADATA
-	Metadata(const char *path, rocksdb::DB *db, Tier *tptr = nullptr);
+	Metadata(std::string path, rocksdb::DB *db, Tier *tptr = nullptr);
 	/* Try to retrieve data from db. If not found and tptr != nullptr,
 	 * new metadata object is initialized and put into the database.
 	 * If not found and tptr == nullptr, metadata is left undefined and

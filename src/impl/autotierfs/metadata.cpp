@@ -48,9 +48,9 @@ Metadata::Metadata(const Metadata &other) :
 
 #ifndef BAREBONES_METADATA
 
-Metadata::Metadata(const char *path, rocksdb::DB *db, Tier *tptr){
+Metadata::Metadata(std::string path, rocksdb::DB *db, Tier *tptr){
 	std::string str;
-	if(path[0] == '/') path++;
+	if(path[0] == '/') path = path.substr(1);
 	rocksdb::Status s = db->Get(rocksdb::ReadOptions(), path, &str);
 	if(s.ok()){
 		std::stringstream ss(str);

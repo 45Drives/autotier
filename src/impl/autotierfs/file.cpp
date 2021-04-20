@@ -123,7 +123,7 @@ void File::transfer_to_tier(Tier *tptr){
 	tier_ptr_ = tptr;
 	tier_ptr_->add_file_size(size_);
 	metadata_.tier_path_ = tptr->path().string();
-	metadata_.update(relative_path_.c_str(), db_);
+	metadata_.update(relative_path_.string(), db_);
 }
 
 void File::overwrite_times(void) const{
