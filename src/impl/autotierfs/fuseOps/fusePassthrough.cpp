@@ -25,21 +25,15 @@
 #include "fuseOps.hpp"
 #include "config.hpp"
 #include "alert.hpp"
-
-namespace Global{
-	fs::path config_path_;
-	fs::path mount_point_;
-	ConfigOverrides config_overrides_;
-}
+#include "tierEngine.hpp"
 
 FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
-	Global::config_path_ = config_path;
-	Global::config_overrides_ = config_overrides;
+	fuse_ops::autotier_ptr = new TierEngine(config_path, config_overrides);
 }
 
 // methods
 int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
-	Global::mount_point_ = mountpoint; // global
+	fuse_ops::autotier_ptr->mount_point(mountpoint);
 	Logging::log.message("Mounting filesystem", 2);
 	static const struct fuse_operations at_oper = {
 		.getattr					= fuse_ops::getattr,
