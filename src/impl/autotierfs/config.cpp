@@ -197,8 +197,12 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 			strip_whitespace(key);
 			strip_whitespace(value);
 			
-			if(key.empty() || value.empty())
+			if(key.empty())
 				continue; // ignore unassigned fields
+			else if(value.empty()){
+				Logging::log.error("Config parameter does not a have value: " + key);
+				errors = true;
+			}
 			
 			if(key == "Path"){
 				tptr->path(value);
