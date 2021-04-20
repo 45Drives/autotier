@@ -118,8 +118,6 @@ void TierEngine::calc_popularity(void){
 
 void TierEngine::sort(void){
 	Logging::log.message("Sorting files.", 2);
-	// TODO: use std::execution::par for parallel sort after changing files_ to vector
-	// NOTE: std::execution::par requires C++17
 	std::sort(
 #ifndef NO_PAR_SORT
 		std::execution::par,
