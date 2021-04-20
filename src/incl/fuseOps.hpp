@@ -102,6 +102,8 @@ namespace l{
 }
 
 namespace fuse_ops{
+	extern TierEngine *autotier_ptr;
+	
 	int getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi);
 	
 	int readlink(const char *path, char *buf, size_t size);

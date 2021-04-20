@@ -30,6 +30,8 @@ extern "C" {
 }
 
 namespace fuse_ops{
+	TierEngine *autotier_ptr;
+	
 	void *init(struct fuse_conn_info *conn, struct fuse_config *cfg){
 		(void) conn;
 		cfg->use_ino = 1;
@@ -49,11 +51,7 @@ namespace fuse_ops{
 		
 		FusePriv *priv = new FusePriv;
 		
-		priv->autotier_ = new TierEngine(Global::config_path_, Global::config_overrides_);
-		
-		priv->mount_point_ = Global::mount_point_;
-		
-		priv->autotier_->mount_point(Global::mount_point_);
+		priv->autotier_ = autotier_ptr;
 		
 		for(std::list<Tier>::iterator tptr = priv->autotier_->get_tiers().begin(); tptr != priv->autotier_->get_tiers().end(); ++tptr)
 			priv->tiers_.push_back(&(*tptr));
