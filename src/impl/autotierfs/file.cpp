@@ -74,7 +74,7 @@ File::~File(){
 }
 
 void File::calc_popularity(double period_seconds){
-	if(period_seconds == 0.0)
+	if(period_seconds <= 0.0)
 		return;
 	double usage_frequency = metadata_.access_count_ ? double(metadata_.access_count_) / period_seconds : 0.0;
 	double average_period_age = (double)(time(NULL) - ctime_) + period_seconds / 2.0;
@@ -123,7 +123,7 @@ void File::transfer_to_tier(Tier *tptr){
 	tier_ptr_ = tptr;
 	tier_ptr_->add_file_size(size_);
 	metadata_.tier_path_ = tptr->path().string();
-	metadata_.update(relative_path_.c_str(), db_);
+	metadata_.update(relative_path_.string(), db_);
 }
 
 void File::overwrite_times(void) const{

@@ -21,10 +21,13 @@
 #include "alert.hpp"
 #include "openFiles.hpp"
 #include "file.hpp"
+#include <thread>
+#include <cstdlib>
 
 extern "C" {
 	#include <sys/stat.h>
 	#include <sys/statvfs.h>
+	#include <fcntl.h>
 }
 
 void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
@@ -115,7 +118,7 @@ void Tier::enqueue_file_ptr(File *fptr){
 	incoming_files_.push_back(fptr);
 }
 
-void Tier::transfer_files(void){
+void Tier::transfer_files(int buff_sz){
 	for(File * fptr : incoming_files_){
 		fs::path old_path = fptr->full_path();
 		if(OpenFiles::is_open(old_path.string())){
@@ -123,7 +126,7 @@ void Tier::transfer_files(void){
 			continue;
 		}
 		fs::path new_path = path_ / fptr->relative_path();
-		bool copy_success = Tier::move_file(old_path, new_path);
+		bool copy_success = Tier::move_file(old_path, new_path, buff_sz);
 		if(copy_success){
 			fptr->transfer_to_tier(this);
 			fptr->overwrite_times();
@@ -133,30 +136,68 @@ void Tier::transfer_files(void){
 	sim_usage_ = 0;
 }
 
-bool Tier::move_file(const fs::path &old_path, const fs::path &new_path) const{
+bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz) const{
 	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
 	if(!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
 	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
 	bool copy_success = true;
-	try{
-		fs::copy_file(old_path, new_tmp_path); // move item to slow tier
-	}catch(boost::filesystem::filesystem_error const & e){
-		copy_success = false;
-		Logging::log.error("Copy failed: " + std::string(e.what()));
-		if(e.code() == boost::system::errc::file_exists){
-			Logging::log.error("User intervention required to delete duplicate file: " + new_tmp_path.string());
-		}else if(e.code() == boost::system::errc::no_such_file_or_directory){
-			Logging::log.error("No action required, file was deleted by another process.");
+	bool out_of_space = false;
+	char *buff = new char[buff_sz];
+	off_t offset = 0;
+	int res;
+	int source_fd;
+	int dest_fd;
+	source_fd = open(old_path.c_str(), O_RDONLY);
+	if(source_fd == -1)
+		goto copy_error_out;
+	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
+	if(dest_fd == -1)
+		goto copy_error_out;
+	off_t bytes_read;
+	off_t bytes_written;
+	do{
+		while((bytes_read = read(source_fd, buff, buff_sz)) > 0){
+			out_of_space = false;
+			bytes_written = write(dest_fd, buff, bytes_read);
+			if((bytes_written == (off_t)-1 && errno == ENOSPC) || bytes_written < bytes_read){
+				if(bytes_written != (off_t)-1)
+					offset += bytes_written; // seek to latest written byte
+				out_of_space = true;
+				res = lseek(source_fd, offset, SEEK_SET);
+				if(res == (off_t)-1)
+					goto copy_error_out;
+				res = lseek(dest_fd, offset, SEEK_SET);
+				if(res == (off_t)-1)
+					goto copy_error_out;
+				Logging::log.message("Tier ran out of space while moving files, trying again.", 2);
+				std::this_thread::yield(); // let another thread run
+			}else if(bytes_written != bytes_read)
+				goto copy_error_out;
+			else // copy okay
+				offset += bytes_written;
 		}
-	}
+		if(bytes_read == -1)
+			goto copy_error_out;
+	}while(out_of_space);
+	delete[] buff;
+	if(close(source_fd) == -1)
+		goto copy_error_out;
+	if(close(dest_fd) == -1)
+		goto copy_error_out;
 	if(copy_success){
 		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
 		fs::rename(new_tmp_path, new_path);
 		Logging::log.message("Copy succeeded.\n", 2);
 	}
+	
 	return copy_success;
+	
+copy_error_out:
+	char *why = strerror(errno);
+	Logging::log.error(std::string("Copy failed: ") + why);
+	return false;
 }
 
 void Tier::usage(uintmax_t usage){

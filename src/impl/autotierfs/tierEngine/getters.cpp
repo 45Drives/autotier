@@ -30,3 +30,7 @@ rocksdb::DB *TierEngine::get_db(void){
 void TierEngine::mount_point(const fs::path &mount_point){
 	mount_point_ = mount_point;
 }
+
+bool TierEngine::strict_period(void) const{
+	return config_.strict_period();
+}

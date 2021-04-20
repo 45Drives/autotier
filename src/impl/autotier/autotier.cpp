@@ -23,6 +23,7 @@
 #include "config.hpp"
 #include "stripWhitespace.hpp"
 #include <sstream>
+#include <thread>
 
 extern "C" {
 	#include <getopt.h>
@@ -64,6 +65,15 @@ fs::path get_run_path(const fs::path &config_path){
 	}
 	
 	return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));;
+}
+
+static void get_response(std::vector<std::string> &payload, const fs::path &run_path){
+	try{
+		get_fifo_payload(payload, run_path / "response.pipe");
+	}catch(const fifo_exception &err){
+		Logging::log.error(err.what());
+		exit(EXIT_FAILURE);
+	}
 }
 
 int main(int argc, char *argv[]){
@@ -149,20 +159,18 @@ int main(int argc, char *argv[]){
 	
 	/* Process ad hoc command.
 		*/
-	if(cmd == CONFIG){
-		Logging::log.message("Config file: (" + config_path.string() + ")", 0);
-		{
-			std::ifstream f(config_path.string());
-			std::stringstream ss;
-			ss << f.rdbuf();
-			Logging::log.message(ss.str(), 0);
-		}
-	}else if(cmd == HELP){
+	if(cmd == HELP){
 		cli_usage();
 	}else{
 		std::vector<std::string> payload;
 		payload.push_back(argv[optind++]); // push command name
-		if(cmd == PIN) payload.push_back(argv[optind++]); // push tier name
+		if(cmd == PIN){
+			if(optind == argc){
+				Logging::log.error("No arguments passed.");
+				exit(EXIT_FAILURE);
+			}
+			payload.push_back(argv[optind++]); // push tier name
+		}
 		if(cmd == PIN || cmd == UNPIN || cmd == WHICHTIER){
 			std::list<std::string> paths;
 			while(optind < argc)
@@ -190,6 +198,9 @@ int main(int argc, char *argv[]){
 			exit(EXIT_FAILURE);
 		}
 		
+		std::vector<std::string> response;
+		std::thread response_listener(get_response, std::ref(response), run_path);
+		
 		try{
 			send_fifo_payload(payload, run_path / "request.pipe");
 		}catch(const fifo_exception &err){
@@ -199,20 +210,15 @@ int main(int argc, char *argv[]){
 		
 		Logging::log.message("Waiting for filesystem response...", 2);
 		
-		try{
-			get_fifo_payload(payload, run_path / "response.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.error(err.what());
-			exit(EXIT_FAILURE);
-		}
+		response_listener.join();
 		
-		if(payload.front() == "OK"){
+		if(response.front() == "OK"){
 			Logging::log.message("Response OK.", 2);
-			for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+			for(std::vector<std::string>::iterator itr = std::next(response.begin()); itr != response.end(); ++itr){
 				Logging::log.message(*itr, 0);
 			}
 		}else{
-			for(std::vector<std::string>::iterator itr = std::next(payload.begin()); itr != payload.end(); ++itr){
+			for(std::vector<std::string>::iterator itr = std::next(response.begin()); itr != response.end(); ++itr){
 				Logging::log.error(*itr);
 			}
 			exit(EXIT_FAILURE);

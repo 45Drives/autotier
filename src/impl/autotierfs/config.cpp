@@ -25,21 +25,59 @@
 #include <regex>
 #include <cmath>
 
-void parse_quota(const std::string &value, Tier *tptr){
-	std::smatch m;
-	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
+void validate_backend_path(const fs::path &path, const std::string &prefix, const std::string &path_desc, bool &errors, bool create = false){
+	bool is_directory = false;
+	bool no_perm = false;
+	if(path.is_relative()){
+		Logging::log.error(prefix + ": " + path_desc + " must be an absolute path: \"" + path.string() + "\"");
+		errors = true;
+		return;
+	}
+	try{
+		is_directory = fs::is_directory(path);
+	}catch(const fs::filesystem_error &e){
+		Logging::log.error(prefix + ": Failed to check " + path_desc + ": " + std::string(e.what()));
+		errors = true;
+		no_perm = true;
+	}
+	if(!is_directory && !no_perm && create){
 		try{
-			tptr->quota_percent(std::stoi(m.str(1)));
-		}catch(const std::invalid_argument &){
-			tptr->quota_percent(-1.0);
+			is_directory = fs::create_directories(path);
+		}catch(const fs::filesystem_error &e){
+			Logging::log.error(prefix + ": Failed to create " + path_desc + ": " + std::string(e.what()));
+			errors = true;
+			no_perm = true;
 		}
-	}else if(regex_search(value, m, std::regex("^(\\d+)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
+	}
+	if(is_directory && !no_perm){
+		int mode = R_OK|W_OK;
+		if(access(path.c_str(), mode) != 0){
+			int err = errno;
+			Logging::log.error(prefix + ": Cannot access " + path_desc + ": " + std::string(strerror(err)) + ": \"" + path.string() + "\"");
+			errors = true;
+		}
+	}
+	if(!is_directory && !no_perm){
+		Logging::log.error(prefix + ": " + path_desc + " is not a directory: " + path.string());
+		errors = true;
+	}
+}
+
+uintmax_t parse_bytes(const std::string &value, const std::string &section, const std::string &param, bool &errors){
+	std::smatch m;
+	if(regex_search(value, m, std::regex("^(\\d+\\.?\\d*)\\s*([kKmMgGtTpPeEzZyY]?)(i?)[bB]$"))){
 		double num;
 		try{
 			num = std::stod(m[1]);
+			if(num < 0.0){
+				Logging::log.error(section + ": " + param + " cannot be negative: " + value);
+				errors = true;
+				return -1;
+			}
 		}catch(const std::invalid_argument &){
-			tptr->quota_bytes((uintmax_t)-1);
-			return;
+			Logging::log.error(section + ": Invalid " + param + ": " + value);
+			errors = true;
+			return -1;
 		}
 		char prefix = (m.str(2).empty())? 0 : m.str(2).front();
 		double base = (m.str(3).empty())? 1000.0 : 1024.0;
@@ -81,26 +119,57 @@ void parse_quota(const std::string &value, Tier *tptr){
 				exp = 8.0;
 				break;
 			default:
-				tptr->quota_bytes((uintmax_t)-1);
-				return;
+				Logging::log.error(section + ": Invalid " + param + " unit: " + value);
+				errors = true;
+				return -1;
 		}
-		tptr->quota_bytes(num * pow(base, exp));
+		return num * pow(base, exp);
+	}
+	Logging::log.error("Regex check for bytes failed: " + value);
+	errors = true;
+	return -1;
+}
+
+void parse_quota(const std::string &value, Tier *tptr, bool &errors){
+	std::smatch m;
+	if(regex_search(value, m, std::regex("^(\\d+)\\s*%$"))){
+		try{
+			int quota_percent = std::stoi(m.str(1));
+			if(quota_percent > 100 || quota_percent < 0){
+				Logging::log.error(tptr->id() + ": Invalid percent in quota: " + value);
+				errors = true;
+			}
+			tptr->quota_percent(quota_percent);
+		}catch(const std::invalid_argument &){
+			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
+			errors = true;
+		}
+	}else{
+		uintmax_t quota = parse_bytes(value, tptr->id(), "Quota", errors);
+		if(quota != (uintmax_t)-1)
+			tptr->quota_bytes(quota);
+		else{
+			Logging::log.error(tptr->id() + ": Invalid quota: " + value);
+			errors = true;
+		}
 	}
 }
 
-Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides, bool read_only){
+Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides){
+	bool errors = false;
 	std::string line, key, value;
 	
 	// open file
 	std::ifstream config_file(config_path.string());
 	if(!config_file){
-		if(read_only){
-			Logging::log.error("Failed to open config file.");
-			exit(EXIT_FAILURE);
-		}
 		config_file.close();
 		init_config_file(config_path);
 		config_file.open(config_path.string());
+	}
+	
+	// fill overrides
+	if(config_overrides.log_level_override.overridden()){
+		log_level_ = config_overrides.log_level_override.value();
 	}
 	
 	Tier *tptr = nullptr;
@@ -115,7 +184,7 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 		if(line.front() == '['){
 			std::string id = line.substr(1, line.find(']')-1);
 			if(regex_match(id, std::regex("^\\s*[Gg]lobal\\s*$"))){
-				if(load_global(config_file, id) == EOF) break;
+				if(load_global(config_file, id, errors) == EOF) break;
 			}
 			tiers.emplace_back(id);
 			tptr = &tiers.back();
@@ -133,21 +202,30 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 			
 			if(key == "Path"){
 				tptr->path(value);
+				validate_backend_path(tptr->path(), tptr->id(), "Path", errors);
 			}else if(key == "Quota"){
-				parse_quota(value, tptr);
+				parse_quota(value, tptr, errors);
 			}else{ // else if ...
 				Logging::log.warning(tptr->id() + ": Unknown field: " + key + " = " + value);
 			}
 		}
 	}
 	
-	if(config_overrides.log_level_override.overridden()){
-		log_level_ = config_overrides.log_level_override.value();
+	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
+	validate_backend_path(run_path_, "Global", "Metadata Path", errors, true);
+	
+	if(tiers.empty()){
+		Logging::log.error("No tiers defined.");
+		errors = true;
+	}else if(tiers.size() == 1){
+		Logging::log.error("Only one tier is defined. Two or more are needed.");
+		errors = true;
 	}
 	
-	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
-	
-	verify(config_path, &tiers, read_only);
+	if(errors){
+		Logging::log.error("Please fix these mistakes in " + config_path.string());
+		exit(EXIT_FAILURE);
+	}
 	
 	Logging::log.set_level(log_level_);
 	
@@ -158,6 +236,7 @@ Config::Config(const fs::path &config_path, std::list<Tier> &tiers, const Config
 }
 
 Config::Config(const fs::path &config_path, const ConfigOverrides &config_overrides){
+	bool errors = false;
 	std::string line, key, value;
 	
 	// open file
@@ -165,6 +244,11 @@ Config::Config(const fs::path &config_path, const ConfigOverrides &config_overri
 	if(!config_file){
 		Logging::log.error("Failed to open config file.");
 		exit(EXIT_FAILURE);
+	}
+	
+	// fill overrides
+	if(config_overrides.log_level_override.overridden()){
+		log_level_ = config_overrides.log_level_override.value();
 	}
 	
 	while(config_file){
@@ -178,23 +262,23 @@ Config::Config(const fs::path &config_path, const ConfigOverrides &config_overri
 		if(line.front() == '['){
 			std::string id = line.substr(1, line.find(']')-1);
 			if(regex_match(id, std::regex("^\\s*[Gg]lobal\\s*$"))){
-				if(load_global(config_file, id) == EOF) break;
+				if(load_global(config_file, id, errors) == EOF) break;
 			}
 		}
 	}
 	
-	if(config_overrides.log_level_override.overridden()){
-		log_level_ = config_overrides.log_level_override.value();
-	}
-	
 	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
+	validate_backend_path(run_path_, "Global", "Metadata Path", errors, true);
 	
-	verify(config_path, nullptr, true);
+	if(errors){
+		Logging::log.error("Please fix these mistakes in " + config_path.string());
+		exit(EXIT_FAILURE);
+	}
 	
 	Logging::log.set_level(log_level_);
 }
 
-int Config::load_global(std::ifstream &config_file, std::string &id){
+int Config::load_global(std::ifstream &config_file, std::string &id, bool &errors){
 	std::string line, key, value;
 	while(config_file){
 		getline(config_file, line);
@@ -215,20 +299,33 @@ int Config::load_global(std::ifstream &config_file, std::string &id){
 		strip_whitespace(key);
 		strip_whitespace(value);
 		
-		if(key == "Log Level"){
+		if(key == "Log Level" && log_level_ == LOG_LEVEL_NOT_SET){
 			try{
 				log_level_ = stoi(value);
 			}catch(const std::invalid_argument &){
-				log_level_ = -1;
+				Logging::log.error("Invalid Log Level: " + value);
+				errors = true;
 			}
 		}else if(key == "Tier Period"){
 			try{
 				tier_period_s_ = std::chrono::seconds(stoi(value));
 			}catch(const std::invalid_argument &){
-				tier_period_s_ = std::chrono::seconds(-1);
+				Logging::log.error("Invalid Log Level: " + value);
+				errors = true;
+			}
+		}else if(key == "Strict Period"){
+			if(regex_match(value, std::regex("true", std::regex_constants::icase)))
+				strict_period_ = true;
+			else if(regex_match(value, std::regex("false", std::regex_constants::icase)))
+				strict_period_ = false;
+			else{
+				Logging::log.error("Invalid boolean for Strict Period: " + value);
+				errors = true;
 			}
 		}else if(key == "Metadata Path"){
 			run_path_ = value;
+		}else if(key == "Copy Buffer Size"){
+			copy_buff_sz_ = parse_bytes(value, "Global", "Copy Buffer Size", errors);
 		}else{ // else if ...
 			Logging::log.warning("Unknown global field: " + key + " = " + value);
 		}
@@ -254,6 +351,7 @@ void Config::init_config_file(const fs::path &config_path) const{
 	"[Global]                       # global settings\n"
 	"Log Level = 1                  # 0 = none, 1 = normal, 2 = debug\n"
 	"Tier Period = 1000             # number of seconds between file move batches\n"
+	"Copy Buffer Size = 1 MiB       # size of buffer for moving files between tiers\n"
 	"\n"
 	"[Tier 1]                       # tier name\n"
 	"Path =                         # full path to tier storage pool\n"
@@ -268,104 +366,33 @@ void Config::init_config_file(const fs::path &config_path) const{
 	f.close();
 }
 
-inline void validate_backend_path(const fs::path &path, const std::string &prefix, const std::string &path_desc, bool &errors, bool read_only = false, bool create = false){
-	bool is_directory = false;
-	bool no_perm = false;
-	if(path.is_relative()){
-		Logging::log.error(prefix + ": " + path_desc + " must be an absolute path: \"" + path.string() + "\"");
-		errors = true;
-		return;
-	}
-	try{
-		is_directory = fs::is_directory(path);
-	}catch(const fs::filesystem_error &e){
-		Logging::log.error(prefix + ": Failed to check " + path_desc + ": " + std::string(e.what()));
-		errors = true;
-		no_perm = true;
-	}
-	if(!is_directory && !no_perm && !read_only && create){
-		try{
-			is_directory = fs::create_directories(path);
-		}catch(const fs::filesystem_error &e){
-			Logging::log.error(prefix + ": Failed to create " + path_desc + ": " + std::string(e.what()));
-			errors = true;
-			no_perm = true;
-		}
-	}
-	if(is_directory && !no_perm){
-		int mode = R_OK;
-		if(!read_only)
-			mode |= W_OK;
-		if(access(path.c_str(), mode) != 0){
-			int err = errno;
-			Logging::log.error(prefix + ": Cannot access " + path_desc + ": " + std::string(strerror(err)) + ": \"" + path.string() + "\"");
-			errors = true;
-		}
-	}
-	if(!is_directory && !no_perm){
-		Logging::log.error(prefix + ": " + path_desc + " is not a directory: " + path.string());
-		errors = true;
-	}
-}
-
-void Config::verify(const fs::path &config_path, const std::list<Tier> *tiers, bool read_only) const{
-	bool errors = false;
-	verify_global(read_only, errors);
-	if(tiers)
-		verify_tiers(*tiers, errors);
-	if(errors){
-		Logging::log.error("Please fix these mistakes in " + config_path.string());
-	}
-}
-
-void Config::verify_global(bool read_only, bool &errors) const{
-	if(log_level_ == -1){
-		Logging::log.error("Invalid log level. (Log Level)");
-		errors = true;
-	}
-	if(tier_period_s_ == std::chrono::seconds(-1)){
-		Logging::log.error("Invalid tier period. (Tier Period)");
-		errors = true;
-	}
-	bool create_if_missing = true;
-	validate_backend_path(run_path_, "Global", "Metadata Path", errors, read_only, create_if_missing);
-}
-
-void Config::verify_tiers(const std::list<Tier> &tiers, bool &errors) const{
-	if(tiers.empty()){
-		Logging::log.error("No tiers defined.");
-		errors = true;
-	}else if(tiers.size() == 1){
-		Logging::log.error("Only one tier is defined. Two or more are needed.");
-		errors = true;
-	}else{
-		for(const Tier &tier : tiers){
-			validate_backend_path(tier.path(), tier.id(), "Path", errors);
-			if(tier.quota_bytes() == (uintmax_t)-1 && (tier.quota_percent() > 100.0 || tier.quota_percent() < 0.0)){
-				Logging::log.error(tier.id() + ": Invalid quota. (Quota)");
-				errors = true;
-			}
-		}
-	}
+int Config::copy_buff_sz(void) const{
+	return copy_buff_sz_;
 }
 
 std::chrono::seconds Config::tier_period_s(void) const{
 	return tier_period_s_;
 }
 
+bool Config::strict_period(void) const{
+	return strict_period_;
+}
+
 fs::path Config::run_path(void) const{
 	return run_path_;
 }
 
-void Config::dump(const std::list<Tier> &tiers) const{
-	Logging::log.message("[Global]", 1);
-	Logging::log.message("Log Level = " + std::to_string(log_level_), 1);
-	Logging::log.message("Tier Period = " + std::to_string(tier_period_s_.count()), 1);
-	Logging::log.message("", 1);
+void Config::dump(const std::list<Tier> &tiers, std::stringstream &ss) const{
+	ss << "[Global]" << std::endl;
+	ss << "Log Level = " << log_level_ << std::endl;
+	ss << "Tier Period = " << tier_period_s_.count() << std::endl;
+	ss << "Strict Period = " << (strict_period_ == 1? "true" : "false") << std::endl;
+	ss << "Copy Buffer Size = " << Logging::log.format_bytes(copy_buff_sz_) << std::endl;
+	ss << " " << std::endl;
 	for(const Tier &t : tiers){
-		Logging::log.message("[" + t.id() + "]", 1);
-		Logging::log.message("Path = " + t.path().string(), 1);
-		Logging::log.message("Quota = " + std::to_string(t.quota_percent()) + " % (" + Logging::log.format_bytes(t.quota_bytes()) + ")", 1);
-		Logging::log.message("", 1);
+		ss << "[" << t.id() << "]" << std::endl;
+		ss << "Path = " << t.path().string() << std::endl;
+		ss << "Quota = " << t.quota_percent() << " % (" << Logging::log.format_bytes(t.quota_bytes()) << ")" << std::endl;
+		ss << " " << std::endl;
 	}
 }

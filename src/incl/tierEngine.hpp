@@ -24,6 +24,7 @@
 #include "file.hpp"
 #include "tools.hpp"
 #include "concurrentQueue.hpp"
+#include <chrono>
 #include <rocksdb/db.h>
 #include <string>
 #include <mutex>
@@ -43,6 +44,16 @@ private:
 	/* Set to false to make thread exit. Used to continue
 	 * or cancel sleeping after being woken to do ad hoc
 	 * command work.
+	 */
+	bool currently_tiering_;
+	/* Set and cleared in tier()
+	 */
+	std::chrono::steady_clock::time_point last_tier_time_;
+	/* For determining tier period.
+	 */
+	std::mutex lock_file_mt_;
+	/* Used to ensure currently_tiering_ is set atomically with locking the
+	 * file mutex.
 	 */
 	std::mutex sleep_mt_;
 	/* Useless lock to release for the condition_variable
@@ -85,11 +96,11 @@ private:
 	void unlock_mutex(void);
 	/* Deletes mutex lock file.
 	 */
-	void open_db(bool read_only);
-	/* Opens RocksDB database, if read_only is true, opened read-only.
+	void open_db(void);
+	/* Opens RocksDB database.
 	 */
 public:
-	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides, bool read_only = false);
+	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides);
 	/* Loads config, picks run
 	 * path with pick_run_path(), constructs mutex_path,
 	 * opens database with open_db()
@@ -120,10 +131,11 @@ public:
 	/* Tier files with tier(), do ad hoc work, and
 	 * sleep until next period or woken by more work.
 	 */
-	void tier(std::chrono::steady_clock::duration period);
+	bool tier(void);
 	/* Find files, update their popularities, sort the files
 	 * by popularity, and finally move the files to their
-	 * respective tiers.
+	 * respective tiers. Returns true if tiering happened,
+	 * false if failed to lock mutex.
 	 */
 	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage));
 	/* Call crawl() for each tier in tiers.
@@ -141,7 +153,7 @@ public:
 	void print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
 	/* Construct File from file, print popularity.
 	 */
-	void calc_popularity(std::chrono::steady_clock::duration period);
+	void calc_popularity(void);
 	/* Call File::calc_popularity() for each file in files_.
 	 */
 	void sort(void);
@@ -169,6 +181,13 @@ public:
 	/* call wait_until on the condition variable. Puts thread
 	 * to sleep until time reaches t or woken by sleep_cv_.notify_one()
 	 */
+	void sleep_until_woken(void);
+	/* call wait on the condition variable. Puts thread
+	 * to sleep until woken by sleep_cv_.notify_one()
+	 */
+	bool currently_tiering(void) const;
+	/* Check if currently tiering.
+	 */
 	void stop(void);
 	/* Obtain sleep_mt_, set stop_flag_ to true,
 	 * wake sleeping tier thread with sleep_cv_.notify_one().
@@ -186,19 +205,22 @@ public:
 	void process_pin_unpin(const AdHoc &work);
 	/* Enqueue pin or unpin AdHoc command into adhoc_work_.
 	 */
-	void process_which_tier(AdHoc &work);
-	/* Return table of each argument file along with its corresponding tier name
-	 * and full backend path.
-	 */
 	void process_status(const AdHoc &work);
 	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
 	 * uses Logger::format_bytes() for printing current usage and watermark.
 	 */
-	void process_list_popularity(void);
-	/* Print popularity of each file.
+	void process_config(void);
+	/* Dump current configuration settings from memory.
 	 */
 	void process_list_pins(void);
 	/* Print pineed files.
+	 */
+	void process_list_popularity(void);
+	/* Print popularity of each file.
+	 */
+	void process_which_tier(AdHoc &work);
+	/* Return table of each argument file along with its corresponding tier name
+	 * and full backend path.
 	 */
 	void execute_queued_work(void);
 	/* Tiering thread calls this when woken to execute the queued work.
@@ -212,5 +234,8 @@ public:
 	 */
 	void mount_point(const fs::path &mount_point);
 	/* Set the mount_point_ variable.
+	 */
+	bool strict_period(void) const;
+	/* Return config_.strict_period().
 	 */
 };

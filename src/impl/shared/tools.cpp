@@ -88,7 +88,7 @@ void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &
 	WorkPipe *request_pipe;
 	
 	try{
-		request_pipe = new WorkPipe(pipe_path, O_WRONLY | O_NONBLOCK);
+		request_pipe = new WorkPipe(pipe_path, O_WRONLY | O_NONBLOCK | O_CREAT);
 	}catch(const int &errno_){
 		switch(errno_){
 			case ENOENT:
@@ -119,7 +119,7 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 	WorkPipe *response_pipe;
 	
 	try{
-		response_pipe = new WorkPipe(pipe_path, O_RDONLY);
+		response_pipe = new WorkPipe(pipe_path, O_RDONLY | O_CREAT);
 	}catch(const int &errno_){
 		switch(errno_){
 			case ENOENT:
@@ -241,7 +241,7 @@ void cli_usage(){
 		"Usage:\n"
 		"  autotier [<flags>] <command> [<arg1 arg2 ...>]\n"
 		"Commands:\n"
-		"  config      - display current configuration file\n"
+		"  config      - display current configuration values\n"
 		"  help        - display this message\n"
 		"  list-pins   - show all pinned files\n"
 		"  list-popularity\n"

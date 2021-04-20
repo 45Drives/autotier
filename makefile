@@ -1,7 +1,7 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
 FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb
-CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a
+CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread
 CC = g++
 CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
@@ -81,7 +81,7 @@ tests: view-db
 
 view-db:
 	mkdir -p dist/tests
-	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/metadata.cpp -Wall $(LIBS) -o dist/tests/view_db
+	$(CC) $(CFLAGS) -DBAREBONES_METADATA tests/src/view_db.cpp src/impl/autotierfs/metadata.cpp -Wall -lboost_serialization -lrocksdb -o dist/tests/view_db
 
 inst-man-pages:
 	mkdir -p $(DESTDIR)/usr/share/man/man8
