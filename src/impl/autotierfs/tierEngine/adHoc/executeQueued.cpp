@@ -31,6 +31,7 @@ void TierEngine::execute_queued_work(void){
 		switch(work.cmd_){
 			case ONESHOT:
 				tier();
+				break;
 			case PIN:
 				pin_files(work.args_);
 				break;
