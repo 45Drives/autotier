@@ -89,7 +89,7 @@ namespace fuse_ops{
 		if(old_size != -1 && new_size != -1 && tptr){
 			tptr->size_delta(old_size, new_size);
 			if(!priv->autotier_->strict_period() && tptr->usage_bytes() > tptr->quota_bytes())
-				priv->autotier_->tier(std::chrono::seconds(-1));
+				priv->autotier_->tier();
 		}
 		res = ::close(fi->fh);
 		return res;

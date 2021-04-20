@@ -24,6 +24,7 @@
 #include "file.hpp"
 #include "tools.hpp"
 #include "concurrentQueue.hpp"
+#include <chrono>
 #include <rocksdb/db.h>
 #include <string>
 #include <mutex>
@@ -46,6 +47,9 @@ private:
 	 */
 	bool currently_tiering_;
 	/* Set and cleared in tier()
+	 */
+	std::chrono::steady_clock::time_point last_tier_time_;
+	/* For determining tier period.
 	 */
 	std::mutex lock_file_mt_;
 	/* Used to ensure currently_tiering_ is set atomically with locking the
@@ -127,7 +131,7 @@ public:
 	/* Tier files with tier(), do ad hoc work, and
 	 * sleep until next period or woken by more work.
 	 */
-	bool tier(std::chrono::steady_clock::duration period);
+	bool tier(void);
 	/* Find files, update their popularities, sort the files
 	 * by popularity, and finally move the files to their
 	 * respective tiers. Returns true if tiering happened,
@@ -149,7 +153,7 @@ public:
 	void print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
 	/* Construct File from file, print popularity.
 	 */
-	void calc_popularity(std::chrono::steady_clock::duration period);
+	void calc_popularity(void);
 	/* Call File::calc_popularity() for each file in files_.
 	 */
 	void sort(void);

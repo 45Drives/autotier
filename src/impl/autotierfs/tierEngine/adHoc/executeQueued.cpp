@@ -31,9 +31,9 @@ void TierEngine::execute_queued_work(void){
 		switch(work.cmd_){
 			case ONESHOT:
 				if(work.args_.empty())
-					tier(std::chrono::seconds(-1)); // don't affect period
+					tier();
 				else
-					tier(std::chrono::seconds(stoi(work.args_[0]))); // won't throw, args_[0] is already validated
+					tier();
 				break;
 			case PIN:
 				pin_files(work.args_);
@@ -83,7 +83,7 @@ void TierEngine::pin_files(const std::vector<std::string> &args){
 		}
 	}
 	if(!config_.strict_period())
-		tier(std::chrono::seconds(-1));
+		tier();
 }
 
 void TierEngine::unpin_files(const std::vector<std::string> &args){

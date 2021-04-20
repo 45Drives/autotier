@@ -29,18 +29,16 @@
 void TierEngine::begin(bool daemon_mode){
 	Logging::log.message("autotier started.", 1);
 	if(config_.tier_period_s() < std::chrono::seconds(0)){
+		last_tier_time_ = std::chrono::steady_clock::now();
 		while(daemon_mode && !stop_flag_){
 			execute_queued_work();
 			sleep_until_woken();
 		}
 	}else{
-		auto last_tier_time = std::chrono::steady_clock::now() - config_.tier_period_s();
+		last_tier_time_ = std::chrono::steady_clock::now() - config_.tier_period_s();
 		do{
-			auto tier_time = std::chrono::steady_clock::now();
-			auto wake_time = tier_time + config_.tier_period_s();
-			tier(tier_time - last_tier_time);
-			last_tier_time = std::chrono::steady_clock::now();
-			// don't wait for oneshot execution
+			auto wake_time = std::chrono::steady_clock::now() + config_.tier_period_s();
+			tier();
 			while(daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_){
 				execute_queued_work();
 				sleep_until(wake_time);
@@ -49,8 +47,7 @@ void TierEngine::begin(bool daemon_mode){
 	}
 }
 
-bool TierEngine::tier(std::chrono::steady_clock::duration period){
-	// mutex lock
+bool TierEngine::tier(void){
 	{
 		std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
 		if(!lk.owns_lock() || lock_mutex() == -1){
@@ -60,12 +57,12 @@ bool TierEngine::tier(std::chrono::steady_clock::duration period){
 		currently_tiering_ = true;
 		launch_crawlers(&TierEngine::emplace_file);
 		// one popularity calculation per loop
-		calc_popularity(period);
+		calc_popularity();
 		// mutex locked
 		sort();
 		simulate_tier();
 		move_files();
-		Logging::log.message("Tiering complete.", 1);
+		Logging::log.message("Tiering complete.", 2);
 		files_.clear();
 		currently_tiering_ = false;
 		unlock_mutex();
@@ -107,8 +104,11 @@ void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic
 	}
 }
 
-void TierEngine::calc_popularity(std::chrono::steady_clock::duration period){
+void TierEngine::calc_popularity(void){
 	Logging::log.message("Calculating file popularity.", 2);
+	auto tier_time = std::chrono::steady_clock::now();
+	std::chrono::steady_clock::duration period = tier_time - last_tier_time_;
+	last_tier_time_ = tier_time;
 	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
 	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
 	for(std::vector<File>::iterator f = files_.begin(); f != files_.end(); ++f){

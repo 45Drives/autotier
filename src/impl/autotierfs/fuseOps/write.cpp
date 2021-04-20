@@ -64,7 +64,7 @@ namespace fuse_ops{
 					if(priv->autotier_->strict_period())
 						return -error;
 					else{
-						bool tier_res = priv->autotier_->tier(std::chrono::seconds(-1));
+						bool tier_res = priv->autotier_->tier();
 						while(!tier_res && priv->autotier_->currently_tiering()){
 							std::this_thread::sleep_for(std::chrono::milliseconds(10));
 						}
@@ -105,7 +105,7 @@ namespace fuse_ops{
 				if(priv->autotier_->strict_period())
 					return -ENOSPC;
 				else{
-					bool tier_res = priv->autotier_->tier(std::chrono::seconds(-1));
+					bool tier_res = priv->autotier_->tier();
 					while(!tier_res && priv->autotier_->currently_tiering()){
 						std::this_thread::sleep_for(std::chrono::milliseconds(10));
 					}
