@@ -4,8 +4,6 @@ autotier (1.1.4-1focal) focal; urgency=medium
     writing to a file. To disable, added config option `Strict Period = true`.
   * Added disabling of tier period by setting to a negative number so a cron
     job for `autotier oneshot` can be used to trigger tiering.
-  * Added optional argument to `autotier oneshot` to pass a fudged tier period
-    so popularity can be calculated with cron job triggering.
   * `autotier config` now dumps configuration values from memory of mounted
     filesystem rather than just printing contents of file.
   * Implemented parallel moving of files while tiering with one thread per
