@@ -93,10 +93,7 @@ Commands:
   list-pins   - show all pinned files
   list-popularity
               - print list of all tier files sorted by frequency of use
-  oneshot [<fake tier period>]
-              - execute tiering only once
-              - a fake period (integer, seconds) can be passed when using
-                with cron so file popularity can still be calculated
+  oneshot     - execute tiering only once
   pin <"tier name"> <"path/to/file" "path/to/file" ...>
               - pin file(s) to tier using tier name in config file
   status      - list info about defined tiers
@@ -155,7 +152,7 @@ Flags:
 * fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
 ### Using cron  
 To have `cron` schedule file tiering, first disable automatic tiering by setting `Tier Period = -1` in `/etc/autotier.conf`.
-Then in the cron entry, call `autotier oneshot <n>`, where `n` is the approximate tier period in seconds for calculating file popularity. This extra argument is needed because `autotier oneshot` does not normally affect file popularity.  
+Then in the cron entry, call `autotier oneshot`.  
 
 ---
 ```
