@@ -190,10 +190,6 @@ int main(int argc, char *argv[]){
 			std::stringstream ss;
 			ss << std::boolalpha << json << std::endl;
 			payload.emplace_back(ss.str());
-		}else if(cmd == ONESHOT){
-			while(optind < argc){
-				payload.push_back(argv[optind++]);
-			}
 		}
 		
 		fs::path run_path = get_run_path(config_path);

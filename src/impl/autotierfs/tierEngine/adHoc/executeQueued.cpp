@@ -30,11 +30,7 @@ void TierEngine::execute_queued_work(void){
 		AdHoc work = adhoc_work_.pop();
 		switch(work.cmd_){
 			case ONESHOT:
-				if(work.args_.empty())
-					tier();
-				else
-					tier();
-				break;
+				tier();
 			case PIN:
 				pin_files(work.args_);
 				break;

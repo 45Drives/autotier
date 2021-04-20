@@ -77,9 +77,9 @@ void TierEngine::process_adhoc_requests(void){
 
 void TierEngine::process_oneshot(const AdHoc &work){
 	std::vector<std::string> payload;
-	if(work.args_.size() > 1){
+	if(!work.args_.empty()){
 		payload.emplace_back("ERR");
-		std::string err_msg = "autotier oneshot takes only one argument. Offender(s):";
+		std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
 		for(const std::string &str : work.args_)
 			err_msg += " " + str;
 		payload.emplace_back(err_msg);
@@ -89,21 +89,6 @@ void TierEngine::process_oneshot(const AdHoc &work){
 			Logging::log.warning(err.what());
 		}
 		return;
-	}
-	if(!work.args_.empty()){
-		try{
-			// test that arg is convertible to an int
-			stoi(work.args_[0]);
-		}catch(const std::invalid_argument &){
-			payload.emplace_back("ERR");
-			payload.emplace_back("autotier oneshot argument must be an integer. Offender: " + work.args_[0]);
-			try{
-				send_fifo_payload(payload, run_path_ / "response.pipe");
-			}catch(const fifo_exception &err){
-				Logging::log.warning(err.what());
-			}
-			return;
-		}
 	}
 	adhoc_work_.push(work);
 	payload.emplace_back("OK");
