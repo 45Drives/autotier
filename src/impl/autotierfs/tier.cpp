@@ -126,17 +126,24 @@ void Tier::transfer_files(int buff_sz){
 			continue;
 		}
 		fs::path new_path = path_ / fptr->relative_path();
-		bool copy_success = Tier::move_file(old_path, new_path, buff_sz);
+		bool conflicted = false;
+		bool copy_success = Tier::move_file(old_path, new_path, buff_sz, &conflicted);
 		if(copy_success){
 			fptr->transfer_to_tier(this);
 			fptr->overwrite_times();
+			if(conflicted){
+				fptr->change_path(new_path.string() + ".autotier_conflict");
+				File orig = *fptr; // create new file entry
+				orig.change_path(new_path.string() + ".autotier_conflict_orig");
+			}
 		}
 	}
 	incoming_files_.clear();
 	sim_usage_ = 0;
 }
 
-bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz) const{
+bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted) const{
+	if(conflicted) *conflicted = false;
 	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
 	if(!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
@@ -151,7 +158,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	source_fd = open(old_path.c_str(), O_RDONLY);
 	if(source_fd == -1)
 		goto copy_error_out;
-	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
+	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0755);
 	if(dest_fd == -1)
 		goto copy_error_out;
 	off_t bytes_read;
@@ -180,7 +187,6 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 		if(bytes_read == -1)
 			goto copy_error_out;
 	}while(out_of_space);
-	delete[] buff;
 	if(close(source_fd) == -1)
 		goto copy_error_out;
 	if(close(dest_fd) == -1)
@@ -188,13 +194,26 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	if(copy_success){
 		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
-		fs::rename(new_tmp_path, new_path);
-		Logging::log.message("Copy succeeded.\n", 2);
+		if(fs::exists(new_path)){
+			if(conflicted) *conflicted = true;
+			fs::rename(new_tmp_path, new_path.string() + ".autotier_conflict");
+			fs::rename(new_path, new_path.string() + ".autotier_conflict_orig");
+			Logging::log.error(
+				"Encountered conflict while moving file between tiers: " 
+				+ new_path.string()
+				+ ".autotier_conflict(_orig)"
+			);
+		}else{
+			fs::rename(new_tmp_path, new_path);
+			Logging::log.message("Copy succeeded.\n", 2);
+		}
 	}
 	
+	delete[] buff;
 	return copy_success;
 	
 copy_error_out:
+	delete[] buff;
 	char *why = strerror(errno);
 	Logging::log.error(std::string("Copy failed: ") + why);
 	return false;

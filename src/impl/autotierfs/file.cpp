@@ -129,3 +129,9 @@ void File::transfer_to_tier(Tier *tptr){
 void File::overwrite_times(void) const{
 	utimes(full_path().c_str(), times_);
 }
+
+void File::change_path(const fs::path &new_path){
+	std::string old_path = relative_path_.string();
+	metadata_.update(new_path.string(), db_, &old_path);
+	relative_path_ = new_path;
+}
