@@ -42,8 +42,6 @@ namespace fuse_ops{
 		std::vector<DIR *> dps;
 		std::vector<char *> backends;
 		dirp(){
-			fuse_context *ctx = fuse_get_context();
-			FusePriv *priv = (FusePriv *)ctx->private_data;
 			dps = std::vector<DIR *>();
 			backends = std::vector<char *>();
 		}
@@ -160,9 +158,12 @@ namespace fuse_ops{
 	}
 
 	int releasedir(const char *path, struct fuse_file_info *fi){
-		class dirp *d = get_dirp(fi);
 		(void) path;
-		delete d;
+		class dirp *d = get_dirp(fi);
+		if(d){
+			// small memory leak from strings in d->backends, but segfault when trying to free?
+			delete d;
+		}
 		return 0;
 	}
 	
