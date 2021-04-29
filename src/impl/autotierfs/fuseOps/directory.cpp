@@ -44,8 +44,8 @@ namespace fuse_ops{
 		dirp(){
 			fuse_context *ctx = fuse_get_context();
 			FusePriv *priv = (FusePriv *)ctx->private_data;
-			dps = std::vector<DIR *>(priv->tiers_.size());
-			backends = std::vector<char *>(priv->tiers_.size());
+			dps = std::vector<DIR *>();
+			backends = std::vector<char *>();
 		}
 		~dirp(){
 			for(DIR *dp : dps)
@@ -67,15 +67,13 @@ namespace fuse_ops{
 		if(d == NULL)
 			return -ENOMEM;
 		
-		for(std::vector<Tier *>::size_type i = 0; i < priv->tiers_.size(); i++){
-			fs::path backend_path = priv->tiers_[i]->path() / path;
-			d->dps[i] = ::opendir(backend_path.c_str());
-			d->backends[i] = strdup(backend_path.c_str());
-			if(d->dps[i] == NULL) {
-				res = -errno;
-				delete d;
-				return res;
-			}
+		for(Tier *t : priv->tiers_){
+			fs::path backend_path = t->path() / path;
+			DIR *dir = ::opendir(backend_path.c_str());
+			if(dir != NULL){
+				d->dps.push_back(dir);
+				d->backends.push_back(strdup(backend_path.c_str()));
+			} // else ignore
 		}
 		
 		d->offset = 0;
