@@ -160,10 +160,8 @@ namespace fuse_ops{
 	int releasedir(const char *path, struct fuse_file_info *fi){
 		(void) path;
 		class dirp *d = get_dirp(fi);
-		if(d){
-			// small memory leak from strings in d->backends, but segfault when trying to free?
+		if(d)
 			delete d;
-		}
 		return 0;
 	}
 	
