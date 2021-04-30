@@ -19,6 +19,7 @@ SHARED_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SHARED_SOURCE_FIL
 
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
+	DEFAULT_PREFIX := 1
 endif
 
 .PHONY: default all clean clean-build clean-target install uninstall debug
@@ -64,7 +65,7 @@ install: all inst-man-pages inst-config inst-completion inst-scripts
 	mkdir -p $(DESTDIR)$(PREFIX)
 	install -m 755 $(FS_TARGET) $(DESTDIR)$(PREFIX)
 	install -m 755 $(CLI_TARGET) $(DESTDIR)$(PREFIX)
-ifeq($(PREFIX),/opt/45drives/autotier)
+ifeq ($(DEFAULT_PREFIX),1)
 	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/$(notdir $(FS_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
 	ln -sf $(PREFIX)/$(notdir $(CLI_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
@@ -110,8 +111,8 @@ rm-completion:
 
 inst-scripts:
 	mkdir -p $(DESTDIR)$(PREFIX)
-	install -m 755 scripts/autotier-init-dirs $(DESTDIR)$(PREFIX)
-ifeq($(PREFIX),/opt/45drives/autotier)
+	install -m 755 script/autotier-init-dirs $(DESTDIR)$(PREFIX)
+ifeq ($(DEFAULT_PREFIX),1)
 	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/autotier-init-dirs $(DESTDIR)/usr/bin/autotier-init-dirs
 endif
