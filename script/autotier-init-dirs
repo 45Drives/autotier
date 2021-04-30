@@ -31,6 +31,8 @@ function usage {
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
+command -v rsync > /dev/null 2>&1 || { echo "rsync must be installed to run this script. Install it and try again."; exit 1; }
+
 if [[ "$#" < "2" ]]; then
 	echo Must provide at least two tier paths.
 	usage
