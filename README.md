@@ -5,6 +5,12 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 `autotier` is a tiered FUSE filesystem which acts as a merging passthrough to any number of underlying filesystems. These underlying filesystems can be of any type. Behind the scenes, `autotier` moves files around such that the most often accessed files are kept in the highest tier. `autotier` fills each defined tier up to their configuration-defined quota, starting at the fastest tier with the highest priority files. If you do a lot of writing, set a lower quota for the highest tier to allow for more room. If you do mostly reading, set a higher watermark to allow for as much use as possible out of your available top tier storage.  
 ![autotier example](doc/mounted_fs_status.png)
 
+## Quick Start
+1. [Install](#installation)
+1. [Configure](#configuration)
+1. If data is already on any tiers, run `autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]` to clone directory structures across all tiers
+1. [Mount Filesystem](#mounting)
+
 ## Installation
 ### Ubuntu
 1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.4/autotier_1.1.4-1focal_amd64.deb`
