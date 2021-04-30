@@ -1,3 +1,11 @@
+autotier (1.1.5-1focal) focal; urgency=medium
+
+  * No longer reports 'cannot open directory' if missing from one of the tiers.
+  * On file name conflict while moving files between tiers, both files are
+    renamed with '.autotier_conflict' and '.autotier_conflict_orig' appended.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Fri, 30 Apr 2021 12:36:00 -0400
+
 autotier (1.1.4-1focal) focal; urgency=medium
 
   * Tiering of files is automatically triggered if tier is over quota after
@@ -13,7 +21,7 @@ autotier (1.1.4-1focal) focal; urgency=medium
     write() call blocks until tiering is done and the write is tried again.
   * Added Copy Buffer Size configration parameter to specify block size
     while moving files between tiers.
-    
+
  -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
 
 autotier (1.1.3-1focal) focal; urgency=low
