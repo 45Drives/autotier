@@ -33,12 +33,6 @@ function join_by { local IFS="$1"; shift; echo "$*"; }
 
 command -v rsync > /dev/null 2>&1 || { echo "rsync must be installed to run this script. Install it and try again."; exit 1; }
 
-if [[ "$#" < "2" ]]; then
-	echo Must provide at least two tier paths.
-	usage
-	exit 1
-fi
-
 while getopts "h" opt; do
 	case $opt in
 	h)
@@ -53,6 +47,12 @@ while getopts "h" opt; do
 		;;
 	esac
 done
+
+if [[ "$#" < "2" ]]; then
+	echo Must provide at least two tier paths.
+	usage
+	exit 1
+fi
 
 # check that each argument is a valid path
 for tier in $@; do
