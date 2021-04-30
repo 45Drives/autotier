@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+#    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+#    
+#    This file is part of autotier.
+# 
+#    autotier is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+# 
+#    autotier is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+# 
+#    You should have received a copy of the GNU General Public License
+#    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
+
+function usage {
+	echo "autotier-init-dirs Copyright (C) 2019-2021  Josh Boudreau <jboudreau@45drives.com>"
+	echo "This program is released under the GNU General Public License v3."
+	echo "See <https://www.gnu.org/licenses/> for more details."
+	echo
+	echo "Use this script to copy the directory structures across each tier before mounting."
+	echo "This is only needed for setting up autotier where data already exists in the tiers."
+	echo
+	echo "usage:"
+	echo "  autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]"
+}
+
+function join_by { local IFS="$1"; shift; echo "$*"; }
+
+if [[ "$#" < "2" ]]; then
+	echo Must provide at least two tier paths.
+	usage
+	exit 1
+fi
+
+while getopts "h" opt; do
+	case $opt in
+	h)
+		usage
+		exit 0
+		;;
+	*)
+		echo "Unknown option."
+		echo
+		usage
+		exit 1
+		;;
+	esac
+done
+
+# check that each argument is a valid path
+for tier in $@; do
+	if [ ! -d "$tier" ]; then
+		echo "$tier is not a directory!"
+		echo
+		usage
+		exit 1
+	fi
+done
+
+read -p "Clone directories across {$(join_by , $@)}? [y/N]" response
+case $response in
+	y|yes|Y|YES)
+		;;
+	*)
+		exit 0
+		;;
+esac
+
+for src in $@; do
+	for dst in $@; do
+		[[ "$src" != "$dst" ]] && rsync -a --include='*/' --exclude='*' $src/* $dst
+	done
+done
+
+exit 0

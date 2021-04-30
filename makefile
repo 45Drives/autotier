@@ -60,18 +60,20 @@ clean-build:
 clean-tests:
 	-rm -rf dist/tests
 
-install: all inst-man-pages inst-config inst-completion
+install: all inst-man-pages inst-config inst-completion inst-scripts
 	mkdir -p $(DESTDIR)$(PREFIX)
-	mkdir -p $(DESTDIR)/usr/bin
 	install -m 755 $(FS_TARGET) $(DESTDIR)$(PREFIX)
 	install -m 755 $(CLI_TARGET) $(DESTDIR)$(PREFIX)
+ifeq($(PREFIX),/opt/45drives/autotier)
+	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/$(notdir $(FS_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
 	ln -sf $(PREFIX)/$(notdir $(CLI_TARGET)) $(DESTDIR)/usr/bin/$(notdir $(CLI_TARGET))
+endif
 ifneq ($(PACKAGING),1)
 	groupadd -f autotier
 endif
 
-uninstall: rm-man-pages rm-completion
+uninstall: rm-man-pages rm-completion rm-scripts
 	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(FS_TARGET))
 	-rm -f $(DESTDIR)$(PREFIX)/$(notdir $(CLI_TARGET))
 	-rm -f $(DESTDIR)/usr/bin/$(notdir $(FS_TARGET))
@@ -105,3 +107,15 @@ inst-completion:
 rm-completion:
 	-rm -f $(DESTDIR)/usr/share/bash-completion/completions/autotier
 	-rm -f $(DESTDIR)/usr/share/bash-completion/completions/autotierfs
+
+inst-scripts:
+	mkdir -p $(DESTDIR)$(PREFIX)
+	install -m 755 scripts/autotier-init-dirs $(DESTDIR)$(PREFIX)
+ifeq($(PREFIX),/opt/45drives/autotier)
+	mkdir -p $(DESTDIR)/usr/bin
+	ln -sf $(PREFIX)/autotier-init-dirs $(DESTDIR)/usr/bin/autotier-init-dirs
+endif
+
+rm-scripts:
+	-rm -f $(DESTDIR)$(PREFIX)/autotier-init-dirs
+	-rm -f $(DESTDIR)/usr/bin/autotier-init-dirs
