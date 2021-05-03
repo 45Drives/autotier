@@ -20,6 +20,7 @@
 #include "tierEngine.hpp"
 #include "alert.hpp"
 #include "version.hpp"
+#include "conflicts.hpp"
 #include <sstream>
 
 void TierEngine::process_adhoc_requests(void){
@@ -198,6 +199,10 @@ void TierEngine::process_status(const AdHoc &work){
 	}
 	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
 	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
+	
+	std::vector<std::string> conflicts;
+	bool has_conflicts = check_conflicts(conflicts, run_path_);
+	
 	std::stringstream ss;
 	if(json){
 		ss << 
@@ -215,21 +220,33 @@ void TierEngine::process_status(const AdHoc &work){
 			"\"tiers\":[";
 		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
 			ss <<
-			"{"
-				"\"name\":\"" + tptr->id() + "\","
-				"\"capacity\":" + std::to_string(tptr->capacity()) + ","
-				"\"capacity_pretty\":\"" + Logging::log.format_bytes(tptr->capacity()) + "\","
-				"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
-				"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
-				"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
-				"\"path\":\"" + tptr->path().string() + "\""
-			"}";
+				"{"
+					"\"name\":\"" + tptr->id() + "\","
+					"\"capacity\":" + std::to_string(tptr->capacity()) + ","
+					"\"capacity_pretty\":\"" + Logging::log.format_bytes(tptr->capacity()) + "\","
+					"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
+					"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
+					"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
+					"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
+					"\"path\":\"" + tptr->path().string() + "\""
+				"}";
 			if(std::next(tptr) != tiers_.end())
 				ss << ",";
 		}
 		ss <<
-			"]"
+			"],"
+			"\"conflicts\":{"
+				"\"has_conflicts\":" << std::boolalpha << has_conflicts << std::noboolalpha << ","
+				"\"paths\":[";
+		for(std::vector<std::string>::iterator itr = conflicts.begin(); itr != conflicts.end(); ++itr){
+			ss << 
+						"\"" + *itr + "\"";
+			if(std::next(itr) != conflicts.end())
+				ss << ",";
+		}
+		ss <<
+				"]"
+			"}"
 		"}";
 	}else{
 		std::vector<std::string> names;
@@ -309,6 +326,13 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << " ";
 			ss << std::left << tptr->path().string();
 			ss << std::endl;
+		}
+		if(has_conflicts){
+			ss << "\n" << std::endl;
+			ss << "autotier encountered conflicting file paths between tiers:" << std::endl;
+			for(const std::string &conflict : conflicts){
+				ss << conflict + ".autotier_conflict(_orig)" << std::endl;
+			}
 		}
 	}
 	std::string line;

@@ -21,6 +21,7 @@
 #include "alert.hpp"
 #include "openFiles.hpp"
 #include "file.hpp"
+#include "conflicts.hpp"
 #include <thread>
 #include <cstdlib>
 
@@ -118,7 +119,7 @@ void Tier::enqueue_file_ptr(File *fptr){
 	incoming_files_.push_back(fptr);
 }
 
-void Tier::transfer_files(int buff_sz){
+void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 	for(File * fptr : incoming_files_){
 		fs::path old_path = fptr->full_path();
 		if(OpenFiles::is_open(old_path.string())){
@@ -135,6 +136,7 @@ void Tier::transfer_files(int buff_sz){
 				fptr->change_path(new_path.string() + ".autotier_conflict");
 				File orig = *fptr; // create new file entry
 				orig.change_path(new_path.string() + ".autotier_conflict_orig");
+				add_conflict(new_path.string(), run_path);
 			}
 		}
 	}

@@ -125,7 +125,7 @@ public:
 	void enqueue_file_ptr(File *fptr);
 	/* Push file pointer into incoming_files_.
 	 */
-	void transfer_files(int buff_sz);
+	void transfer_files(int buff_sz, const fs::path &run_path);
 	/* Iterate through incoming_files_ and move each file into
 	 * the tier.
 	 */
