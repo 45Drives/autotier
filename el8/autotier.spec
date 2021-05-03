@@ -42,10 +42,12 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
-* Fri Apr 30 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.5-1
+* Mon May 03 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.5-1
 - No longer reports 'cannot open directory' if missing from one of the tiers.
 - On file name conflict while moving files between tiers, both files are
   renamed with '.autotier_conflict' and '.autotier_conflict_orig' appended.
+- Added `autotier-init-dirs` script to clone directories only across each
+  tier for if data is already present before setting up autotier.
 
 * Mon Apr 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.4-1
 - Tiering of files is automatically triggered if tier is over quota after

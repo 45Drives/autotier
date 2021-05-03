@@ -3,8 +3,10 @@ autotier (1.1.5-1focal) focal; urgency=medium
   * No longer reports 'cannot open directory' if missing from one of the tiers.
   * On file name conflict while moving files between tiers, both files are
     renamed with '.autotier_conflict' and '.autotier_conflict_orig' appended.
+  * Added `autotier-init-dirs` script to clone directories only across each
+    tier for if data is already present before setting up autotier.
 
- -- Josh Boudreau <jboudreau@45drives.com>  Fri, 30 Apr 2021 12:36:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Mon, 03 May 2021 10:31:00 -0400
 
 autotier (1.1.4-1focal) focal; urgency=medium
 
