@@ -51,7 +51,7 @@ SOURCE_PATH=$TMP_DIR/$SOURCE_NAME
 mkdir -p $SOURCE_PATH
 SOURCE_LOC="$(dirname "$SOURCE_PATH")"
 
-cp -r src/ makefile doc/ $SOURCE_PATH
+cp -r src/ makefile doc/ script/ $SOURCE_PATH
 
 pushd $SOURCE_LOC
 tar -czvf $SOURCE_NAME.tar.gz $SOURCE_NAME
