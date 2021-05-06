@@ -172,7 +172,7 @@ WorkPipe::WorkPipe(fs::path pipe_path, int flags){
 			}
 		}
 	}
-	fd_ = open(pipe_path.c_str(), flags);
+	fd_ = open(pipe_path.c_str(), flags, 0700);
 	if(fd_ == -1){
 		throw errno;
 	}

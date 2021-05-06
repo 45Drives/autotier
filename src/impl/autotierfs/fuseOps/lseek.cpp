@@ -52,7 +52,7 @@ namespace fuse_ops{
 			if(f.not_found())
 				return -ENOENT;
 			fs::path tier_path = f.tier_path();
-			fd = open((tier_path / path).c_str(), O_RDONLY);
+			fd = ::open((tier_path / path).c_str(), O_RDONLY, 0777);
 		}else
 			fd = fi->fh;
 		

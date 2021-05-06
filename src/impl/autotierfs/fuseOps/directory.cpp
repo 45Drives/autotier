@@ -180,7 +180,7 @@ namespace fuse_ops{
 		Logging::log.message("fsyncdir fh", 0);
 #endif
 		for(int i = 0; i < priv->tiers_.size(); i++){
-			int fd = ::open(d->backends[i], O_DIRECTORY);
+			int fd = ::open(d->backends[i], O_DIRECTORY, 0777);
 			if(isdatasync)
 				res = ::fdatasync(fd);
 			else
