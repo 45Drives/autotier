@@ -13,15 +13,15 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Ubuntu
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.4/autotier_1.1.4-1focal_amd64.deb`
-1. Install deb: `# apt install ./autotier_1.1.4-1focal_amd64.deb`
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.5/autotier_1.1.5-1focal_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.1.5-1focal_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### EL8
-1. Install rpm: `# yum install https://github.com/45Drives/autotier/releases/download/v1.1.4/autotier-1.1..4-1.el8.x86_64.rpm`
+1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.5/autotier-1.1.5-1.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
@@ -29,10 +29,10 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ### Installing from Source
 1. Install dependencies:  
-	```# apt install libfuse3-dev libstdc++-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
+	```# apt install libfuse3-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
 1. `$ git clone https://github.com/45drives/autotier`
 1. `$ cd autotier`
-1. `$ git checkout <version>` (v1.1.4 is the latest tag)
+1. `$ git checkout <version>` (v1.1.5 is the latest tag)
 1. `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
 1. `# make install`
 1. [Edit configuration file.](#configuration)
@@ -41,7 +41,8 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Uninstallation
-From dpkg: `# dpkg --remove autotier`  
+Ubuntu: `# apt remove autotier` or `# apt purge autotier`  
+EL8: `# dnf remove autotier`
 From source: `# make uninstall` from root of cloned repo
 
 ## Configuration
