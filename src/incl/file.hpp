@@ -105,4 +105,7 @@ public:
 	/* Call utimes() on file path with the saved atime and mtime so
 	 * they stay the same as before tiering.
 	 */
+	void change_path(const fs::path &new_path);
+	/* Update database with new path.
+	 */
 };

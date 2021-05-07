@@ -19,4 +19,11 @@
 
 #pragma once
 
-#define VERS "1.1.5"
+bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_path);
+/* Check if there were any conflicts while tiering. Returns true if there were
+ * conflicts. Conflicting files are placed in the string vector.
+ */
+
+void add_conflict(const std::string &path, const fs::path &run_path);
+/* Add an entry into the conflicting files log.
+ */

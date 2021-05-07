@@ -42,10 +42,8 @@ namespace fuse_ops{
 		std::vector<DIR *> dps;
 		std::vector<char *> backends;
 		dirp(){
-			fuse_context *ctx = fuse_get_context();
-			FusePriv *priv = (FusePriv *)ctx->private_data;
-			dps = std::vector<DIR *>(priv->tiers_.size());
-			backends = std::vector<char *>(priv->tiers_.size());
+			dps = std::vector<DIR *>();
+			backends = std::vector<char *>();
 		}
 		~dirp(){
 			for(DIR *dp : dps)
@@ -67,15 +65,13 @@ namespace fuse_ops{
 		if(d == NULL)
 			return -ENOMEM;
 		
-		for(std::vector<Tier *>::size_type i = 0; i < priv->tiers_.size(); i++){
-			fs::path backend_path = priv->tiers_[i]->path() / path;
-			d->dps[i] = ::opendir(backend_path.c_str());
-			d->backends[i] = strdup(backend_path.c_str());
-			if(d->dps[i] == NULL) {
-				res = -errno;
-				delete d;
-				return res;
-			}
+		for(Tier *t : priv->tiers_){
+			fs::path backend_path = t->path() / path;
+			DIR *dir = ::opendir(backend_path.c_str());
+			if(dir != NULL){
+				d->dps.push_back(dir);
+				d->backends.push_back(strdup(backend_path.c_str()));
+			} // else ignore
 		}
 		
 		d->offset = 0;
@@ -162,9 +158,10 @@ namespace fuse_ops{
 	}
 
 	int releasedir(const char *path, struct fuse_file_info *fi){
-		class dirp *d = get_dirp(fi);
 		(void) path;
-		delete d;
+		class dirp *d = get_dirp(fi);
+		if(d)
+			delete d;
 		return 0;
 	}
 	
@@ -183,7 +180,7 @@ namespace fuse_ops{
 		Logging::log.message("fsyncdir fh", 0);
 #endif
 		for(int i = 0; i < priv->tiers_.size(); i++){
-			int fd = ::open(d->backends[i], O_DIRECTORY);
+			int fd = ::open(d->backends[i], O_DIRECTORY, 0777);
 			if(isdatasync)
 				res = ::fdatasync(fd);
 			else

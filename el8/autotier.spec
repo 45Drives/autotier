@@ -3,7 +3,7 @@
 %define        __os_install_post %{_dbpath}/brp-compress
 
 Name:           autotier
-Version:        1.1.4
+Version:        1.1.5
 Release:        1%{?dist}
 Summary:        Tiered FUSE Passthrough Filesystem
 
@@ -42,6 +42,15 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
+* Thu May 06 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.5-1
+- No longer reports 'cannot open directory' if missing from one of the tiers.
+- On file name conflict while moving files between tiers, both files are
+  renamed with '.autotier_conflict' and '.autotier_conflict_orig' appended.
+- Added `autotier-init-dirs` script to clone directories only across each
+  tier for if data is already present before setting up autotier.
+- Ensures that every call to open() contains a file mode, fixing a fatal
+  bug in Ubuntu.
+
 * Mon Apr 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.4-1
 - Tiering of files is automatically triggered if tier is over quota after
   writing to a file. To disable, added config option `Strict Period = true`.

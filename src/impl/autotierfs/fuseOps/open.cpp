@@ -53,7 +53,7 @@ namespace fuse_ops{
 			return -errno;
 		if(is_directory){
 			fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
-			res = ::open(fullpath, fi->flags);
+			res = ::open(fullpath, fi->flags, 0777);
 			if(res == -1)
 				return -errno;
 		}else{
@@ -71,7 +71,7 @@ namespace fuse_ops{
 					return -errno;
 			}
 			OpenFiles::register_open_file(fullpath);
-			res = ::open(fullpath, fi->flags);
+			res = ::open(fullpath, fi->flags, 0777);
 			priv->insert_size_at_open(res, file_size);
 			if(fi->flags & O_CREAT){
 				struct fuse_context *ctx = fuse_get_context();
