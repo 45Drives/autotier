@@ -331,7 +331,7 @@ void TierEngine::process_status(const AdHoc &work){
 			ss << "\n" << std::endl;
 			ss << "autotier encountered conflicting file paths between tiers:" << std::endl;
 			for(const std::string &conflict : conflicts){
-				ss << conflict + ".autotier_conflict(_orig)" << std::endl;
+				ss << conflict + "(.autotier_conflict)" << std::endl;
 			}
 		}
 	}

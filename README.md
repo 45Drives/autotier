@@ -8,20 +8,20 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 ## Quick Start
 1. [Install](#installation)
 1. [Configure](#configuration)
-1. If data is already on any tiers, run `autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]` to clone directory structures across all tiers
+1. If data is already on any tiers, run `autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]` to clone directory structures across all tiers. ([Note on conflicting file paths between tiers](file-path-conflicts))
 1. [Mount Filesystem](#mounting)
 
 ## Installation
 ### Ubuntu
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.5/autotier_1.1.5-1focal_amd64.deb`
-1. Install deb: `# apt install ./autotier_1.1.5-1focal_amd64.deb`
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-1focal_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.1.6-1focal_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### EL8
-1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.5/autotier-1.1.5-1.el8.x86_64.rpm`
+1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier-1.1.6-1.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
@@ -32,7 +32,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 	```# apt install libfuse3-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
 1. `$ git clone https://github.com/45drives/autotier`
 1. `$ cd autotier`
-1. `$ git checkout <version>` (v1.1.5 is the latest tag)
+1. `$ git checkout <version>` (v1.1.6 is the latest tag)
 1. `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
 1. `# make install`
 1. [Edit configuration file.](#configuration)
@@ -160,6 +160,10 @@ Flags:
 ### Using cron  
 To have `cron` schedule file tiering, first disable automatic tiering by setting `Tier Period = -1` in `/etc/autotier.conf`.
 Then in the cron entry, call `autotier oneshot`.  
+
+## Notes
+### File Path Conflicts
+If autotier is set up with tiers that already contain files, there is a chance that you could have more than one file with the same path relative to the tier root. In the event of a collision during file movement while tiering, the file that is already in the tier is left untouched and the incoming file has `.autotier_conflict.<original tier name>` appended to the file name. `autotier status` will list any file conflicts found.
 
 ---
 ```

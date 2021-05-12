@@ -33,8 +33,19 @@ static inline void read_conflicts(std::vector<std::string> &conflicts, const std
 		return;
 	std::string entry;
 	while(std::getline(f, entry))
-		if(entry.size() > 0 && fs::exists(entry + ".autotier_conflict") && fs::exists(entry + ".autotier_conflict_orig"))
-			conflicts.push_back(entry);
+		if(entry.size() > 0 && fs::exists(entry)){
+			bool still_conflicted = false;
+			std::string test_string = entry + ".autotier_conflict";
+			fs::path parent_path = fs::path(entry).parent_path();
+			for(fs::directory_iterator itr(parent_path); itr != fs::directory_iterator(); ++itr){
+				if(std::equal(test_string.begin(), test_string.end(), itr->path().string().begin())){
+					still_conflicted = true;
+					break;
+				}
+			}
+			if(still_conflicted)
+				conflicts.push_back(entry);
+		}
 	f.close();
 }
 

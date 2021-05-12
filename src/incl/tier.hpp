@@ -129,7 +129,7 @@ public:
 	/* Iterate through incoming_files_ and move each file into
 	 * the tier.
 	 */
-	bool move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted = nullptr) const;
+	bool move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted = nullptr, std::string orig_tier = "") const;
 	/* Called in transfer_files() to actually copy the file and
 	 * remove the old one.
 	 */
