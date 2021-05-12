@@ -133,9 +133,7 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 			fptr->transfer_to_tier(this);
 			fptr->overwrite_times();
 			if(conflicted){
-				fptr->change_path(new_path.string() + ".autotier_conflict");
-				File orig = *fptr; // create new file entry
-				orig.change_path(new_path.string() + ".autotier_conflict_orig");
+				fptr->change_path(fptr->relative_path().string() + ".autotier_conflict");
 				add_conflict(new_path.string(), run_path);
 			}
 		}
@@ -199,11 +197,10 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 		if(fs::exists(new_path)){
 			if(conflicted) *conflicted = true;
 			fs::rename(new_tmp_path, new_path.string() + ".autotier_conflict");
-			fs::rename(new_path, new_path.string() + ".autotier_conflict_orig");
 			Logging::log.error(
 				"Encountered conflict while moving file between tiers: " 
 				+ new_path.string()
-				+ ".autotier_conflict(_orig)"
+				+ "(.autotier_conflict)"
 			);
 		}else{
 			fs::rename(new_tmp_path, new_path);

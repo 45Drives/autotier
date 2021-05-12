@@ -33,7 +33,7 @@ static inline void read_conflicts(std::vector<std::string> &conflicts, const std
 		return;
 	std::string entry;
 	while(std::getline(f, entry))
-		if(entry.size() > 0 && fs::exists(entry + ".autotier_conflict") && fs::exists(entry + ".autotier_conflict_orig"))
+		if(entry.size() > 0 && fs::exists(entry + ".autotier_conflict") && fs::exists(entry))
 			conflicts.push_back(entry);
 	f.close();
 }
