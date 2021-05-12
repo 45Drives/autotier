@@ -3,7 +3,7 @@
 %define        __os_install_post %{_dbpath}/brp-compress
 
 Name:           autotier
-Version:        1.1.5
+Version:        1.1.6
 Release:        1%{?dist}
 Summary:        Tiered FUSE Passthrough Filesystem
 
@@ -42,6 +42,10 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
+* Wed May 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.6-1
+- On file conflict, only one file is renamed now, and a bug was fixed where
+  the conflicting file's path was wrong in the database.
+
 * Thu May 06 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.5-1
 - No longer reports 'cannot open directory' if missing from one of the tiers.
 - On file name conflict while moving files between tiers, both files are

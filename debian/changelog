@@ -1,3 +1,10 @@
+autotier (1.1.6-1focal) focal; urgency=medium
+
+  * On file conflict, only one file is renamed now, and a bug was fixed where
+    the conflicting file's path was wrong in the database.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 12 May 2021 11:37:00 -0400
+
 autotier (1.1.5-1focal) focal; urgency=medium
 
   * No longer reports 'cannot open directory' if missing from one of the tiers.
@@ -8,7 +15,7 @@ autotier (1.1.5-1focal) focal; urgency=medium
   * Ensures that every call to open() contains a file mode, fixing a fatal
     bug in Ubuntu.
 
- -- Josh Boudreau <jboudreau@45drives.com>  Thu, 06 May 2021 4:39:00 -0400
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 06 May 2021 16:39:00 -0400
 
 autotier (1.1.4-1focal) focal; urgency=medium
 
