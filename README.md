@@ -8,7 +8,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 ## Quick Start
 1. [Install](#installation)
 1. [Configure](#configuration)
-1. If data is already on any tiers, run `autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]` to clone directory structures across all tiers. ([Note on conflicting file paths between tiers](file-path-conflicts))
+1. If data is already on any tiers, run `autotier-init-dirs /path/to/tier1 /path/to/tier2 [ /path/to/tier3 ... ]` to clone directory structures across all tiers. ([Note on conflicting file paths between tiers](#file-path-conflicts))
 1. [Mount Filesystem](#mounting)
 
 ## Installation
