@@ -128,12 +128,13 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 		}
 		fs::path new_path = path_ / fptr->relative_path();
 		bool conflicted = false;
-		bool copy_success = Tier::move_file(old_path, new_path, buff_sz, &conflicted);
+		std::string orig_tier = fptr->tier_ptr()->id_;
+		bool copy_success = Tier::move_file(old_path, new_path, buff_sz, &conflicted, orig_tier);
 		if(copy_success){
 			fptr->transfer_to_tier(this);
 			fptr->overwrite_times();
 			if(conflicted){
-				fptr->change_path(fptr->relative_path().string() + ".autotier_conflict");
+				fptr->change_path(fptr->relative_path().string() + ".autotier_conflict." + orig_tier);
 				add_conflict(new_path.string(), run_path);
 			}
 		}
@@ -142,7 +143,7 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 	sim_usage_ = 0;
 }
 
-bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted) const{
+bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted, std::string orig_tier) const{
 	if(conflicted) *conflicted = false;
 	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
 	if(!is_directory(new_path.parent_path()))
@@ -196,7 +197,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 		fs::remove(old_path);
 		if(fs::exists(new_path)){
 			if(conflicted) *conflicted = true;
-			fs::rename(new_tmp_path, new_path.string() + ".autotier_conflict");
+			fs::rename(new_tmp_path, new_path.string() + ".autotier_conflict." + orig_tier);
 			Logging::log.error(
 				"Encountered conflict while moving file between tiers: " 
 				+ new_path.string()
