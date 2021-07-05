@@ -40,6 +40,11 @@
             "type": "deb"
         },
         {
+            "image": "autotier-debian-bullseye-builder",
+            "codeName": "bullseye",
+            "type": "deb"
+        },
+        {
             "image": "autotier-rocky-el8-builder",
             "codeName": "el8",
             "type": "el"
