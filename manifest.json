@@ -11,8 +11,8 @@
     "priority": "optional",
     "licence": "GPL-3.0+",
     "architecture": {
-        "deb": "all",
-        "el": "noarch"
+        "deb": "amd64",
+        "el": "x86_64"
     },
     "description": {
         "long": "A passthrough FUSE filesystem that intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.",
