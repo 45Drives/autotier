@@ -2,7 +2,7 @@ Source: ::package_name::
 Section: ::package_category::
 Priority: ::package_priority::
 Maintainer: ::package_author::
-Build-Depends: debhelper-compat (= 12)
+Build-Depends: debhelper-compat (= 12),
                libfuse3-dev,
                libstdc++-dev,
                libboost-system-dev,
