@@ -1,0 +1,57 @@
+{
+    "__version": "45D-R1",
+    "name": "autotier",
+    "title": "Autotier",
+    "prerelease": true,
+    "version": "1.1.6",
+    "buildVersion": "2",
+    "author": "Joshua Boudreau <jboudreau@45drives.com>",
+    "url": "https://github.com/45Drives/autotier",
+    "category": "utils",
+    "priority": "optional",
+    "licence": "GPL-3.0+",
+    "architecture": {
+        "deb": "all",
+        "el": "noarch"
+    },
+    "description": {
+        "long": "A passthrough FUSE filesystem that intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness.",
+        "short": "A passthrough FUSE filesystem that intelligently moves files between storage tiers based on frequency of use, file age, and tier fullness."
+    },
+    "defaults": {
+        "urgency": "medium"
+    },
+    "dependencies": {
+        "deb": [
+            "libstdc++6",
+            "libboost-system1.71.0 | libboost-all-dev",
+            "libboost-filesystem1.71.0 | libboost-all-dev",
+            "libboost-serialization1.71.0 | libboost-all-dev",
+            "librocksdb-dev | librocksdb5.17",
+            "libtbb2 | libtbb-dev",
+            "fuse3"
+        ],
+        "el": []
+    },
+    "releases": [
+        {
+            "image": "autotier-ubuntu-focal-builder",
+            "codeName": "focal",
+            "type": "deb"
+        },
+        {
+            "image": "autotier-rocky-el8-builder",
+            "codeName": "el8",
+            "type": "el"
+        }
+    ],
+    "changelog": {
+        "urgency": "medium",
+        "version": "1.1.6",
+        "buildVersion": "2",
+        "ignore": [],
+        "date": null,
+        "packager": "Joshua Boudreau <jboudreau@45drives.com>",
+        "changes": []
+    }
+}

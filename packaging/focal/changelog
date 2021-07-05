@@ -1,0 +1,120 @@
+autotier (1.1.6-2focal) focal; urgency=medium
+
+  * first build with auto-packaging
+
+ -- Joshua Boudreau <jboudreau@45drives.com>  Mon, 05 Jul 2021 07:53:06 -0300
+
+autotier (1.1.6-1focal) focal; urgency=medium
+
+  * On file conflict, only one file is renamed now, and a bug was fixed where
+    the conflicting file's path was wrong in the database.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 12 May 2021 11:37:00 -0400
+
+autotier (1.1.5-1focal) focal; urgency=medium
+
+  * No longer reports 'cannot open directory' if missing from one of the tiers.
+  * On file name conflict while moving files between tiers, both files are
+    renamed with '.autotier_conflict' and '.autotier_conflict_orig' appended.
+  * Added `autotier-init-dirs` script to clone directories only across each
+    tier for if data is already present before setting up autotier.
+  * Ensures that every call to open() contains a file mode, fixing a fatal
+    bug in Ubuntu.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 06 May 2021 16:39:00 -0400
+
+autotier (1.1.4-1focal) focal; urgency=medium
+
+  * Tiering of files is automatically triggered if tier is over quota after
+    writing to a file. To disable, added config option `Strict Period = true`.
+  * Added disabling of tier period by setting to a negative number so a cron
+    job for `autotier oneshot` can be used to trigger tiering.
+  * `autotier config` now dumps configuration values from memory of mounted
+    filesystem rather than just printing contents of file.
+  * Implemented parallel moving of files while tiering with one thread per
+    tier for maximum concurrency.
+  * Fix bug where readdir was still showing backend autotier files.
+  * Tiering of files is automatically triggered if tier is out of space, and
+    write() call blocks until tiering is done and the write is tried again.
+  * Added Copy Buffer Size configration parameter to specify block size
+    while moving files between tiers.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Mon, 12 Apr 2021 15:22:00 -0400
+
+autotier (1.1.3-1focal) focal; urgency=low
+
+  * Create autotier group during install.
+  * Set ownership of run path and pipes to root:autotier to allow for
+    members of autotier group to execute CLI commands.
+  * Report mountpoint in autotier status.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Mar 2021 12:04:00 -0400
+
+autotier (1.1.2-1focal) focal; urgency=high
+
+  * Fix bug where CLI tool does not exit after catching error.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Fri, 19 Mar 2021 11:43:00 -0400
+
+autotier (1.1.1-1focal) focal; urgency=high
+
+  * Fix bug while renaming directories in Ubuntu.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 18 Mar 2021 15:20:00 -0400
+
+autotier (1.1.0-1focal) focal; urgency=medium
+
+  * Split binaries into autotierfs and autotier, the first being the
+    filesystem and the second being the CLI tool.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 17 Mar 2021 14:54:00 -0400
+
+autotier (1.0.4-1focal) focal; urgency=high
+
+  * Fix renaming directories containing files.
+  * Pass std::string instead of const char * to Metadata::update().
+  * Add global mutex lock to guard writing to database.
+  * Optional old_key argument for Metadata::update() to delete old DB entry
+    atomically.
+  * Break out fuse methods into separate files and put in fuse_ops namespace.
+  * Use std::execution::par for sorting vector of files.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Fri, 05 Mar 2021 12:17:00 -0400
+
+autotier (1.0.3-2focal) focal; urgency=low
+
+  * Overhaul packaging using Docker.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Wed, 03 Mar 2021 10:57:00 -0400
+
+autotier (1.0.3-1focal) focal; urgency=low
+
+  * Rewrite popularity calculation method to be period length agnostic.
+  * Implement unordered map to store paths to open files, removing lsof dependency.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Thu, 25 Feb 2021 12:07:00 -0400
+
+autotier (1.0.2-1focal) focal; urgency=high
+
+  * Store fuse "global" data in fuse_context->private_data.
+  * Fix crash from AdHoc worker thread calling exit() on errors.
+  * Fix accidentally reporting file not found in l::is_directory().
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 24 Feb 2021 15:40:00 -0400
+
+autotier (1.0.1-1focal) focal; urgency=medium
+
+  * Use file handles for everything by setting nullpath_ok in fuse config.
+  * Rewrite readdir and implement opendir and releasedir to use fi->fh.
+  * Keep track of live tier usage based on file size inside tier.
+  * Fix bug where tier worker thread doesn't exit on unmount.
+  * Fix bug where ownership and permissions aren't properly copied.
+  * Implement extended attribute methods.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 23 Feb 2021 16:27:00 -0400
+
+autotier (1.0.0-1focal) focal; urgency=high
+
+  * Initial packaging of autotier for Ubuntu Focal.
+
+ -- Josh Boudreau <jboudreau@45drives.com>  Tue, 16 Feb 2021 13:14:00 -0400
