@@ -12,16 +12,24 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 1. [Mount Filesystem](#mounting)
 
 ## Installation
-### Ubuntu
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-1focal_amd64.deb`
-1. Install deb: `# apt install ./autotier_1.1.6-1focal_amd64.deb`
+### Ubuntu Focal
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-2focal_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.1.6-2focal_amd64.deb`
+1. [Edit configuration file.](#configuration)
+1. [Mount filesystem.](#mounting)
+1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
+	* `# usermod -aG autotier <user>` (takes effect on next login)
+
+### Debian Bullseye
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-2bullseye_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.1.6-2bullseye_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### EL8
-1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier-1.1.6-1.el8.x86_64.rpm`
+1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier-1.1.6-2.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
