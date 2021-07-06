@@ -1,27 +1,25 @@
-%define        __spec_install_post %{nil}
-%define          debug_package %{nil}
-%define        __os_install_post %{_dbpath}/brp-compress
+%global debug_package %{nil}
 
-Name:           autotier
-Version:        1.1.6
-Release:        1%{?dist}
-Summary:        Tiered FUSE Passthrough Filesystem
-
-License:        GPL-3.0+
-URL:            github.com/45drives/autotier/blob/master/README.md
-Source0:        %{name}-%{version}.tar.gz
+Name: ::package_name::
+Version: ::package_version::
+Release: ::package_build_version::%{?dist}
+Summary: ::package_description_short::
+License: ::package_licence::
+URL: ::package_url::
+Source0: %{name}-%{version}.tar.gz
+BuildArch: ::package_architecture_el::
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 %description
-A passthrough FUSE filesystem that intelligently moves files
-between storage tiers based on frequency of use, file age, and tier fullness.
+::package_title::
+::package_description_long::
 
 %prep
 %setup -q
 
 %build
-make EXTRA_CFLAGS="-DEL8" EXTRA_LIBS="-lz -lzstd -llz4 -lbz2 -lsnappy" -j8
+make EXTRA_CFLAGS="-DEL8" EXTRA_LIBS="-lz -lzstd -llz4 -lbz2 -lsnappy" -j$(nproc)
 
 %install
 make DESTDIR=%{buildroot} PACKAGING=1 install
@@ -42,6 +40,8 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
+* Mon Jul 05 2021 Joshua Boudreau <jboudreau@45drives.com> 1.1.6-2
+- first build with auto-packaging
 * Wed May 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.6-1
 - On file conflict, only one file is renamed now, and a bug was fixed where
   the conflicting file's path was wrong in the database.

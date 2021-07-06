@@ -1,3 +1,9 @@
+autotier (1.1.6-2focal) focal; urgency=medium
+
+  * first build with auto-packaging
+
+ -- Joshua Boudreau <jboudreau@45drives.com>  Mon, 05 Jul 2021 07:53:06 -0300
+
 autotier (1.1.6-1focal) focal; urgency=medium
 
   * On file conflict, only one file is renamed now, and a bug was fixed where
