@@ -40,6 +40,8 @@ make DESTDIR=%{buildroot} clean
 groupadd -f autotier
 
 %changelog
+* Thu Jul 08 2021 Joshua Boudreau <jboudreau@45drives.com> 1.1.6-3
+- Add postinst script to add autotier group
 * Mon Jul 05 2021 Joshua Boudreau <jboudreau@45drives.com> 1.1.6-2
 - first build with auto-packaging
 * Wed May 12 2021 Josh Boudreau <jboudreau@45drives.com> 1.1.6-1

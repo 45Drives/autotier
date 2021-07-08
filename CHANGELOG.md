@@ -1,3 +1,3 @@
-## Autotier 1.1.6-2
+## Autotier 1.1.6-3
 
-* first build with auto-packaging
+* Add postinst script to add autotier group
