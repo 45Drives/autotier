@@ -1,3 +1,9 @@
+autotier (1.1.6-3focal) focal; urgency=medium
+
+  * Add postinst script to add autotier group
+
+ -- Joshua Boudreau <jboudreau@45drives.com>  Thu, 08 Jul 2021 08:40:05 -0300
+
 autotier (1.1.6-2focal) focal; urgency=medium
 
   * first build with auto-packaging
