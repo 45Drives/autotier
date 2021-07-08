@@ -2,7 +2,7 @@
     "__version": "45D-R1",
     "name": "autotier",
     "title": "Autotier",
-    "prerelease": true,
+    "prerelease": false,
     "version": "1.1.6",
     "buildVersion": "3",
     "author": "Joshua Boudreau <jboudreau@45drives.com>",
