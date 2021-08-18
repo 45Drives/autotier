@@ -46,3 +46,7 @@ dist
 
 # tests
 test_db
+
+# code
+.vscode/
+.ccls-cache/
