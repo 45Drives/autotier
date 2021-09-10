@@ -74,6 +74,16 @@ public:
 	Tier(std::string id);
 	/* Constructor assigns user-defined ID.
 	 */
+	Tier(Tier &&other)
+		: quota_percent_(std::move(other.quota_percent_))
+		, quota_bytes_(std::move(other.quota_bytes_))
+		, capacity_(std::move(other.capacity_))
+		, usage_(std::move(other.usage_))
+		, sim_usage_(std::move(other.sim_usage_))
+		, id_(std::move(other.id_))
+		, path_(std::move(other.path_))
+		, incoming_files_(std::move(other.incoming_files_))
+		, usage_mt_() {}
 	~Tier() = default;
 	/* Default destructor.
 	 */
