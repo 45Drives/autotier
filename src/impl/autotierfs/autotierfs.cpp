@@ -120,9 +120,15 @@ int main(int argc, char *argv[]){
 		fs_usage();
 		exit(EXIT_FAILURE);
 	}
-	FusePassthrough at_filesystem(config_path, config_overrides);
-	Logging::log.set_output(SYSLOG);
-	at_filesystem.mount_fs(mountpoint, fuse_opts);
+	try {
+		FusePassthrough at_filesystem(config_path, config_overrides);
+		Logging::log.set_output(SYSLOG);
+		at_filesystem.mount_fs(mountpoint, fuse_opts);
+	} catch (const ffd::ConfigException &e) {
+		Logging::log.error(e.what());
+		exit(EXIT_FAILURE);
+	}
+	
 	
 	return 0;
 }
