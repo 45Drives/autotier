@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <fstream>
+#include <45d/config/ConfigParser.hpp>
 #include <chrono>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -66,32 +66,13 @@ struct ConfigOverrides{
 
 class Tier;
 
-class Config{
-private:
-	int log_level_ = LOG_LEVEL_NOT_SET;
-	/* value read from config file which may be overridden in main()
-	 * by CLI flags [ --verbose | --quiet ]
-	 */
-	int copy_buff_sz_ = 1024*1024; // 1MiB default
-	/* Size of buffer for copy a file from one tier to another.
-	 */
-	std::chrono::seconds tier_period_s_ = std::chrono::seconds(TIER_PERIOD_DISBLED);
-	/* Polling period to check whether to send new files in seconds.
-	 */
-	bool strict_period_ = false;
-	/* If true, tiering only happens once per period; if false, writing
-	 * into tier that is over quota will trigger file tiering.
-	 */
-	fs::path run_path_ = "/var/lib/autotier";
-	/* Path to database and FIFOs. Default location: /var/lib/autotier
-	 */
-	int load_global(std::ifstream &config_file, std::string &id, bool & errors);
-	/* called by load() when [global] config header is found
-	 */
-	void init_config_file(const fs::path &config_path) const;
-	/* When config file DNE, this is called to create and initialize one.
-	 */
+/**
+ * @brief Configuration class
+ * 
+ */
+class Config : public ffd::ConfigParser{
 public:
+	enum LogLevel { NONE, NORMAL, DEBUG }; ///< Enum for log level
 	Config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides);
 	/* open config file at config_path, parse global and tier options,
 	 * populate list of tiers
@@ -102,7 +83,7 @@ public:
 	~Config() = default;
 	/* Default destructor.
 	 */
-	int copy_buff_sz(void) const;
+	size_t copy_buff_sz(void) const;
 	/* Get copy_buff_sz_.
 	 */
 	std::chrono::seconds tier_period_s(void) const;
@@ -118,4 +99,47 @@ public:
 	/* print out loaded options from config file for the global section
 	 * and for each tier
 	 */
+private:
+	/**
+	 * @brief value read from config file which may be overridden in main()
+	 * by CLI flags [ --verbose | --quiet ]
+	 * 
+	 */
+	int log_level_;
+	/**
+	 * @brief Size of buffer for copying a file from one tier to another. 1MiB default.
+	 * 
+	 */
+	size_t copy_buff_sz_;
+	/**
+	 * @brief Polling period to check whether to send new files in seconds.
+	 * 
+	 */
+	std::chrono::seconds tier_period_s_;
+	/**
+	 * @brief If true, tiering only happens once per period; if false, writing
+	 * into tier that is over quota will trigger file tiering.
+	 * 
+	 */
+	bool strict_period_;
+	/**
+	 * @brief Path to database and FIFOs. Default location: /var/lib/autotier
+	 * 
+	 */
+	fs::path run_path_;
+	/**
+	 * @brief parse global and tier options, populate list of tiers
+	 * 
+	 * @param config_path Path to config file
+	 * @param tiers List of tiers found in config
+	 * @param config_overrides Overridden config values from CLI flags
+	 */
+	void load_config(const fs::path &config_path, std::list<Tier> &tiers, const ConfigOverrides &config_overrides);
 };
+
+/**
+ * @brief When config file DNE, this is called to create and initialize one.
+ * 
+ * @param config_path Path to config file
+ */
+void init_config_file(const fs::path &config_path);
