@@ -24,47 +24,31 @@
 #include "stripWhitespace.hpp"
 #include <sstream>
 #include <thread>
+#include <45d/config/ConfigParser.hpp>
 
 extern "C" {
 	#include <getopt.h>
 }
 
 fs::path get_run_path(const fs::path &config_path){
-	fs::path run_path("/var/lib/autotier");
-	std::string line, key, value;
-	
-	// open file
-	std::ifstream config_file(config_path.string());
-	if(!config_file){
-		Logging::log.error("Failed to open config file.");
+	try {
+		// try Global
+		fs::path run_path = ffd::ConfigParser(config_path.string()).get_from<fs::path>("Global", "Run Path", "/var/lib/autotier");
+		return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));
+	} catch (const ffd::NoConfigException &e) {
+		Logging::log.error(e.what());
 		exit(EXIT_FAILURE);
-	}
-	
-	while(config_file){
-		getline(config_file, line);
-		
-		strip_whitespace(line);
-		// full line comments:
-		if(line.empty() || line.front() == '#')
-			continue; // ignore comments
-		
-		if(line.front() != '['){
-			std::stringstream line_stream(line);
-			
-			getline(line_stream, key, '=');
-			strip_whitespace(key);
-			if(key != "Metadata Path")
-				continue;
-			
-			getline(line_stream, value);
-			strip_whitespace(value);
-			
-			run_path = value;
-			break;
+	} catch (const std::out_of_range &) {
+		try {
+			// try global
+			fs::path run_path = ffd::ConfigParser(config_path.string()).get_from<fs::path>("global", "Run Path", "/var/lib/autotier");
+			return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));
+		} catch (const std::out_of_range &) {
+			// try top level scope
+			fs::path run_path = ffd::ConfigParser(config_path.string()).get<fs::path>("Run Path", "/var/lib/autotier");
+			return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));
 		}
 	}
-	
-	return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));;
 }
 
 static void get_response(std::vector<std::string> &payload, const fs::path &run_path){
