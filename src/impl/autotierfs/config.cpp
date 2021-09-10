@@ -26,9 +26,6 @@
 #include <sstream>
 #include <regex>
 #include <cmath>
-extern "C" {
-	#include <sys/statvfs.h>
-}
 
 void validate_backend_path(const fs::path &path, const std::string &prefix, const std::string &path_desc, bool &errors, bool create = false){
 	bool is_directory = false;
@@ -85,10 +82,11 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		try {
 			ffd::ConfigSubsectionGuard guard(*this, "Global");
 			log_level_ = get<int>("Log Level", LogLevel::NORMAL);
-			copy_buff_sz_ = get<size_t>("Copy Buffer Size", 1024*1024);
-			tier_period_s_ = get<std::chrono::seconds>("Tier Period", std::chrono::seconds(TIER_PERIOD_DISBLED));
+			copy_buff_sz_ = get<ffd::Bytes>("Copy Buffer Size", ffd::Bytes(1024*1024)).get();
+			tier_period_s_ = std::chrono::seconds(get<int64_t>("Tier Period", int64_t(TIER_PERIOD_DISBLED)));
 			strict_period_ = get<bool>("Strict Period", false);
-			run_path_ = get<fs::path>("Run Path", "/var/lib/autotier");
+			run_path_ = get<std::string>("Run Path", "/var/lib/autotier");
+			break;
 		} catch (const std::out_of_range &e) {
 			++global_header_itr;
 		}
@@ -96,36 +94,38 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 	if (global_header_itr == valid_global_headers.end()) {
 		Logging::log.warning("No global section in config! Trying top level scope or defaults (no tiering).");
 		log_level_ = get<int>("Log Level", LogLevel::NORMAL);
-		copy_buff_sz_ = get<size_t>("Copy Buffer Size", 1024*1024);
-		tier_period_s_ = get<std::chrono::seconds>("Tier Period", std::chrono::seconds(TIER_PERIOD_DISBLED));
+		copy_buff_sz_ = get<ffd::Bytes>("Copy Buffer Size", ffd::Bytes(1024*1024)).get();
+		tier_period_s_ = std::chrono::seconds(get<int64_t>("Tier Period", int64_t(TIER_PERIOD_DISBLED)));
 		strict_period_ = get<bool>("Strict Period", false);
-		run_path_ = get<fs::path>("Run Path", "/var/lib/autotier");
+		run_path_ = get<std::string>("Run Path", "/var/lib/autotier");
 	}
-	
+
 	// fill overrides
 	if(config_overrides.log_level_override.overridden()){
 		log_level_ = config_overrides.log_level_override.value();
 	}
+	Logging::log.set_level(log_level_);
+	Logging::log.message("Global config loaded.", 2);
 	
-	struct statvfs st;
-	int res;
 	for (ffd::ConfigNode *subsection : sub_confs_) {
 		std::string tier_name = subsection->value_;
 		if (regex_match(tier_name, std::regex("^\\s*[Gg]lobal\\s*$")))
 			continue;
-		ffd::ConfigSubsectionGuard(*this, tier_name);
+		Logging::log.message("Checking config[" + tier_name + "]", 2);
+		ffd::ConfigSubsectionGuard guard(*this, tier_name);
 		Tier tier(tier_name);
-		tier.path(get<fs::path>("Path", &errors));
+		tier.path(get<std::string>("Path", &errors));
 		if (errors)
 			continue;
 		tier.get_capacity_and_usage();
 		ffd::Bytes tier_size(tier.capacity());
 		ffd::Quota quota;
 		quota = get_quota("Quota", tier_size, ffd::Quota(tier_size, 1.0));
-		tier.quota_percent(quota.get_fraction());
+		tier.quota_percent(quota.get_fraction() * 100.0);
 		tier.quota_bytes(quota.get());
-		tiers.push_back(tier);
+		tiers.push_back(std::move(tier));
 	}
+	Logging::log.message("Tier configs loaded.", 2);
 	
 	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
 	validate_backend_path(run_path_, "Global", "Metadata Path", errors, true);
@@ -143,7 +143,6 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		exit(EXIT_FAILURE);
 	}
 	
-	Logging::log.set_level(log_level_);
 }
 
 size_t Config::copy_buff_sz(void) const{
