@@ -3,7 +3,7 @@ CLI_TARGET = dist/from_source/autotier
 FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb -l:lib45d.a
 CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread -l:lib45d.a
 CC = g++
-CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
+CFLAGS = -g -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
 FS_LIBS += $(EXTRA_LIBS)
 CFLAGS += $(EXTRA_CFLAGS)
