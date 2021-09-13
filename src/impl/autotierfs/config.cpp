@@ -27,6 +27,10 @@
 #include <regex>
 #include <cmath>
 
+extern "C" {
+	#include <sys/statvfs.h>
+}
+
 void validate_backend_path(const fs::path &path, const std::string &prefix, const std::string &path_desc, bool &errors, bool create = false){
 	bool is_directory = false;
 	bool no_perm = false;
@@ -113,17 +117,17 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 			continue;
 		Logging::log.message("Checking config[" + tier_name + "]", 2);
 		ffd::ConfigSubsectionGuard guard(*this, tier_name);
-		Tier tier(tier_name);
-		tier.path(get<std::string>("Path", &errors));
+		std::string tier_path = get<std::string>("Path", &errors);
 		if (errors)
 			continue;
-		tier.get_capacity_and_usage();
-		ffd::Bytes tier_size(tier.capacity());
-		ffd::Quota quota;
-		quota = get_quota("Quota", tier_size, ffd::Quota(tier_size, 1.0));
-		tier.quota_percent(quota.get_fraction() * 100.0);
-		tier.quota_bytes(quota.get());
-		tiers.push_back(std::move(tier));
+		struct statvfs fs_stats;
+		if((statvfs(tier_path.c_str(), &fs_stats) == -1)){
+			Logging::log.error("statvfs() failed on " + tier_path);
+			exit(EXIT_FAILURE);
+		}
+		ffd::Bytes tier_size(fs_stats.f_blocks * fs_stats.f_frsize);
+		ffd::Quota quota = get_quota("Quota", tier_size, ffd::Quota(tier_size, 1.0));
+		tiers.emplace_back(tier_name, tier_path, quota);
 	}
 	Logging::log.message("Tier configs loaded.", 2);
 	
@@ -170,8 +174,8 @@ void Config::dump(const std::list<Tier> &tiers, std::stringstream &ss) const{
 	ss << " " << std::endl;
 	for(const Tier &t : tiers){
 		ss << "[" << t.id() << "]" << std::endl;
-		ss << "Path = " << t.path().string() << std::endl;
-		ss << "Quota = " << t.quota_percent() << " % (" << Logging::log.format_bytes(t.quota_bytes()) << ")" << std::endl;
+		ss << "Path = " << t.path() << std::endl;
+		ss << "Quota = " << t.quota().get_fraction() * 100.0 << " % (" << t.quota().get_str() << ")" << std::endl;
 		ss << " " << std::endl;
 	}
 }
