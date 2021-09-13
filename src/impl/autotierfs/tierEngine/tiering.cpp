@@ -22,7 +22,7 @@
 #include <thread>
 #include <regex>
 
-#ifndef NO_PAR_SORT
+#if __cplusplus >= 201703L
 #include <execution>
 #endif
 
@@ -70,17 +70,17 @@ bool TierEngine::tier(void){
 	return true;
 }
 
-void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage)){
+void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage)){
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		std::atomic<uintmax_t> usage(0);
+		std::atomic<ffd::Bytes> usage(0);
 		crawl(t->path(), &(*t), function, usage);
 		t->usage(usage);
 	}
 }
 
-void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage){
+void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage), std::atomic<ffd::Bytes> &usage){
 	// TODO: Replace this with multithreaded BFS
 	std::regex temp_file_re("\\.[^/]*\\.autotier\\.hide$");
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
@@ -93,10 +93,10 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 	}
 }
 
-void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage){
+void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes> &usage){
 	files_.emplace_back(file.path(), db_, tptr);
-	uintmax_t size = files_.back().size();
-	usage += size;
+	ffd::Bytes size = files_.back().size();
+	usage = usage + size;
 	if(files_.back().is_pinned()){
 		files_.pop_back();
 	}else{
@@ -119,19 +119,21 @@ void TierEngine::calc_popularity(void){
 void TierEngine::sort(void){
 	Logging::log.message("Sorting files.", 2);
 	std::sort(
-#ifndef NO_PAR_SORT
+#if __cplusplus >= 201703L
 		std::execution::par,
 #endif
 		files_.begin(), files_.end(),
 		[](const File &a, const File &b){
-			if(a.popularity() == b.popularity()){
+			double a_pop = a.popularity();
+			double b_pop = b.popularity();
+			if(a_pop == b_pop){
 				struct timeval a_t = a.atime();
 				struct timeval b_t = b.atime();
 				if(a_t.tv_sec == b_t.tv_sec)
 					return a_t.tv_usec > b_t.tv_usec;
 				return a_t.tv_sec > b_t.tv_sec;
 			}
-			return a.popularity() > b.popularity();
+			return a_pop > b_pop;
 		}
 	);
 }
@@ -139,7 +141,7 @@ void TierEngine::sort(void){
 void TierEngine::simulate_tier(void){
 	Logging::log.message("Finding files' tiers.", 2);
 	for(Tier &t : tiers_)
-		t.get_capacity_and_usage();
+		t.reset_sim();
 	std::vector<File>::iterator fptr = files_.begin();
 	std::list<Tier>::iterator tptr = tiers_.begin();
 	while(fptr != files_.end()){
