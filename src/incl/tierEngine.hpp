@@ -29,6 +29,7 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+#include <45d/Bytes.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
@@ -137,20 +138,20 @@ public:
 	 * respective tiers. Returns true if tiering happened,
 	 * false if failed to lock mutex.
 	 */
-	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage));
+	void launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage));
 	/* Call crawl() for each tier in tiers.
 	 */
-	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<uintmax_t> &usage), std::atomic<uintmax_t> &usage);
+	void crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage), std::atomic<ffd::Bytes> &usage);
 	/* Recurse into tier directory, executing function on each file.
 	 * Function can be emplace_file(), print_file_pins(), or print_file_popularity().
 	 */
-	void emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
+	void emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes> &usage);
 	/* Place file into files_, constructing with fs::path, Tier*, and db_.
 	 */
-	void print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
+	void print_file_pins(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes> &usage);
 	/* Construct File from file, if pinned, print tier ID.
 	 */
-	void print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<uintmax_t> &usage);
+	void print_file_popularity(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes> &usage);
 	/* Construct File from file, print popularity.
 	 */
 	void calc_popularity(void);

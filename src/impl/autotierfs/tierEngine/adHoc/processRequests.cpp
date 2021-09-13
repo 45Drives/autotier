@@ -22,6 +22,7 @@
 #include "version.hpp"
 #include "conflicts.hpp"
 #include <sstream>
+#include <45d/Bytes.hpp>
 
 void TierEngine::process_adhoc_requests(void){
 	std::vector<std::string> payload;
@@ -167,9 +168,9 @@ namespace l{
 }
 
 void TierEngine::process_status(const AdHoc &work){
-	uintmax_t total_capacity = 0;
-	uintmax_t total_quota_capacity = 0;
-	uintmax_t total_usage = 0;
+	ffd::Bytes total_capacity = 0;
+	ffd::Bytes total_quota_capacity = 0;
+	ffd::Bytes total_usage = 0;
 	std::vector<std::string> payload;
 	
 	bool json;
@@ -194,11 +195,11 @@ void TierEngine::process_status(const AdHoc &work){
 	std::string unit("");
 	for(const Tier &t : tiers_){
 		total_capacity += t.capacity();
-		total_quota_capacity += t.quota_bytes();
+		total_quota_capacity += t.quota();
 		total_usage += t.usage_bytes();
 	}
-	double overall_quota = (double)total_quota_capacity  * 100.0 / (double)total_capacity;
-	double total_percent_usage = (double)total_usage * 100.0 / (double)total_capacity;
+	double overall_quota = total_quota_capacity / total_capacity * 100.0;
+	double total_percent_usage = total_usage / total_capacity * 100.0;
 	
 	std::vector<std::string> conflicts;
 	bool has_conflicts = check_conflicts(conflicts, run_path_);
@@ -209,12 +210,12 @@ void TierEngine::process_status(const AdHoc &work){
 		"{"
 			"\"version\":\"" VERS "\","
 			"\"combined\":{"
-				"\"capacity\":" + std::to_string(total_capacity) + ","
-				"\"capacity_pretty\":\"" + Logging::log.format_bytes(total_capacity) + "\","
-				"\"quota\":" + std::to_string(total_quota_capacity) + ","
-				"\"quota_pretty\":\"" + Logging::log.format_bytes(total_quota_capacity) + "\","
-				"\"usage\":" + std::to_string(total_usage) + ","
-				"\"usage_pretty\":\"" + Logging::log.format_bytes(total_usage) + "\","
+				"\"capacity\":" + std::to_string(total_capacity.get()) + ","
+				"\"capacity_pretty\":\"" + total_capacity.get_str() + "\","
+				"\"quota\":" + std::to_string(total_quota_capacity.get()) + ","
+				"\"quota_pretty\":\"" + total_quota_capacity.get_str() + "\","
+				"\"usage\":" + std::to_string(total_usage.get()) + ","
+				"\"usage_pretty\":\"" + total_usage.get_str() + "\","
 				"\"path\":\"" + mount_point_.string() + "\""
 			"},"
 			"\"tiers\":[";
@@ -222,12 +223,12 @@ void TierEngine::process_status(const AdHoc &work){
 			ss <<
 				"{"
 					"\"name\":\"" + tptr->id() + "\","
-					"\"capacity\":" + std::to_string(tptr->capacity()) + ","
-					"\"capacity_pretty\":\"" + Logging::log.format_bytes(tptr->capacity()) + "\","
-					"\"quota\":" + std::to_string(tptr->quota_bytes()) + ","
-					"\"quota_pretty\":\"" + Logging::log.format_bytes(tptr->quota_bytes()) + "\","
-					"\"usage\":" + std::to_string(tptr->usage_bytes()) + ","
-					"\"usage_pretty\":\"" + Logging::log.format_bytes(tptr->usage_bytes()) + "\","
+					"\"capacity\":" + std::to_string(tptr->capacity().get()) + ","
+					"\"capacity_pretty\":\"" + tptr->capacity().get_str() + "\","
+					"\"quota\":" + std::to_string(tptr->quota().get()) + ","
+					"\"quota_pretty\":\"" + tptr->quota().get_str() + "\","
+					"\"usage\":" + std::to_string(tptr->usage_bytes().get()) + ","
+					"\"usage_pretty\":\"" + tptr->usage_bytes().get_str() + "\","
 					"\"path\":\"" + tptr->path().string() + "\""
 				"}";
 			if(std::next(tptr) != tiers_.end())
@@ -287,16 +288,16 @@ void TierEngine::process_status(const AdHoc &work){
 			// Combined
 			ss << std::setw(namew) << std::left << "combined"; // tier
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity, unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity, unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << overall_quota;
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage, unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
@@ -309,16 +310,16 @@ void TierEngine::process_status(const AdHoc &work){
 			// Tiers
 			ss << std::setw(namew) << std::left << tptr->id(); // tier
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota_bytes(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->quota_percent();
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
 			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->usage_percent();

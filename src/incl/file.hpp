@@ -21,39 +21,26 @@
 
 #include "metadata.hpp"
 #include <rocksdb/db.h>
+#include <45d/Bytes.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 class Tier;
 
+/**
+ * @brief File object to represent a file in the autotier filesystem.
+ * 
+ */
 class File{
-	/* File object to represent a file in the autotier filesystem.
-	 */
 private:
-	uintmax_t size_ = 0;
-	/* Size of file in bytes.
-	 */
-	Tier *tier_ptr_;
-	/* Pointer to Tier object representing the tier containing this file.
-	 */
-	struct timeval times_[2];
-	/* atime and mtime of the file. Used to overwrite changes from copying file.
-	 */
-	time_t atime_;
-	/* Just the atime of the file.
-	 */
-	time_t ctime_;
-	/* Just the ctime of the file.
-	 */
-	fs::path relative_path_;
-	/* Location of file relative to the tier and the filesystem mountpoint.
-	 */
-	rocksdb::DB *db_;
-	/* Database storing metadata.
-	 */
-	Metadata metadata_;
-	/* Metadata of object retrieved from database.
-	 */
+	ffd::Bytes size_; ///< Size of file on disk
+	Tier *tier_ptr_; ///< Pointer to Tier object representing the tier containing this file.
+	struct timeval times_[2]; ///< atime and mtime of the file. Used to overwrite changes from copying file.
+	time_t atime_; ///< Just the atime of the file.
+	time_t ctime_; ///< Just the ctime of the file.
+	fs::path relative_path_; ///< Location of file relative to the tier and the filesystem mountpoint.
+	rocksdb::DB *db_; ///< Database storing metadata.
+	Metadata metadata_; ///< Metadata of object retrieved from database.
 public:
 	File(void);
 	/* Empty constructor.
@@ -89,7 +76,7 @@ public:
 	struct timeval atime(void) const;
 	/* Get atime.
 	 */
-	uintmax_t size(void) const;
+	ffd::Bytes size(void) const;
 	/* Get size of file in bytes.
 	 */
 	void pin(void);

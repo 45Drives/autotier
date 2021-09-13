@@ -22,137 +22,198 @@
 #include <queue>
 #include <rocksdb/db.h>
 #include <mutex>
+#include <45d/Quota.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 class File;
 
+/**
+ * @brief Class to represent each tier in the filesystem.
+ * 
+ */
 class Tier{
-	/* Class to represent each tier in the filesystem.
-	 */
 private:
-	double quota_percent_ = -1.0;
-	/* Percent fullness at which to stop
-	 * filling tier and move to next one.
-	 */
-	uintmax_t quota_bytes_ = (uintmax_t)-1;
-	/* Number of bytes to stop filling at,
-	 * calculated from watermark_ and capacity_.
-	 */
-	uintmax_t capacity_;
-	/* Number of bytes available in the tier,
-	 * calculated from the results of a statvfs() call.
-	 */
-	uintmax_t usage_ = 0;
-	/* Real current bytes used in underlying filesystem.
-	 */
-	intmax_t sim_usage_;
-	/* Number of bytes used, used while simulating
+	ffd::Quota quota_; ///< Holds maximum size and percent allotted
+	ffd::Bytes usage_; ///< Real current bytes used in underlying filesystem.
+	/**
+	 * @brief Number of bytes used, used while simulating
 	 * the tiering of files to determine where to place each file.
 	 */
-	std::string id_;
-	/* User-defined friendly name of tier,
+	ffd::Bytes sim_usage_;
+	/**
+	 * @brief User-defined friendly name of tier,
 	 * in square bracket header of tier definition
 	 * in config file.
 	 */
-	fs::path path_;
-	/* Backend path to tier.
-	 */
-	std::vector<File *> incoming_files_;
-	/* Queue of files to be placed into the tier, filled
+	std::string id_;
+	fs::path path_; ///< Backend path to tier.
+	/**
+	 * @brief Queue of files to be placed into the tier, filled
 	 * during the simulation of tiering and used while actually
 	 * tiering.
 	 */
-	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
-	/* Copy ownership and permissions from old_path to new_path,
+	std::vector<File *> incoming_files_;
+	/**
+	 * @brief Copy ownership and permissions from old_path to new_path,
 	 * called after copying a file to a different tier.
+	 * 
+	 * @param old_path Path to file before moving
+	 * @param new_path Path to file after moving
 	 */
-	std::mutex usage_mt_;
-	/* Mutex to be used in {add,subtract}_file_size() for FUSE threads.
-	 */
+	void copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const;
+	std::mutex usage_mt_; ///< Mutex to be used in {add,subtract}_file_size() for FUSE threads.
 public:
-	Tier(std::string id);
-	/* Constructor assigns user-defined ID.
+	/**
+	 * @brief Construct a new Tier object
+	 * 
+	 * @param id User-defined ID of tier from config subsection header
+	 * @param path Path to tier in filesystem
+	 */
+	Tier(std::string id, const fs::path &path, const ffd::Quota &quota);
+	/**
+	 * @brief Copy construct a new Tier object
+	 * 
+	 * @param other Tier to be copied
 	 */
 	Tier(Tier &&other)
-		: quota_percent_(std::move(other.quota_percent_))
-		, quota_bytes_(std::move(other.quota_bytes_))
-		, capacity_(std::move(other.capacity_))
+		: quota_(std::move(other.quota_))
 		, usage_(std::move(other.usage_))
 		, sim_usage_(std::move(other.sim_usage_))
 		, id_(std::move(other.id_))
 		, path_(std::move(other.path_))
 		, incoming_files_(std::move(other.incoming_files_))
 		, usage_mt_() {}
+	/**
+	 * @brief Destroy the Tier object
+	 * 
+	 */
 	~Tier() = default;
-	/* Default destructor.
+	/**
+	 * @brief Add size bytes to usage_.
+	 * 
+	 * @param size 
 	 */
-	void add_file_size(uintmax_t size);
-	/* Add size bytes to usage_.
+	void add_file_size(ffd::Bytes size);
+	/**
+	 * @brief Subtract size bytes from usage.
+	 * 
+	 * @param size 
 	 */
-	void subtract_file_size(uintmax_t size);
-	/* Subtract size bytes from usage.
+	void subtract_file_size(ffd::Bytes size);
+	/**
+	 * @brief Subtract old_size then add new_size, locking mutex for
+	 * thread safety.
+	 * 
+	 * @param old_size Subtract this
+	 * @param new_size Add this
 	 */
-	void size_delta(intmax_t old_size, intmax_t new_size);
-	/* Subtract old_size then add new_size.
+	void size_delta(ffd::Bytes old_size, ffd::Bytes new_size);
+	/**
+	 * @brief Add size bytes to sim_usage_.
+	 * 
+	 * @param size 
 	 */
-	void add_file_size_sim(uintmax_t size);
-	/* Add size bytes to sim_usage_.
+	void add_file_size_sim(ffd::Bytes size);
+	/**
+	 * @brief Subtract size bytes from sim_usage.
+	 * 
+	 * @param size 
 	 */
-	void subtract_file_size_sim(uintmax_t size);
-	/* Subtract size bytes from sim_usage.
+	void subtract_file_size_sim(ffd::Bytes size);
+	/**
+	 * @brief Set quota percentage
+	 * 
+	 * @param quota_percent 
 	 */
 	void quota_percent(double quota_percent);
-	/* Set  quota_percent_.
+	/**
+	 * @brief Get quota percentage
+	 * 
+	 * @return double 
 	 */
 	double quota_percent(void) const;
-	/* Get quota_percent_.
+	/**
+	 * @brief Get quota_
+	 * 
+	 * @return ffd::Quota 
 	 */
-	void get_capacity_and_usage(void);
-	/* Find capacity_ from statvfs() call and set usage to 0.
-	 */
-	void calc_quota_bytes(void);
-	/* Determine quota_bytes_ from quota_percent_ and capacity_.
-	 */
-	void quota_bytes(uintmax_t watermark_bytes);
-	/* Set quota_bytes_.
-	 */
-	uintmax_t quota_bytes(void) const;
-	/* Get quota_bytes_.
+	ffd::Quota quota(void) const;
+	/**
+	 * @brief returns true if file would make tier overfilled.
+	 * (usage_ + file.size() > quota_bytes_).
+	 * 
+	 * @param file File to test
+	 * @return true file would make tier overfilled
+	 * @return false file would fit in tier
 	 */
 	bool full_test(const File &file) const;
-	/* returns usage_ + file.size() > quota_bytes_.
-	 */
-	void path(const fs::path &path);
-	/* Set path_ and call get_capacity_and_usage().
+	/**
+	 * @brief Get path to root of tier
+	 * 
+	 * @return const std::string& 
 	 */
 	const fs::path &path(void) const;
-	/* Get path_.
+	/**
+	 * @brief Get user-defined ID of tier
+	 * 
+	 * @return const fs::path& 
 	 */
 	const std::string &id(void) const;
-	/* Get id_.
+	/**
+	 * @brief Push file pointer into incoming_files_.
+	 * 
+	 * @param fptr 
 	 */
 	void enqueue_file_ptr(File *fptr);
-	/* Push file pointer into incoming_files_.
+	/**
+	 * @brief Iterate through incoming_files_ and move each file into
+	 * the tier.
+	 * 
+	 * @param buff_sz 
+	 * @param run_path 
 	 */
 	void transfer_files(int buff_sz, const fs::path &run_path);
-	/* Iterate through incoming_files_ and move each file into
-	 * the tier.
+	/**
+	 * @brief Called in transfer_files() to actually copy the file and
+	 * remove the old one.
+	 * 
+	 * @param old_path 
+	 * @param new_path 
+	 * @param buff_sz 
+	 * @param conflicted 
+	 * @param orig_tier 
+	 * @return true 
+	 * @return false 
 	 */
 	bool move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted = nullptr, std::string orig_tier = "") const;
-	/* Called in transfer_files() to actually copy the file and
-	 * remove the old one.
+	/**
+	 * @brief Set tier usage_ in bytes.
+	 * 
+	 * @param usage 
 	 */
-	void usage(uintmax_t usage);
-	/* Set tier usage_ in bytes.
+	void usage(ffd::Bytes usage);
+	/**
+	 * @brief Return real current usage as percent.
+	 * 
+	 * @return double 
 	 */
 	double usage_percent(void) const;
-	/* Return real current usage as percent.
+	/**
+	 * @brief Return real current usage in bytes.
+	 * 
+	 * @return ffd::Bytes 
 	 */
-	uintmax_t usage_bytes(void) const;
-	/* Return real current usage in bytes.
+	ffd::Bytes usage_bytes(void) const;
+	/**
+	 * @brief Set sim_usage_ to zero
+	 * 
 	 */
-	uintmax_t capacity(void) const;
-	/* Return capacity in bytes.
+	void reset_sim(void);
+	/**
+	 * @brief Return capacity in bytes.
+	 * 
+	 * @return ffd::Bytes 
 	 */
+	ffd::Bytes capacity(void) const;
 };

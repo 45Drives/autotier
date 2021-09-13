@@ -38,73 +38,48 @@ void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &ne
 	chmod(new_path.c_str(), info.st_mode);
 }
 
-Tier::Tier(std::string id){
-	id_ = id;
-	usage_ = 0;
-}
+Tier::Tier(std::string id, const fs::path &path, const ffd::Quota &quota)
+	: quota_(quota)
+	, usage_(0)
+	, sim_usage_(0)
+	, id_(id)
+	, path_(path)
+	, incoming_files_()
+	, usage_mt_() {}
 
-void Tier::add_file_size(uintmax_t size){
+void Tier::add_file_size(ffd::Bytes size){
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ += size;
 }
 
-void Tier::subtract_file_size(uintmax_t size){
+void Tier::subtract_file_size(ffd::Bytes size){
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ -= size;
 }
 
-void Tier::size_delta(intmax_t old_size, intmax_t new_size){
+void Tier::size_delta(ffd::Bytes old_size, ffd::Bytes new_size){
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ += new_size - old_size;
 }
 
-void Tier::add_file_size_sim(uintmax_t size){
+void Tier::add_file_size_sim(ffd::Bytes size){
 	sim_usage_ += size;
 }
 
-void Tier::subtract_file_size_sim(uintmax_t size){
+void Tier::subtract_file_size_sim(ffd::Bytes size){
 	sim_usage_ -= size;
 }
 
 void Tier::quota_percent(double quota_percent){
-	quota_percent_ = quota_percent;
+	quota_.set_fraction(quota_percent);
 }
 
 double Tier::quota_percent(void) const{
-	return quota_percent_;
-}
-
-void Tier::get_capacity_and_usage(void){
-	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1)){
-		Logging::log.error("statvfs() failed on " + path_.string());
-		exit(EXIT_FAILURE);
-	}
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
-	sim_usage_ = 0;
-}
-
-void Tier::calc_quota_bytes(void){
-	if(quota_bytes_ == (uintmax_t)-1)
-		quota_bytes_ = (double)capacity_ * quota_percent_ / 100.0;
-	else if(quota_percent_ == -1.0)
-		quota_percent_ = (double)quota_bytes_ * 100.0 / (double)capacity_;
-}
-
-void Tier::quota_bytes(uintmax_t quota_bytes){
-	quota_bytes_ = quota_bytes;
-}
-
-uintmax_t Tier::quota_bytes(void) const{
-	return quota_bytes_;
+	return quota_.get_fraction();
 }
 
 bool Tier::full_test(const File &file) const{
-	return sim_usage_ + file.size() > quota_bytes_;
-}
-
-void Tier::path(const fs::path &path){
-	path_ = path;
+	return sim_usage_ + file.size() > quota_;
 }
 
 const fs::path &Tier::path(void) const{
@@ -219,19 +194,23 @@ copy_error_out:
 	return false;
 }
 
-void Tier::usage(uintmax_t usage){
+void Tier::usage(ffd::Bytes usage){
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ = usage;
 }
 
 double Tier::usage_percent(void) const{
-	return double(usage_) / double(capacity_) * 100.0;
+	return usage_ / quota_ * 100.0;
 }
 
-uintmax_t Tier::usage_bytes(void) const{
+ffd::Bytes Tier::usage_bytes(void) const{
 	return usage_;
 }
 
-uintmax_t Tier::capacity(void) const{
-	return capacity_;
+void Tier::reset_sim(void) {
+	sim_usage_ = 0;
+}
+
+ffd::Bytes Tier::capacity(void) const{
+	return quota_.get();
 }

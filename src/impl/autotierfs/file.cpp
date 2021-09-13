@@ -47,7 +47,7 @@ File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
 	tier_ptr_ = tptr;
 	struct stat info;
 	lstat(full_path.c_str(), &info);
-	size_ = (uintmax_t)info.st_size;
+	size_ = {info.st_size};
 	times_[0].tv_sec = info.st_atim.tv_sec;
 	times_[0].tv_usec = info.st_atim.tv_nsec / 1000;
 	times_[1].tv_sec = info.st_mtim.tv_sec;
@@ -106,7 +106,7 @@ struct timeval File::atime(void) const{
 	return times_[0];
 }
 
-uintmax_t File::size(void) const{
+ffd::Bytes File::size(void) const{
 	return size_;
 }
 
