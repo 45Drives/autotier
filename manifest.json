@@ -52,11 +52,14 @@
     ],
     "changelog": {
         "urgency": "medium",
-        "version": "1.1.6",
-        "buildVersion": "3",
+        "version": "1.2.0",
+        "buildVersion": "1",
         "ignore": [],
-        "date": null,
+        "date": "2021-09-14T14:18:17.353644",
         "packager": "Joshua Boudreau <jboudreau@45drives.com>",
-        "changes": []
+        "changes": [
+            "Switch from unique config parser class to lib45d ConfigParser.",
+            "Use lib45d Bytes and Quota classes to clean up math while tiering."
+        ]
     }
 }
