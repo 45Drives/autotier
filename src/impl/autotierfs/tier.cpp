@@ -194,8 +194,8 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	return copy_success;
 	
 copy_error_out:
-	delete[] buff;
 	char *why = strerror(errno);
+	delete[] buff;
 	Logging::log.error(std::string("Copy failed: ") + why);
 	return false;
 }
