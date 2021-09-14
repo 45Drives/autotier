@@ -45,7 +45,9 @@ Tier::Tier(std::string id, const fs::path &path, const ffd::Quota &quota)
 	, id_(id)
 	, path_(path)
 	, incoming_files_()
-	, usage_mt_() {}
+	, usage_mt_() {
+	quota_.set_rounding_method(ffd::Quota::RoundingMethod::DOWN); // round down to not surpass quota
+}
 
 void Tier::add_file_size(ffd::Bytes size){
 	std::lock_guard<std::mutex> lk(usage_mt_);
@@ -71,15 +73,19 @@ void Tier::subtract_file_size_sim(ffd::Bytes size){
 }
 
 void Tier::quota_percent(double quota_percent){
-	quota_.set_fraction(quota_percent);
+	quota_.set_fraction(quota_percent / 100.0);
 }
 
 double Tier::quota_percent(void) const{
-	return quota_.get_fraction();
+	return quota_.get_fraction() * 100.0;
+}
+
+ffd::Quota Tier::quota(void) const{
+	return quota_;
 }
 
 bool Tier::full_test(const File &file) const{
-	return sim_usage_ + file.size() > quota_;
+	return (sim_usage_ + file.size()) > quota_;
 }
 
 const fs::path &Tier::path(void) const{
@@ -212,5 +218,5 @@ void Tier::reset_sim(void) {
 }
 
 ffd::Bytes Tier::capacity(void) const{
-	return quota_.get();
+	return ffd::Bytes(quota_.get_max());
 }
