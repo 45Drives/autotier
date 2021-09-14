@@ -70,17 +70,27 @@ bool TierEngine::tier(void){
 	return true;
 }
 
-void TierEngine::launch_crawlers(void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage)){
+void TierEngine::launch_crawlers(
+		void (TierEngine::*function)(
+			fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
+		)
+	){
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		std::atomic<ffd::Bytes> usage(0);
+		std::atomic<ffd::Bytes::bytes_type> usage(0);
 		crawl(t->path(), &(*t), function, usage);
-		t->usage(usage);
+		t->usage(ffd::Bytes{usage});
 	}
 }
 
-void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes> &usage), std::atomic<ffd::Bytes> &usage){
+void TierEngine::crawl(
+		fs::path dir, Tier *tptr,
+		void (TierEngine::*function)(
+			fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
+		),
+		std::atomic<ffd::Bytes::bytes_type> &usage
+	){
 	// TODO: Replace this with multithreaded BFS
 	std::regex temp_file_re("\\.[^/]*\\.autotier\\.hide$");
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
@@ -93,10 +103,12 @@ void TierEngine::crawl(fs::path dir, Tier *tptr, void (TierEngine::*function)(fs
 	}
 }
 
-void TierEngine::emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes> &usage){
+void TierEngine::emplace_file(
+		fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
+	){
 	files_.emplace_back(file.path(), db_, tptr);
 	ffd::Bytes size = files_.back().size();
-	usage = usage + size;
+	usage += size.get();
 	if(files_.back().is_pinned()){
 		files_.pop_back();
 	}else{
