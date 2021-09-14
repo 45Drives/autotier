@@ -127,6 +127,10 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		}
 		ffd::Bytes tier_size(fs_stats.f_blocks * fs_stats.f_frsize);
 		ffd::Quota quota = get_quota("Quota", tier_size, ffd::Quota(tier_size, 1.0));
+		if (log_level_ >= 2) {
+			Logging::log.message("Tier path: " + tier_path, 2);
+			Logging::log.message("Tier quota: " + std::to_string(quota.get_fraction()*100.0) + "% " + quota.get_str() + " (" + ffd::Bytes(quota.get_max()).get_str() + ")", 2);
+		}
 		tiers.emplace_back(tier_name, tier_path, quota);
 	}
 	Logging::log.message("Tier configs loaded.", 2);
@@ -146,7 +150,6 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		Logging::log.error("Please fix these mistakes in " + config_path.string());
 		exit(EXIT_FAILURE);
 	}
-	
 }
 
 size_t Config::copy_buff_sz(void) const{
