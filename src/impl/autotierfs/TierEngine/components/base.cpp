@@ -94,3 +94,8 @@ Tier *TierEngineBase::tier_lookup(std::string id) {
 void TierEngineBase::mount_point(const fs::path &mount_point) {
     mount_point_ = mount_point;
 }
+
+bool TierEngineBase::tier(void) {
+	Logging::log.error("Virtual TierEngineBase::tier() called!");
+	exit(EXIT_FAILURE);
+}
