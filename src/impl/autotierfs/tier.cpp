@@ -159,7 +159,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 				res = lseek(dest_fd, offset, SEEK_SET);
 				if(res == (off_t)-1)
 					goto copy_error_out;
-				Logging::log.message("Tier ran out of space while moving files, trying again.", 2);
+				Logging::log.message("Tier ran out of space while moving files, trying again.", Logger::log_level_t::DEBUG);
 				std::this_thread::yield(); // let another thread run
 			}else if(bytes_written != bytes_read)
 				goto copy_error_out;

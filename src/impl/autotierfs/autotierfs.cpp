@@ -66,10 +66,10 @@ int main(int argc, char *argv[]){
 				fuse_opts = optarg;
 				break;
 			case 'v':
-				config_overrides.log_level_override = ConfigOverride<int>(2);
+				config_overrides.log_level_override = ConfigOverride<Logger::log_level_t>(Logger::log_level_t::DEBUG);
 				break;
 			case 'q':
-				config_overrides.log_level_override = ConfigOverride<int>(0);
+				config_overrides.log_level_override = ConfigOverride<Logger::log_level_t>(Logger::log_level_t::NONE);
 				break;
 			case 'V':
 				print_version = true;
@@ -90,14 +90,14 @@ int main(int argc, char *argv[]){
 				u8"└─ ┣ ├─\n"
 				u8"└─ ┃ └─\n"
 				u8"   ┛",
-				1
+				Logger::log_level_t::NORMAL
 			);
 		}
 		if(config_overrides.log_level_override.value() >= 2){
 			Logging::log.message(
 				"The logo shows three separate tiers on the left being combined into one storage space on the right.\n"
 				"The use of " u8"└─" " to represent filesystem hierarchy was inspired by the output of `tree`.",
-				1
+				Logger::log_level_t::DEBUG
 			);
 		}
 		exit(EXIT_SUCCESS);
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]){
 	}
 	try {
 		FusePassthrough at_filesystem(config_path, config_overrides);
-		Logging::log.set_output(SYSLOG);
+		Logging::log.set_output(Logger::output_t::SYSLOG);
 		at_filesystem.mount_fs(mountpoint, fuse_opts);
 	} catch (const ffd::ConfigException &e) {
 		Logging::log.error(e.what());

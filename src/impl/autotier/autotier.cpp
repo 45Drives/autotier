@@ -92,10 +92,10 @@ int main(int argc, char *argv[]){
 				json = true;
 				break;
 			case 'v':
-				Logging::log.set_level(2);
+				Logging::log.set_level(Logger::log_level_t::DEBUG);
 				break;
 			case 'q':
-				Logging::log.set_level(0);
+				Logging::log.set_level(Logger::log_level_t::NONE);
 				break;
 			case 'V':
 				print_version = true;
@@ -115,12 +115,12 @@ int main(int argc, char *argv[]){
 			u8"└─ ┣ ├─\n"
 			u8"└─ ┃ └─\n"
 			u8"   ┛",
-			1
+			Logger::log_level_t::NORMAL
 		);
 		Logging::log.message(
 			"The logo shows three separate tiers on the left being combined into one storage space on the right.\n"
 			"The use of " u8"└─" " to represent filesystem hierarchy was inspired by the output of `tree`.",
-			2
+			Logger::log_level_t::DEBUG
 		);
 		exit(EXIT_SUCCESS);
 	}

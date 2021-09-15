@@ -85,7 +85,8 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 	while (global_header_itr != valid_global_headers.end()) {
 		try {
 			ffd::ConfigSubsectionGuard guard(*this, "Global");
-			log_level_ = get<int>("Log Level", LogLevel::NORMAL);
+			int log_level_tmp = get<int>("Log Level", LogLevel::NORMAL);
+			log_level_ = (Logger::log_level_t)(log_level_tmp > 2 ? 2 : (log_level_tmp < 0 ? 0 : log_level_tmp));
 			copy_buff_sz_ = get<ffd::Bytes>("Copy Buffer Size", ffd::Bytes(1024*1024)).get();
 			tier_period_s_ = std::chrono::seconds(get<int64_t>("Tier Period", int64_t(TIER_PERIOD_DISBLED)));
 			strict_period_ = get<bool>("Strict Period", false);
@@ -97,7 +98,8 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 	}
 	if (global_header_itr == valid_global_headers.end()) {
 		Logging::log.warning("No global section in config! Trying top level scope or defaults (no tiering).");
-		log_level_ = get<int>("Log Level", LogLevel::NORMAL);
+		int log_level_tmp = get<int>("Log Level", LogLevel::NORMAL);
+		log_level_ = (Logger::log_level_t)(log_level_tmp > 2 ? 2 : (log_level_tmp < 0 ? 0 : log_level_tmp));
 		copy_buff_sz_ = get<ffd::Bytes>("Copy Buffer Size", ffd::Bytes(1024*1024)).get();
 		tier_period_s_ = std::chrono::seconds(get<int64_t>("Tier Period", int64_t(TIER_PERIOD_DISBLED)));
 		strict_period_ = get<bool>("Strict Period", false);

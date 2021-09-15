@@ -265,7 +265,7 @@ void cli_usage(){
 		"              - print version and exit\n"
 		"              - if log level >= 1, logo will also print\n"
 		"              - combine with -q to mute logo output",
-		0
+		Logger::log_level_t::NONE
 	);
 }
 
@@ -290,6 +290,6 @@ void fs_usage(){
 		"              - print version and exit\n"
 		"              - if log level >= 1, logo will also print\n"
 		"              - combine with -q to mute logo output",
-		0
+		Logger::log_level_t::NONE
 	);
 }
