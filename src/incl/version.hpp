@@ -19,4 +19,4 @@
 
 #pragma once
 
-#define VERS "1.1.6"
+#define VERS "1.2.0"
