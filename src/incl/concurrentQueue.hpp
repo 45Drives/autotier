@@ -27,28 +27,65 @@
 #include <queue>
 #include <mutex>
 
+/**
+ * @brief Single-consumer multiple-producer concurrent FIFO queue.
+ * 
+ * @tparam T Type to store.
+ */
 template<class T>
 class ConcurrentQueue{
-private:
-	std::mutex mt_;
-	std::queue<T> queue_;
 public:
+	/**
+	 * @brief Construct a new Concurrent Queue object
+	 * 
+	 */
 	ConcurrentQueue() : mt_(), queue_() {}
+	/**
+	 * @brief Destroy the Concurrent Queue object
+	 * 
+	 */
+	~ConcurrentQueue() = default;
+	/**
+	 * @brief Check if queue is empty. Call this first before trying to pop().
+	 * 
+	 * @return true Queue is empty, do not pop().
+	 * @return false Queue is not empty, safe to pop().
+	 */
 	bool empty(void) const{
 		return queue_.empty();
 	}
+	/**
+	 * @brief Insert into queue with std::queue<T>::push().
+	 * 
+	 * @param val Value to insert.
+	 */
 	void push(const T &val){
 		std::lock_guard<std::mutex> lk(mt_);
 		queue_.push(val);
 	}
-	void emplace(const T &val){
+	/**
+	 * @brief Emplace into queue with std::queue<T>::emplace().
+	 * 
+	 * @tparam Args args to expand into constructor of T
+	 * @param args args to expand into constructor of T
+	 */
+	template<typename... Args>
+	void emplace(Args&&... args){
 		std::lock_guard<std::mutex> lk(mt_);
-		queue_.emplace(val);
+		queue_.emplace(args...);
 	}
+	/**
+	 * @brief Pop value from queue. Check empty() first!
+	 * 
+	 * @return T Object returned from queue
+	 */
 	T pop(void){
 		std::lock_guard<std::mutex> lk(mt_);
 		T val = queue_.front();
 		queue_.pop();
 		return val;
 	}
+private:
+	std::mutex mt_; ///< Mutex for synchronization
+	std::queue<T> queue_; ///< Underlying queue to store objects in
 };
