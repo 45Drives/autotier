@@ -64,7 +64,8 @@ void TierEngineTiering::begin(bool daemon_mode) {
 
 bool TierEngineTiering::tier(void) {
 	{
-		if(lock_mutex() == -1){
+		std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
+		if(!lk.owns_lock() || lock_mutex() == -1){
 			Logging::log.warning("autotier already moving files.");
 			return false;
 		}
@@ -206,4 +207,11 @@ bool TierEngineTiering::currently_tiering(void) const {
 
 bool TierEngineTiering::strict_period(void) const {
 	return config_.strict_period();
+}
+
+void TierEngineTiering::exit(int status) {
+	Logging::log.message("Ensuring mutex is unlocked before exiting.", 2);
+	unlock_mutex();
+	stop();
+	::exit(status);
 }

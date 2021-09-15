@@ -30,13 +30,10 @@ TierEngineMutex::TierEngineMutex(const fs::path &config_path, const ConfigOverri
 }
 
 TierEngineMutex::~TierEngineMutex(void) {
-
+    unlock_mutex();
 }
 
 int TierEngineMutex::lock_mutex(void) {
-    std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
-    if(!lk.owns_lock())
-        return -1;
 	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL, 0700);
 	close(result);
 	return result;
