@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "alert.hpp"
+
 #include <45d/config/ConfigParser.hpp>
 #include <chrono>
 #include <boost/filesystem.hpp>
@@ -61,7 +63,7 @@ public:
 };
 
 struct ConfigOverrides{
-	ConfigOverride<int> log_level_override;
+	ConfigOverride<Logger::log_level_t> log_level_override;
 };
 
 class Tier;
@@ -105,7 +107,7 @@ private:
 	 * by CLI flags [ --verbose | --quiet ]
 	 * 
 	 */
-	int log_level_;
+	Logger::log_level_t log_level_;
 	/**
 	 * @brief Size of buffer for copying a file from one tier to another. 1MiB default.
 	 * 
