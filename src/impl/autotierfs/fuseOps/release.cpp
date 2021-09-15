@@ -45,7 +45,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "release";
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 #endif
 		
@@ -63,7 +63,7 @@ namespace fuse_ops{
 				{
 				std::stringstream ss;
 				ss << "size from LUT: " << priv->size_at_open(fi->fh);
-				Logging::log.message(ss.str(), 0);
+				Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 				}
 #endif
 				new_size = l::file_size(fi->fh);
@@ -73,7 +73,7 @@ namespace fuse_ops{
 				{
 				std::stringstream ss;
 				ss << "size after close: " << fs::file_size(fullpath);
-				Logging::log.message(ss.str(), 0);
+				Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 				}
 #endif
 			}catch(const std::out_of_range &){

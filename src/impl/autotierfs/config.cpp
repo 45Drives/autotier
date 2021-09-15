@@ -109,13 +109,13 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		log_level_ = config_overrides.log_level_override.value();
 	}
 	Logging::log.set_level(log_level_);
-	Logging::log.message("Global config loaded.", 2);
+	Logging::log.message("Global config loaded.", Logger::log_level_t::DEBUG);
 	
 	for (ffd::ConfigNode *subsection : sub_confs_) {
 		std::string tier_name = subsection->value_;
 		if (regex_match(tier_name, std::regex("^\\s*[Gg]lobal\\s*$")))
 			continue;
-		Logging::log.message("Checking config[" + tier_name + "]", 2);
+		Logging::log.message("Checking config[" + tier_name + "]", Logger::log_level_t::DEBUG);
 		ffd::ConfigSubsectionGuard guard(*this, tier_name);
 		std::string tier_path = get<std::string>("Path", &errors);
 		if (errors)
@@ -128,12 +128,12 @@ void Config::load_config(const fs::path &config_path, std::list<Tier> &tiers, co
 		ffd::Bytes tier_size(fs_stats.f_blocks * fs_stats.f_frsize);
 		ffd::Quota quota = get_quota("Quota", tier_size, ffd::Quota(tier_size, 1.0));
 		if (log_level_ >= 2) {
-			Logging::log.message("Tier path: " + tier_path, 2);
-			Logging::log.message("Tier quota: " + std::to_string(quota.get_fraction()*100.0) + "% " + quota.get_str() + " (" + ffd::Bytes(quota.get_max()).get_str() + ")", 2);
+			Logging::log.message("Tier path: " + tier_path, Logger::log_level_t::DEBUG);
+			Logging::log.message("Tier quota: " + std::to_string(quota.get_fraction()*100.0) + "% " + quota.get_str() + " (" + ffd::Bytes(quota.get_max()).get_str() + ")", Logger::log_level_t::DEBUG);
 		}
 		tiers.emplace_back(tier_name, tier_path, quota);
 	}
-	Logging::log.message("Tier configs loaded.", 2);
+	Logging::log.message("Tier configs loaded.", Logger::log_level_t::DEBUG);
 	
 	run_path_ /= std::to_string(std::hash<std::string>{}(config_path.string()));
 	validate_backend_path(run_path_, "Global", "Metadata Path", errors, true);

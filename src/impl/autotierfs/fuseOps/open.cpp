@@ -45,7 +45,7 @@ namespace fuse_ops{
 #ifdef LOG_METHODS
 		std::stringstream ss;
 		ss << "open " << path << " flags: " << std::bitset<8>(fi->flags);
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 #endif
 		
 		int is_directory = l::is_directory(path);
@@ -85,7 +85,7 @@ namespace fuse_ops{
 			{
 			std::stringstream ss;
 			ss << "size at open of " << fullpath << ": " << file_size << ", from LUT: " << priv->size_at_open(res);
-			Logging::log.message(ss.str(), 0);
+			Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 			}
 #endif
 		}

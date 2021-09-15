@@ -136,7 +136,7 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 					"If it is mounted, make sure to run this command as the user who mounted."
 				));
 			case EINTR:
-				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
+				Logging::log.message("Ad hoc server woken from blocked IO.", Logger::log_level_t::DEBUG);
 				return;
 			default:
 				throw(fifo_exception("Unhandled error while creating pipe: " + std::to_string(errno_)));
@@ -146,7 +146,7 @@ void get_fifo_payload(std::vector<std::string> &payload, const fs::path &pipe_pa
 	if(response_pipe->get(payload) == -1){
 		switch(errno){
 			case EINTR:
-				Logging::log.message("Ad hoc server woken from blocked IO.", 2);
+				Logging::log.message("Ad hoc server woken from blocked IO.", Logger::log_level_t::DEBUG);
 				return;
 			default:
 				throw(fifo_exception("Reading from pipe failed. errno: " + std::to_string(errno)));

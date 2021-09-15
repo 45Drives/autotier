@@ -82,7 +82,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(print_version){
-		Logging::log.message("autotier " VERS, 0);
+		Logging::log.message("autotier " VERS, Logger::log_level_t::NONE);
 		if(!config_overrides.log_level_override.overridden() || config_overrides.log_level_override.value() >= 1){
 			Logging::log.message(
 				u8"   ┓\n"

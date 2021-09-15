@@ -33,7 +33,7 @@ namespace fuse_ops{
 		(void) path;
 		
 #ifdef LOG_METHODS
-		Logging::log.message("flush fh", 0);
+		Logging::log.message("flush fh", Logger::log_level_t::NONE);
 #endif
 		
 		/* This is called from every close on an open file, so call the

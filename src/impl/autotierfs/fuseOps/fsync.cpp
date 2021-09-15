@@ -32,7 +32,7 @@ namespace fuse_ops{
 		int res;
 		
 #ifdef LOG_METHODS
-			Logging::log.message("fsync fh", 0);
+			Logging::log.message("fsync fh", Logger::log_level_t::NONE);
 #endif
 		
 		(void) path;

@@ -45,7 +45,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "unlink " << path;
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 #endif
 		

@@ -38,7 +38,7 @@ namespace fuse_ops{
 		{
 			std::stringstream ss;
 			ss << "create " << path << " mode: " << std::oct << mode << " flags: " << std::bitset<8>(fi->flags);
-			Logging::log.message(ss.str(), 0);
+			Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 #endif
 		int res;
@@ -56,7 +56,7 @@ namespace fuse_ops{
 		{
 			std::stringstream ss;
 			ss << "fullpath: " << fullpath << " res: " << res;
-			Logging::log.message(std::string(ss.str()), 0);
+			Logging::log.message(std::string(ss.str()), Logger::log_level_t::NONE);
 		}
 #endif
 		

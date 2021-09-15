@@ -129,7 +129,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
 	if(!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
-	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
+	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), Logger::log_level_t::DEBUG);
 	bool copy_success = true;
 	bool out_of_space = false;
 	char *buff = new char[buff_sz];
@@ -186,7 +186,7 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 			);
 		}else{
 			fs::rename(new_tmp_path, new_path);
-			Logging::log.message("Copy succeeded.\n", 2);
+			Logging::log.message("Copy succeeded.\n", Logger::log_level_t::DEBUG);
 		}
 	}
 	

@@ -108,7 +108,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(print_version){
-		Logging::log.message("autotier " VERS, 0);
+		Logging::log.message("autotier " VERS, Logger::log_level_t::NONE);
 		Logging::log.message(
 			u8"   ┓\n"
 			u8"└─ ┃ ├─\n"
@@ -192,14 +192,14 @@ int main(int argc, char *argv[]){
 			exit(126);
 		}
 		
-		Logging::log.message("Waiting for filesystem response...", 2);
+		Logging::log.message("Waiting for filesystem response...", Logger::log_level_t::DEBUG);
 		
 		response_listener.join();
 		
 		if(response.front() == "OK"){
-			Logging::log.message("Response OK.", 2);
+			Logging::log.message("Response OK.", Logger::log_level_t::DEBUG);
 			for(std::vector<std::string>::iterator itr = std::next(response.begin()); itr != response.end(); ++itr){
-				Logging::log.message(*itr, 0);
+				Logging::log.message(*itr, Logger::log_level_t::NONE);
 			}
 		}else{
 			for(std::vector<std::string>::iterator itr = std::next(response.begin()); itr != response.end(); ++itr){

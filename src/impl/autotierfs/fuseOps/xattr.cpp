@@ -47,7 +47,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "setxattr";
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 	#endif
 		
@@ -88,7 +88,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "getxattr " << path;
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 	#endif
 		
@@ -126,7 +126,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "listxattr";
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 	#endif
 		
@@ -163,7 +163,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "removexattr";
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 	#endif
 		

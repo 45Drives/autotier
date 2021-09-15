@@ -101,6 +101,6 @@ bool TierEngineBase::tier(void) {
 }
 
 void TierEngineBase::exit(int status) {
-	Logging::log.message("Base virtual exit() called. No cleanup was done.", 2);
+	Logging::log.message("Base virtual exit() called. No cleanup was done.", Logger::log_level_t::DEBUG);
 	::exit(status);
 }

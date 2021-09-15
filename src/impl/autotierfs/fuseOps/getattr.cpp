@@ -43,7 +43,7 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "getattr " << path;
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 #endif
 		
@@ -59,7 +59,7 @@ namespace fuse_ops{
 				{
 				std::stringstream ss;
 				ss << "getattr file " << path << " found? " << std::boolalpha << !f.not_found();
-				Logging::log.message(ss.str(), 0);
+				Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 				}
 #endif
 				if(f.not_found())
@@ -70,7 +70,7 @@ namespace fuse_ops{
 				{
 				std::stringstream ss;
 				ss << "path: " << (tier_path / path).c_str();
-				Logging::log.message(ss.str(), 0);
+				Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 				}
 #endif
 				res = lstat((tier_path / path).c_str(), stbuf);
@@ -78,7 +78,7 @@ namespace fuse_ops{
 				{
 				std::stringstream ss;
 				ss << "res: " << res;
-				Logging::log.message(ss.str(), 0);
+				Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 				}
 #endif
 			}
@@ -87,7 +87,7 @@ namespace fuse_ops{
 			{
 			std::stringstream ss;
 			ss << "getattr fh " << priv->fd_to_path(fi->fh);
-			Logging::log.message(ss.str(), 0);
+			Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 			}
 #endif
 			res = fstat(fi->fh, stbuf);

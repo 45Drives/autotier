@@ -43,18 +43,18 @@ namespace fuse_ops{
 		{
 		std::stringstream ss;
 		ss << "chmod";
-		Logging::log.message(ss.str(), 0);
+		Logging::log.message(ss.str(), Logger::log_level_t::NONE);
 		}
 #endif
 		
 		if(fi){
 #ifdef LOG_METHODS
-			Logging::log.message("chmod fh", 0);
+			Logging::log.message("chmod fh", Logger::log_level_t::NONE);
 #endif
 			res = ::fchmod(fi->fh, mode);
 		}else{
 #ifdef LOG_METHODS
-			Logging::log.message("chmod " + std::string(path), 0);
+			Logging::log.message("chmod " + std::string(path), Logger::log_level_t::NONE);
 #endif
 			int is_directory = l::is_directory(path);
 			if(is_directory == -1)

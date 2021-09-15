@@ -177,7 +177,7 @@ namespace fuse_ops{
 		
 		(void) path;
 #ifdef LOG_METHODS
-		Logging::log.message("fsyncdir fh", 0);
+		Logging::log.message("fsyncdir fh", Logger::log_level_t::NONE);
 #endif
 		for(int i = 0; i < priv->tiers_.size(); i++){
 			int fd = ::open(d->backends[i], O_DIRECTORY, 0777);

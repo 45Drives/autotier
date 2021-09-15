@@ -42,7 +42,7 @@ TierEngineTiering::~TierEngineTiering() {
 }
 
 void TierEngineTiering::begin(bool daemon_mode) {
-	Logging::log.message("autotier started.", 1);
+	Logging::log.message("autotier started.", Logger::log_level_t::NORMAL);
 	if(config_.tier_period_s() < std::chrono::seconds(0)){
 		last_tier_time_ = std::chrono::steady_clock::now();
 		while(daemon_mode && !stop_flag_){
@@ -77,7 +77,7 @@ bool TierEngineTiering::tier(void) {
 		sort();
 		simulate_tier();
 		move_files();
-		Logging::log.message("Tiering complete.", 2);
+		Logging::log.message("Tiering complete.", Logger::log_level_t::DEBUG);
 		files_.clear();
 		currently_tiering_ = false;
 		unlock_mutex();
@@ -90,7 +90,7 @@ void TierEngineTiering::launch_crawlers(
 			fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
 		)
 	) {
-	Logging::log.message("Gathering files.", 2);
+	Logging::log.message("Gathering files.", Logger::log_level_t::DEBUG);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
 		std::atomic<ffd::Bytes::bytes_type> usage(0);
@@ -132,19 +132,19 @@ void TierEngineTiering::emplace_file(
 }
 
 void TierEngineTiering::calc_popularity(void) {
-	Logging::log.message("Calculating file popularity.", 2);
+	Logging::log.message("Calculating file popularity.", Logger::log_level_t::DEBUG);
 	auto tier_time = std::chrono::steady_clock::now();
 	std::chrono::steady_clock::duration period = tier_time - last_tier_time_;
 	last_tier_time_ = tier_time;
 	double period_d = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1,1>>>(period).count();
-	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), 2);
+	Logging::log.message("Real period for popularity calc: " + std::to_string(period_d), Logger::log_level_t::DEBUG);
 	for(std::vector<File>::iterator f = files_.begin(); f != files_.end(); ++f){
 		f->calc_popularity(period_d);
 	}
 }
 
 void TierEngineTiering::sort(void) {
-	Logging::log.message("Sorting files.", 2);
+	Logging::log.message("Sorting files.", Logger::log_level_t::DEBUG);
 	std::sort(
 #if __cplusplus >= 201703L
 		std::execution::par,
@@ -166,7 +166,7 @@ void TierEngineTiering::sort(void) {
 }
 
 void TierEngineTiering::simulate_tier(void) {
-	Logging::log.message("Finding files' tiers.", 2);
+	Logging::log.message("Finding files' tiers.", Logger::log_level_t::DEBUG);
 	for(Tier &t : tiers_)
 		t.reset_sim();
 	std::vector<File>::iterator fptr = files_.begin();
@@ -186,7 +186,7 @@ void TierEngineTiering::simulate_tier(void) {
 
 void TierEngineTiering::move_files(void) {
 	std::vector<std::thread> threads;
-	Logging::log.message("Moving files.",2);
+	Logging::log.message("Moving files.",Logger::log_level_t::DEBUG);
 	for(std::list<Tier>::iterator titr = tiers_.begin(); titr != tiers_.end(); ++titr){
 		threads.emplace_back(&Tier::transfer_files, titr, config_.copy_buff_sz(), run_path_);
 	}
@@ -210,7 +210,7 @@ bool TierEngineTiering::strict_period(void) const {
 }
 
 void TierEngineTiering::exit(int status) {
-	Logging::log.message("Ensuring mutex is unlocked before exiting.", 2);
+	Logging::log.message("Ensuring mutex is unlocked before exiting.", Logger::log_level_t::DEBUG);
 	unlock_mutex();
 	stop();
 	::exit(status);
