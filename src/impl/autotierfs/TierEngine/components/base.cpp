@@ -99,3 +99,8 @@ bool TierEngineBase::tier(void) {
 	Logging::log.error("Virtual TierEngineBase::tier() called!");
 	exit(EXIT_FAILURE);
 }
+
+void TierEngineBase::exit(int status) {
+	Logging::log.message("Base virtual exit() called. No cleanup was done.", 2);
+	::exit(status);
+}
