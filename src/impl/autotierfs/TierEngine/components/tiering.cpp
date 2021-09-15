@@ -17,16 +17,27 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#include "TierEngine/components/tiering.hpp"
 #include "alert.hpp"
-#include <thread>
+#include "file.hpp"
+
 #include <regex>
+#include <thread>
 
-#if __cplusplus >= 201703L
-#include <execution>
-#endif
+TierEngineTiering::TierEngineTiering(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : TierEngineDatabase(config_path, config_overrides)
+    , TierEngineSleep(config_path, config_overrides)
+    , TierEngineAdhoc(config_path, config_overrides)
+	, TierEngineMutex(config_path, config_overrides)
+	, TierEngineBase(config_path, config_overrides) {
 
-void TierEngine::begin(bool daemon_mode){
+}
+
+TierEngineTiering::~TierEngineTiering() {
+
+}
+
+void TierEngineTiering::begin(bool daemon_mode) {
 	Logging::log.message("autotier started.", 1);
 	if(config_.tier_period_s() < std::chrono::seconds(0)){
 		last_tier_time_ = std::chrono::steady_clock::now();
@@ -47,15 +58,14 @@ void TierEngine::begin(bool daemon_mode){
 	}
 }
 
-bool TierEngine::tier(void){
+bool TierEngineTiering::tier(void) {
 	{
-		std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
-		if(!lk.owns_lock() || lock_mutex() == -1){
+		if(lock_mutex() == -1){
 			Logging::log.warning("autotier already moving files.");
 			return false;
 		}
 		currently_tiering_ = true;
-		launch_crawlers(&TierEngine::emplace_file);
+		launch_crawlers(&TierEngineTiering::emplace_file);
 		// one popularity calculation per loop
 		calc_popularity();
 		// mutex locked
@@ -70,11 +80,11 @@ bool TierEngine::tier(void){
 	return true;
 }
 
-void TierEngine::launch_crawlers(
-		void (TierEngine::*function)(
+void TierEngineTiering::launch_crawlers(
+		void (TierEngineTiering::*function)(
 			fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
 		)
-	){
+	) {
 	Logging::log.message("Gathering files.", 2);
 	// get ordered list of files in each tier
 	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
@@ -84,13 +94,13 @@ void TierEngine::launch_crawlers(
 	}
 }
 
-void TierEngine::crawl(
+void TierEngineTiering::crawl(
 		fs::path dir, Tier *tptr,
-		void (TierEngine::*function)(
+		void (TierEngineTiering::*function)(
 			fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
 		),
 		std::atomic<ffd::Bytes::bytes_type> &usage
-	){
+	) {
 	// TODO: Replace this with multithreaded BFS
 	std::regex temp_file_re("\\.[^/]*\\.autotier\\.hide$");
 	for(fs::directory_iterator itr{dir}; itr != fs::directory_iterator{}; *itr++){
@@ -103,9 +113,9 @@ void TierEngine::crawl(
 	}
 }
 
-void TierEngine::emplace_file(
+void TierEngineTiering::emplace_file(
 		fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage
-	){
+	) {
 	files_.emplace_back(file.path(), db_, tptr);
 	ffd::Bytes size = files_.back().size();
 	usage += size.get();
@@ -116,7 +126,7 @@ void TierEngine::emplace_file(
 	}
 }
 
-void TierEngine::calc_popularity(void){
+void TierEngineTiering::calc_popularity(void) {
 	Logging::log.message("Calculating file popularity.", 2);
 	auto tier_time = std::chrono::steady_clock::now();
 	std::chrono::steady_clock::duration period = tier_time - last_tier_time_;
@@ -128,7 +138,7 @@ void TierEngine::calc_popularity(void){
 	}
 }
 
-void TierEngine::sort(void){
+void TierEngineTiering::sort(void) {
 	Logging::log.message("Sorting files.", 2);
 	std::sort(
 #if __cplusplus >= 201703L
@@ -150,7 +160,7 @@ void TierEngine::sort(void){
 	);
 }
 
-void TierEngine::simulate_tier(void){
+void TierEngineTiering::simulate_tier(void) {
 	Logging::log.message("Finding files' tiers.", 2);
 	for(Tier &t : tiers_)
 		t.reset_sim();
@@ -169,7 +179,7 @@ void TierEngine::simulate_tier(void){
 	}
 }
 
-void TierEngine::move_files(void){
+void TierEngineTiering::move_files(void) {
 	std::vector<std::thread> threads;
 	Logging::log.message("Moving files.",2);
 	for(std::list<Tier>::iterator titr = tiers_.begin(); titr != tiers_.end(); ++titr){
@@ -180,16 +190,16 @@ void TierEngine::move_files(void){
 	}
 }
 
-void TierEngine::sleep_until(std::chrono::steady_clock::time_point t){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
+void TierEngineTiering::stop(void) {
+	std::lock_guard<std::mutex> lk(sleep_mt_);
+	stop_flag_ = true;
+	sleep_cv_.notify_one();
 }
 
-void TierEngine::sleep_until_woken(void){
-	std::unique_lock<std::mutex> lk(sleep_mt_);
-	sleep_cv_.wait(lk, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
-}
-
-bool TierEngine::currently_tiering(void) const{
+bool TierEngineTiering::currently_tiering(void) const {
 	return currently_tiering_;
+}
+
+bool TierEngineTiering::strict_period(void) const {
+	return config_.strict_period();
 }

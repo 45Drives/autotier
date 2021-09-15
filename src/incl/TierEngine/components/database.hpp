@@ -17,20 +17,20 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#pragma once
 
-std::list<Tier> &TierEngine::get_tiers(void){
-	return tiers_;
-}
+#include "base.hpp"
 
-rocksdb::DB *TierEngine::get_db(void){
-	return db_;
-}
-
-void TierEngine::mount_point(const fs::path &mount_point){
-	mount_point_ = mount_point;
-}
-
-bool TierEngine::strict_period(void) const{
-	return config_.strict_period();
-}
+class TierEngineDatabase : virtual public TierEngineBase {
+public:
+    TierEngineDatabase(const fs::path &config_path, const ConfigOverrides &config_overrides);
+    ~TierEngineDatabase(void);
+	rocksdb::DB *get_db(void);
+	/* Return db_, used in fusePassthrough.cpp for getting file
+	 * metadata.
+	 */
+private:
+	void open_db(void);
+	/* Opens RocksDB database.
+	 */
+};

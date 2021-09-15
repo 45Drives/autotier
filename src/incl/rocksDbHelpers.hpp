@@ -25,22 +25,22 @@
 #include <mutex>
 
 namespace l{
-	class PathSliceTransform : public rocksdb::SliceTransform{
+	class PathSliceTransform : public ::rocksdb::SliceTransform{
 	public:
 		~PathSliceTransform() = default;
 		const char *Name() const{
 			return "Path Slice Transform";
 		}
-		rocksdb::Slice Transform(const rocksdb::Slice &key) const{
+		::rocksdb::Slice Transform(const ::rocksdb::Slice &key) const{
 			std::string key_str = key.ToString();
-			return rocksdb::Slice(key_str.substr(0, key_str.find('/')));
+			return ::rocksdb::Slice(key_str.substr(0, key_str.find('/')));
 		}
-		bool InDomain(const rocksdb::Slice &key) const{
+		bool InDomain(const ::rocksdb::Slice &key) const{
 			return key.ToString().find('/') != std::string::npos;
 		}
-		bool InRange(const rocksdb::Slice& /*dst*/) const{return false;}
+		bool InRange(const ::rocksdb::Slice& /*dst*/) const{return false;}
 		bool FullLengthEnabled(size_t* /*len*/) const{return false;}
-		virtual bool SameResultWhenAppended(const rocksdb::Slice& /*prefix*/) const {return false;}
+		virtual bool SameResultWhenAppended(const ::rocksdb::Slice& /*prefix*/) const {return false;}
 	};
 	
 	extern const PathSliceTransform *NewPathSliceTransform();

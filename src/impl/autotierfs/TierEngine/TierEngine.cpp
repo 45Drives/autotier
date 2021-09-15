@@ -17,20 +17,10 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 
-Tier *TierEngine::tier_lookup(fs::path p){
-	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		if(t->path() == p)
-			return &(*t);
-	}
-	return nullptr;
-}
-
-Tier *TierEngine::tier_lookup(std::string id){
-	for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
-		if(t->id() == id)
-			return &(*t);
-	}
-	return nullptr;
+TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : TierEngineTiering(config_path, config_overrides)
+    , TierEngineBase(config_path, config_overrides) {
+    
 }

@@ -23,7 +23,7 @@
 
 #include "fuseOps.hpp"
 #include "fusePassthrough.hpp"
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 #include "alert.hpp"
 
 extern "C" {

@@ -25,7 +25,7 @@
 #include "fuseOps.hpp"
 #include "config.hpp"
 #include "alert.hpp"
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 
 FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides){
 	fuse_ops::autotier_ptr = new TierEngine(config_path, config_overrides);

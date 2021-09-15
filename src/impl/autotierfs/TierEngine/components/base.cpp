@@ -17,17 +17,28 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#include "TierEngine/components/base.hpp"
 #include "alert.hpp"
 
 extern "C" {
-	#include <fcntl.h>
 	#include <sys/stat.h>
 	#include <grp.h>
 }
 
-int TierEngine::create_run_path(void) const{
-	if(access(run_path_.c_str(), F_OK) != 0){
+TierEngineBase::TierEngineBase(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : tiers_()
+    , config_(config_path, std::ref(tiers_), config_overrides)
+    , run_path_(config_.run_path())
+	, sleep_cv_() {
+
+}
+
+TierEngineBase::~TierEngineBase(void) {
+
+}
+
+int TierEngineBase::create_run_path(void) const {
+    if(access(run_path_.c_str(), F_OK) != 0){
 		try{
 			fs::create_directories(run_path_);
 		}catch(const boost::system::error_code &ec){
@@ -58,4 +69,28 @@ int TierEngine::create_run_path(void) const{
 		}
 	}
 	return 0;
+}
+
+std::list<Tier> &TierEngineBase::get_tiers(void) {
+    return tiers_;
+}
+
+Tier *TierEngineBase::tier_lookup(fs::path p) {
+    for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
+		if(t->path() == p)
+			return &(*t);
+	}
+	return nullptr;
+}
+
+Tier *TierEngineBase::tier_lookup(std::string id) {
+    for(std::list<Tier>::iterator t = tiers_.begin(); t != tiers_.end(); ++t){
+		if(t->id() == id)
+			return &(*t);
+	}
+	return nullptr;
+}
+
+void TierEngineBase::mount_point(const fs::path &mount_point) {
+    mount_point_ = mount_point;
 }

@@ -17,16 +17,32 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#include "TierEngine/components/adhoc.hpp"
 #include "alert.hpp"
-#include "version.hpp"
 #include "conflicts.hpp"
-#include <sstream>
-#include <45d/Bytes.hpp>
+#include "version.hpp"
+#include "metadata.hpp"
 
-void TierEngine::process_adhoc_requests(void){
-	std::vector<std::string> payload;
-	while(!stop_flag_){
+#include <sstream>
+#include <iomanip>
+
+extern "C" {
+	#include <sys/stat.h>
+	#include <sys/time.h>
+}
+
+TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : TierEngineBase(config_path, config_overrides) {
+	
+}
+
+TierEngineAdhoc::~TierEngineAdhoc() {
+
+}
+
+void TierEngineAdhoc::process_adhoc_requests(void) {
+    std::vector<std::string> payload;
+    while(!stop_flag_){
 		try{
 			get_fifo_payload(payload, run_path_ / "request.pipe");
 		}catch(const fifo_exception &err){
@@ -77,8 +93,8 @@ void TierEngine::process_adhoc_requests(void){
 	}
 }
 
-void TierEngine::process_oneshot(const AdHoc &work){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
+    std::vector<std::string> payload;
 	if(!work.args_.empty()){
 		payload.emplace_back("ERR");
 		std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
@@ -102,8 +118,8 @@ void TierEngine::process_oneshot(const AdHoc &work){
 	}
 }
 
-void TierEngine::process_pin_unpin(const AdHoc &work){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
+    std::vector<std::string> payload;
 	std::vector<std::string>::const_iterator itr = work.args_.begin();
 	if(work.cmd_ == PIN){
 		std::string tier_id = work.args_.front();
@@ -167,8 +183,8 @@ namespace l{
 	}
 }
 
-void TierEngine::process_status(const AdHoc &work){
-	ffd::Bytes total_capacity = 0;
+void TierEngineAdhoc::process_status(const AdHoc &work) {
+    ffd::Bytes total_capacity = 0;
 	ffd::Bytes total_quota_capacity = 0;
 	ffd::Bytes total_usage = 0;
 	std::vector<std::string> payload;
@@ -347,8 +363,8 @@ void TierEngine::process_status(const AdHoc &work){
 	}
 }
 
-void TierEngine::process_config(void){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_config(void) {
+    std::vector<std::string> payload;
 	payload.emplace_back("OK");
 	std::stringstream ss;
 	config_.dump(tiers_, ss);
@@ -360,8 +376,8 @@ void TierEngine::process_config(void){
 	}
 }
 
-void TierEngine::process_list_pins(void){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_list_pins(void) {
+    std::vector<std::string> payload;
 	payload.emplace_back("OK");
 	std::stringstream ss;
 	ss << "File : Tier Path" << std::endl;
@@ -379,8 +395,8 @@ void TierEngine::process_list_pins(void){
 	}
 }
 
-void TierEngine::process_list_popularity(void){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_list_popularity(void) {
+    std::vector<std::string> payload;
 	payload.emplace_back("OK");
 	std::stringstream ss;
 	ss << "File : Popularity (accesses per hour)" << std::endl;
@@ -397,8 +413,8 @@ void TierEngine::process_list_popularity(void){
 	}
 }
 
-void TierEngine::process_which_tier(AdHoc &work){
-	std::vector<std::string> payload;
+void TierEngineAdhoc::process_which_tier(AdHoc &work) {
+    std::vector<std::string> payload;
 	payload.emplace_back("OK");
 	int namew = 0;
 	int tierw = 0;
@@ -449,5 +465,76 @@ void TierEngine::process_which_tier(AdHoc &work){
 		send_fifo_payload(payload, run_path_ / "response.pipe");
 	}catch(const fifo_exception &err){
 		Logging::log.warning(err.what());
+	}
+}
+
+void TierEngineAdhoc::execute_queued_work(void) {
+    while(!adhoc_work_.empty()){
+		AdHoc work = adhoc_work_.pop();
+		switch(work.cmd_){
+			case ONESHOT:
+				tier();
+				break;
+			case PIN:
+				pin_files(work.args_);
+				break;
+			case UNPIN:
+				unpin_files(work.args_);
+				break;
+			default:
+				Logging::log.warning("Trying to execute bad ad hoc command.");
+				break;
+		}
+	}
+}
+
+void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
+    Tier *tptr;
+	std::string tier_id = args.front();
+	if((tptr = tier_lookup(tier_id)) == nullptr){
+		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
+		return;
+	}
+	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
+		fs::path mounted_path = *fptr;
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.string(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
+			continue;
+		}
+		fs::path old_path = f.tier_path()/relative_path;
+		fs::path new_path = tptr->path()/relative_path;
+		struct stat st;
+		if(stat(old_path.c_str(), &st) == -1){
+			Logging::log.warning("stat failed on " + old_path.string() + ": " + strerror(errno));
+			continue;
+		}
+		struct timeval times[2];
+		times[0].tv_sec = st.st_atim.tv_sec;
+		times[0].tv_usec = st.st_atim.tv_nsec / 1000;
+		times[1].tv_sec = st.st_mtim.tv_sec;
+		times[1].tv_usec = st.st_mtim.tv_nsec / 1000;
+		if(tptr->move_file(old_path, new_path, config_.copy_buff_sz())){
+			utimes(new_path.c_str(), times);
+			f.pinned(true);
+			f.tier_path(tptr->path().string());
+			f.update(relative_path.string(), db_);
+		}
+	}
+	if(!config_.strict_period())
+		tier();
+}
+
+void TierEngineAdhoc::unpin_files(const std::vector<std::string> &args) {
+    for(const std::string &mounted_path : args){
+		fs::path relative_path = fs::relative(mounted_path, mount_point_);
+		Metadata f(relative_path.c_str(), db_);
+		if(f.not_found()){
+			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
+			continue;
+		}
+		f.pinned(false);
+		f.update(relative_path.c_str(), db_);
 	}
 }

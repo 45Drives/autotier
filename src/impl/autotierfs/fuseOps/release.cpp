@@ -25,7 +25,7 @@
 #include "alert.hpp"
 #include "tier.hpp"
 #include "openFiles.hpp"
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 
 #ifdef LOG_METHODS
 #include <sstream>

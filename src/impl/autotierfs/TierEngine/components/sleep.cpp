@@ -17,18 +17,24 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
+#include "TierEngine/components/sleep.hpp"
 
-extern "C" {
-	#include <fcntl.h>
+TierEngineSleep::TierEngineSleep(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : TierEngineBase(config_path, config_overrides)
+    , sleep_mt_() {
+
 }
 
-int TierEngine::lock_mutex(void){
-	int result = open((run_path_ / "autotier.lock").c_str(), O_CREAT|O_EXCL, 0700);
-	close(result);
-	return result;
+TierEngineSleep::~TierEngineSleep() {
+
 }
 
-void TierEngine::unlock_mutex(void){
-	fs::remove(run_path_ / "autotier.lock");
+void TierEngineSleep::sleep_until(std::chrono::steady_clock::time_point t) {
+    std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait_until(lk, t, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
+}
+
+void TierEngineSleep::sleep_until_woken(void) {
+    std::unique_lock<std::mutex> lk(sleep_mt_);
+	sleep_cv_.wait(lk, [this](){ return this->stop_flag_ || !this->adhoc_work_.empty(); });
 }

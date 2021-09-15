@@ -17,24 +17,14 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
-#include "alert.hpp"
+#pragma once
 
-TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides)
-		: stop_flag_(false), currently_tiering_(false), tiers_(), config_(config_path, std::ref(tiers_), config_overrides), run_path_(config_.run_path()){
-	if(create_run_path() != 0){
-		Logging::log.error("Could not initialize metadata directory.");
-		exit(EXIT_FAILURE);
-	}
-	open_db();
-}
+#include "components/tiering.hpp"
+#include "components/adhoc.hpp"
 
-TierEngine::~TierEngine(void){
-	delete db_;
-}
-
-void TierEngine::stop(void){
-	std::lock_guard<std::mutex> lk(sleep_mt_);
-	stop_flag_ = true;
-	sleep_cv_.notify_one();
-}
+class TierEngine : public TierEngineTiering {
+public:
+	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides);
+    ~TierEngine(void);
+private:
+};

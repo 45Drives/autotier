@@ -17,12 +17,25 @@
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "tierEngine.hpp"
-#include "rocksDbHelpers.hpp"
+#include "TierEngine/components/database.hpp"
 #include "alert.hpp"
+#include "rocksDbHelpers.hpp"
 
-void TierEngine::open_db(void){
-	std::string db_path = (run_path_ / "db").string();
+TierEngineDatabase::TierEngineDatabase(const fs::path &config_path, const ConfigOverrides &config_overrides)
+    : TierEngineBase(config_path, config_overrides) {
+    open_db();
+}
+
+TierEngineDatabase::~TierEngineDatabase() {
+    delete db_;
+}
+
+rocksdb::DB *TierEngineDatabase::get_db(void) {
+    return db_;
+}
+
+void TierEngineDatabase::open_db(void) {
+    std::string db_path = (run_path_ / "db").string();
 	rocksdb::Options options;
 	options.create_if_missing = true;
 	options.prefix_extractor.reset(l::NewPathSliceTransform());

@@ -22,7 +22,7 @@
  */
 
 #include "fuseOps.hpp"
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 
 #ifdef LOG_METHODS
 #include "alert.hpp"

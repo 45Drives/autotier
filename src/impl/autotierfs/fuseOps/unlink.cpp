@@ -24,7 +24,7 @@
 #include "fuseOps.hpp"
 #include "metadata.hpp"
 #include "tier.hpp"
-#include "tierEngine.hpp"
+#include "TierEngine/TierEngine.hpp"
 #include "rocksDbHelpers.hpp"
 
 #ifdef LOG_METHODS
