@@ -21,6 +21,7 @@
 
 #include "config.hpp"
 #include "tier.hpp"
+#include "concurrentQueue.hpp"
 
 #include <list>
 #include <condition_variable>
