@@ -22,9 +22,24 @@
 #include "components/tiering.hpp"
 #include "components/adhoc.hpp"
 
+/**
+ * @brief Main TierEngine object to construct for setting up autotier.
+ * See other components for functionality.
+ * 
+ */
 class TierEngine : public TierEngineTiering {
 public:
+    /**
+     * @brief Construct a new Tier Engine object
+     * 
+     * @param config_path Path to config file
+     * @param config_overrides Config overrides from cli args
+     */
 	TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides);
+    /**
+     * @brief Destroy the Tier Engine object
+     * 
+     */
     ~TierEngine(void);
 private:
 };

@@ -21,25 +21,44 @@
 
 #include "base.hpp"
 
+/**
+ * @brief TierEngine component for ensuring only one instance of autotier runs for a given run path
+ * 
+ */
 class TierEngineMutex : virtual public TierEngineBase {
 public:
+    /**
+     * @brief Construct a new Tier Engine Mutex object
+     * 
+     * @param config_path Path to config file
+     * @param config_overrides Config Overrides from main()
+     */
     TierEngineMutex(const fs::path &config_path, const ConfigOverrides &config_overrides);
+    /**
+     * @brief Destroy the Tier Engine Mutex object, calling unlock_mutex() first.
+     * 
+     */
     ~TierEngineMutex(void);
 protected:
-    int lock_mutex(void);
-    /* Opens file at mutex_path such that if the file already exists, opening fails.
-        * Uses this as a mutex lock - if the file exists, the critical section is locked.
-        * To unlock, delete the file.
-        */
-    void unlock_mutex(void);
-    /* Deletes mutex lock file.
-        */
-private:
-    int mutex_;
-	/* File handle for mutexing tiering of files.
-	 */
+    /**
+     * @brief Used to ensure currently_tiering_ is set atomically with locking the
+     * file mutex.
+     * 
+     */
 	std::mutex lock_file_mt_;
-	/* Used to ensure currently_tiering_ is set atomically with locking the
-	 * file mutex.
-	 */
+    /**
+     * @brief Opens file at mutex_path such that if the file already exists, opening fails.
+     * Uses this as a mutex lock - if the file exists, the critical section is locked.
+     * To unlock, delete the file.
+     * 
+     * @return int 0 if locked, -1 if failed to lock.
+     */
+    int lock_mutex(void);
+    /**
+     * @brief Deletes mutex lock file, unlocking the critical section.
+     * 
+     */
+    void unlock_mutex(void);
+private:
+    int mutex_; ///< File handle for mutexing tiering of files.
 };

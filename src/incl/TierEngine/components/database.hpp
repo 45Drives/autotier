@@ -21,16 +21,38 @@
 
 #include "base.hpp"
 
+/**
+ * @brief TierEngine component for dealing with the rocksdb database.
+ * 
+ */
 class TierEngineDatabase : virtual public TierEngineBase {
 public:
+	/**
+	 * @brief Construct a new Tier Engine Database object
+	 * Calls open_db().
+	 * 
+	 * @param config_path 
+	 * @param config_overrides 
+	 */
     TierEngineDatabase(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/**
+	 * @brief Destroy the Tier Engine Database object
+	 * Deletes (closes) the rocksdb database.
+	 * 
+	 */
     ~TierEngineDatabase(void);
+	/**
+	 * @brief Get the database pointer.
+	 * Used in fusePassthrough.cpp for getting file.
+	 * 
+	 * @return rocksdb::DB* Pointer to database
+	 */
 	rocksdb::DB *get_db(void);
-	/* Return db_, used in fusePassthrough.cpp for getting file
-	 * metadata.
-	 */
 private:
-	void open_db(void);
-	/* Opens RocksDB database.
+	/**
+	 * @brief Opens RocksDB database.
+	 * Calls TierEngineTiering::exit() (virtual TierEngineBase method) if it fails.
+	 * 
 	 */
+	void open_db(void);
 };

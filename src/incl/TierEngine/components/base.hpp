@@ -29,56 +29,94 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+/**
+ * @brief Base class of TierEngine. Deals with calling config_ constructor and holds
+ * onto some members used in multiple other components.
+ * 
+ */
 class TierEngineBase {
 public:
+	/**
+	 * @brief Construct a new Tier Engine Base object
+	 * 
+	 * @param config_path 
+	 * @param config_overrides 
+	 */
     TierEngineBase(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/**
+	 * @brief Destroy the Tier Engine Base object
+	 * 
+	 */
 	~TierEngineBase(void);
+	/**
+	 * @brief Creates path for FIFOs and database, chowning to root:autotier
+	 * 
+	 * @return int 0 if okay, -1 if error.
+	 */
     int create_run_path(void) const;
-	/* Creates path for FIFOs and database, chowning to root:autotier
+	/**
+	 * @brief Get reference to the list of tiers.Used in fusePassthrough.cpp to
+	 * get references to each tier for finding full backend paths.
+	 * 
+	 * @return std::list<Tier>& Reference to list of tiers.
 	 */
     std::list<Tier> &get_tiers(void);
-	/* Returns reference to list of tiers. Used in fusePassthrough.cpp to
-	 * get references to each tier for finding full backend paths.
+	/**
+	 * @brief Find Tier from path
+	 * 
+	 * @param p Backend path to tier
+	 * @return Tier* Tier matching path if found, else nullptr
 	 */
     Tier *tier_lookup(fs::path p);
-	/* Return pointer to tier with path_ == p,
-	 * if not found, return nullptr.
+	/**
+	 * @brief Find tier from ID
+	 * 
+	 * @param id ID of tier from config
+	 * @return Tier* Tier matching ID if found, else nullptr
 	 */
 	Tier *tier_lookup(std::string id);
-	/* Return pointer to tier with id_ == id,
-	 * if not found, return nullptr.
+	/**
+	 * @brief Set the mount_point_ variable
+	 * 
+	 * @param mount_point Path to filesystem mount point
 	 */
 	void mount_point(const fs::path &mount_point);
-	/* Set the mount_point_ variable.
+	/**
+	 * @brief Virtual tier function to allow other components to call TierEngineTiering::tier().
+	 * 
+	 * @return true Tiering finished successfully
+	 * @return false Tiering failed
 	 */
 	virtual bool tier(void);
 protected:
-	bool stop_flag_;
-	/* Set to false to make thread exit. Used to continue
+	/**
+	 * @brief Set to false to make thread exit. Used to continue
 	 * or cancel sleeping after being woken to do ad hoc
 	 * command work.
+	 * 
 	 */
-	std::list<Tier> tiers_;
-	/* List of tiers build from configuration file.
-	 */
-	Config config_;
-	/* Cconfiguration goes here, read in from file in TierEngine::TierEngine()
+	bool stop_flag_;
+	std::list<Tier> tiers_; ///< List of tiers built from configuration file.
+	Config config_; ///< Configuration read from config_file path
+	/**
+	 * @brief Path to mutex lock file, ad hoc FIFO, and database.
+	 * Defaults to /var/lib/autotier/<hash of config path>, can be overridden in config.
 	 */
 	fs::path run_path_;
-	/* Path to mutex lock file, ad hoc FIFO, and database.
-	 */
-	fs::path mount_point_;
-	/* Where autotier filesystem is mounted.
-	 */
-	ConcurrentQueue<AdHoc> adhoc_work_;
-	/* Single-consumer concurrentQueue for the ad hoc command server to queue work.
-	 */
-	std::condition_variable sleep_cv_;
-	/* Condition variable to use wait_until to sleep between tiering,
+	fs::path mount_point_; ///< Where autotier filesystem is mounted, set by mount_point().
+	ConcurrentQueue<AdHoc> adhoc_work_; ///< Single-consumer concurrentQueue for the ad hoc command server to queue work.
+	/**
+	 * @brief Condition variable to use wait_until to sleep between tiering,
 	 * used for the ad hoc server thread or the main thread to wake the tiering
 	 * thread from sleep.
+	 * 
 	 */
-	rocksdb::DB *db_;
-	/* Nosql database holding file metadata.
+	std::condition_variable sleep_cv_;
+	rocksdb::DB *db_; ///< Nosql database holding file metadata.
+	/**
+	 * @brief Virtual exit function that can be overridden by other components for cleanup
+	 * 
+	 * @param status Exit code of process
 	 */
+	virtual void exit(int status);
 };

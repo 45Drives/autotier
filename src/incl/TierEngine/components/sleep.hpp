@@ -24,21 +24,37 @@
 #include <chrono>
 #include <mutex>
 
+/**
+ * @brief TierEngine component for dealing with thread sleeping.
+ * 
+ */
 class TierEngineSleep : virtual public TierEngineBase {
 public:
+	/**
+	 * @brief Construct a new Tier Engine Sleep object
+	 * 
+	 * @param config_path 
+	 * @param config_overrides 
+	 */
     TierEngineSleep(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/**
+	 * @brief Destroy the Tier Engine Sleep object
+	 * 
+	 */
     ~TierEngineSleep(void);
-    void sleep_until(std::chrono::steady_clock::time_point t);
-	/* call wait_until on the condition variable. Puts thread
+	/**
+	 * @brief call wait_until on the condition variable. Puts thread
 	 * to sleep until time reaches t or woken by sleep_cv_.notify_one()
+	 * 
+	 * @param t Time to wake up by
+	 */
+    void sleep_until(std::chrono::steady_clock::time_point t);
+	/**
+	 * @brief call wait on the condition variable. Puts thread
+	 * to sleep until woken by sleep_cv_.notify_one()
+	 * 
 	 */
 	void sleep_until_woken(void);
-	/* call wait on the condition variable. Puts thread
-	 * to sleep until woken by sleep_cv_.notify_one()
-	 */
 protected:
-    std::mutex sleep_mt_;
-	/* Useless lock to release for the condition_variable
-	 * to use wait_until.
-	 */
+    std::mutex sleep_mt_; ///< Useless lock to release for the condition_variable to use wait_until.
 };

@@ -23,48 +23,89 @@
 #include "concurrentQueue.hpp"
 #include "tools.hpp"
 
+/**
+ * @brief TierEngine component to handle ad hoc commands.
+ * 
+ */
 class TierEngineAdhoc : virtual public TierEngineBase {
 public:
+	/**
+	 * @brief Construct a new Tier Engine Adhoc object
+	 * 
+	 * @param config_path Path to config file
+	 * @param config_overrides Config options overridden from main()
+	 */
     TierEngineAdhoc(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/**
+	 * @brief Destroy the Tier Engine Adhoc object
+	 * 
+	 */
     ~TierEngineAdhoc();
-    void process_adhoc_requests(void);
-	/* Function for ad hoc server thread. Listens to named FIFO
+	/**
+	 * @brief Function for ad hoc server thread. Listens to named FIFO
 	 * in run_path_ to receive ad hoc commands from running
 	 * autotier while mounted. Grabs command and queues work as
-	 * and AdHoc object.
+	 * an AdHoc object in TierEngineBase::adhoc_work_.
+	 * 
+	 */
+    void process_adhoc_requests(void);
+	/**
+	 * @brief Enqueue oneshot AdHoc command into adhoc_work_.
+	 * 
+	 * @param work The command to be processed, containing needed args_.
 	 */
 	void process_oneshot(const AdHoc &work);
-	/* Enqueue oneshot AdHoc command into adhoc_work_.
+	/**
+	 * @brief Enqueue pin or unpin AdHoc command into adhoc_work_.
+	 * 
+	 * @param work The command to be processed, containing needed args_.
 	 */
 	void process_pin_unpin(const AdHoc &work);
-	/* Enqueue pin or unpin AdHoc command into adhoc_work_.
+	/**
+	 * @brief Iterate through list of tiers, printing ID, path, current usage, and watermark.
+	 * 
+	 * @param work The command to be processed, containing needed args_.
 	 */
 	void process_status(const AdHoc &work);
-	/* Iterate through list of tiers, printing ID, path, current usage, and watermark
-	 * uses Logger::format_bytes() for printing current usage and watermark.
+	/**
+	 * @brief Dump current configuration settings from memory.
+	 * 
 	 */
 	void process_config(void);
-	/* Dump current configuration settings from memory.
+	/**
+	 * @brief Send all pinned files with the corresponding tier they are pinned to.
+	 * 
 	 */
 	void process_list_pins(void);
-	/* Print pineed files.
+	/**
+	 * @brief Send all file paths in filesystem along with popularity.
+	 * 
 	 */
 	void process_list_popularity(void);
-	/* Print popularity of each file.
+	/**
+	 * @brief Send table of each argument file along with its corresponding tier name
+	 * and full backend path.
+	 * 
+	 * @param work The command to be processed, containing needed args_.
 	 */
 	void process_which_tier(AdHoc &work);
-	/* Return table of each argument file along with its corresponding tier name
-	 * and full backend path.
+	/**
+	 * @brief Process each Adhoc job enqueued in adhoc_queue_, popping them.
+	 * Called by the tiering thread as part of the main tier loop in begin().
 	 */
 	void execute_queued_work(void);
-	/* Tiering thread calls this when woken to execute the queued work.
+	/**
+	 * @brief Iterate through each string in args[1:] to tier name in args[0].
+	 * Sets Metadata::pinned_ flag of each file then moves the file.
+	 * 
+	 * @param args Tier name and list of files to pin.
 	 */
 	void pin_files(const std::vector<std::string> &args);
-	/* Pin each file in args[1:] to tier referenced by args[0].
-	 * Sets pinned_ flag in file metadata and moves file into tier.
+	/**
+	 * @brief Iterate through args, clearing the Metadata::pinned_ flag of each file.
+	 * 
+	 * @param args List of file paths to unpin.
 	 */
 	void unpin_files(const std::vector<std::string> &args);
-	/* Clear pinned_ flag in file metadata.
-	 */
 private:
 };

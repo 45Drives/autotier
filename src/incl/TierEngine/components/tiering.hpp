@@ -26,38 +26,80 @@
 
 #include <chrono>
 
+/**
+ * @brief TierEngine component to deal with tiering, inherits all other components
+ * so this is essentially the entirety of TierEngine.
+ * 
+ */
 class TierEngineTiering : public TierEngineDatabase, public TierEngineSleep, public TierEngineAdhoc, public TierEngineMutex {
 public:
-    TierEngineTiering(const fs::path &config_path, const ConfigOverrides &config_overrides);
-    ~TierEngineTiering(void);
-	void begin(bool daemon_mode);
-	/* Tier files with tier(), do ad hoc work, and
-	 * sleep until next period or woken by more work.
+	/**
+	 * @brief Construct a new Tier Engine Tiering object
+	 * 
+	 * @param config_path Path to config file
+	 * @param config_overrides Config overrides from main()
 	 */
-	bool tier(void);
-	/* Find files, update their popularities, sort the files
+    TierEngineTiering(const fs::path &config_path, const ConfigOverrides &config_overrides);
+	/**
+	 * @brief Destroy the Tier Engine Tiering object
+	 * 
+	 */
+    ~TierEngineTiering(void);
+	/**
+	 * @brief Tier files with tier(), do ad hoc work, and
+	 * sleep until next period or woken by more work.
+	 * 
+	 * @param daemon_mode Whether or not to daemonise
+	 */
+	void begin(bool daemon_mode);
+	/**
+	 * @brief Find files, update their popularities, sort the files
 	 * by popularity, and finally move the files to their
 	 * respective tiers. Returns true if tiering happened,
 	 * false if failed to lock mutex.
+	 * 
+	 * @return true Tiered successfully
+	 * @return false Failed to lock mutex
+	 */
+	bool tier(void);
+	/**
+	 * @brief Call crawl() for each tier in tiers.
+	 * 
+	 * @param function Function to execute for each tier
 	 */
 	void launch_crawlers(void (TierEngineTiering::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage));
-	/* Call crawl() for each tier in tiers.
+	/**
+	 * @brief Recurse into tier directory, executing function on each file.
+	 * Function can be emplace_file(), print_file_pins(), or print_file_popularity().
+	 * 
+	 * @param dir Current directory path during recursion
+	 * @param tptr Pointer to tier it is running for
+	 * @param function Function to execute on each file
+	 * @param usage Keeps track of recursive file size for reporting tier usage
 	 */
 	void crawl(fs::path dir, Tier *tptr, void (TierEngineTiering::*function)(fs::directory_entry &itr, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage), std::atomic<ffd::Bytes::bytes_type> &usage);
-	/* Recurse into tier directory, executing function on each file.
-	 * Function can be emplace_file(), print_file_pins(), or print_file_popularity().
+	/**
+	 * @brief Place file into files_, constructing with fs::path, Tier*, and db_.
+	 * 
+	 * @param file Directory entry for file, containing path
+	 * @param tptr Tier the file was found in
+	 * @param usage Keeps track of recursive file size for reporting tier usage
 	 */
 	void emplace_file(fs::directory_entry &file, Tier *tptr, std::atomic<ffd::Bytes::bytes_type> &usage);
-	/* Place file into files_, constructing with fs::path, Tier*, and db_.
+	/**
+	 * @brief Call File::calc_popularity() for each file in files_.
+	 * 
 	 */
 	void calc_popularity(void);
-	/* Call File::calc_popularity() for each file in files_.
+	/**
+	 * @brief Sorts list of files based on popularity, if pop1 == pop2, sort by atime.
+	 * 
 	 */
 	void sort(void);
-	/* Sorts list of files based on popularity, if pop1 == pop2, sort by atime.
-	 */
-	void simulate_tier(void);
-	/* Find out which tier each file belongs in:
+	/**
+	 * @brief Find out which tier each file belongs in
+	 * 
+	 * Pseudocode:
 	 * LET file = first file of sorted files
 	 * LET tier = first tier
 	 * LET tier_usage = size of pinned files
@@ -70,29 +112,44 @@ public:
 	 *    tier_usage += size of file
 	 *    file = next file
 	 * END DO
+	 * 
+	 */
+	void simulate_tier(void);
+	/**
+	 * @brief Launch one thread for each tier to move incoming files into their new
+	 * backend paths based on results of simulate_tier().
+	 * 
 	 */
 	void move_files(void);
-	/* Start at last tier, move files into tier based on outcome of simulate_tier().
-	 */
-	void stop(void);
-	/* Obtain sleep_mt_, set stop_flag_ to true,
+	/**
+	 * @brief Obtain sleep_mt_, set stop_flag_ to true,
 	 * wake sleeping tier thread with sleep_cv_.notify_one().
 	 * Causes sleeping tiering thread to join.
+	 * 
+	 */
+	void stop(void);
+	/**
+	 * @brief Check if currently tiering.
+	 * 
+	 * @return true Tiering
+	 * @return false Not tiering
 	 */
     bool currently_tiering(void) const;
-	/* Check if currently tiering.
+	/**
+	 * @brief Return config_.strict_period().
+	 * 
+	 * @return true Tier period is strict (no automatic tiers)
+	 * @return false Tiering can happen whenever needed
 	 */
 	bool strict_period(void) const;
-	/* Return config_.strict_period().
+	/**
+	 * @brief Unlock mutex and call stop() before calling ::exit()
+	 * 
+	 * @param status Exit status of process
 	 */
+	void exit(int status);
 private:
-    bool currently_tiering_;
-	/* Set and cleared in tier()
-	 */
-	std::chrono::steady_clock::time_point last_tier_time_;
-	/* For determining tier period.
-	 */
-	std::vector<File> files_;
-	/* Vector to contain every file across all tiers for sorting.
-	 */
+    bool currently_tiering_; ///< Whether or not tiering is happening. Set and cleared in tier()
+	std::chrono::steady_clock::time_point last_tier_time_; ///< For determining tier period.
+	std::vector<File> files_; ///< Vector to contain every file across all tiers for sorting.
 };
