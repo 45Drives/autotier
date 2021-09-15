@@ -24,6 +24,10 @@
 #include <regex>
 #include <thread>
 
+#if __cplusplus >= 201703L
+	#include <execution>
+#endif
+
 TierEngineTiering::TierEngineTiering(const fs::path &config_path, const ConfigOverrides &config_overrides)
     : TierEngineDatabase(config_path, config_overrides)
     , TierEngineSleep(config_path, config_overrides)
