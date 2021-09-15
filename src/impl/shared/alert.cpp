@@ -28,10 +28,10 @@ extern "C"{
 }
 
 namespace Logging{
-	Logger log(1);
+	Logger log(Logger::log_level_t::NORMAL);
 }
 
-Logger::Logger(int log_level, output_t output){
+Logger::Logger(log_level_t log_level, output_t output){
 	log_level_ = log_level;
 	output_ = output;
 	if(output_ == SYSLOG){
@@ -44,7 +44,7 @@ Logger::~Logger(void){
 		closelog();
 }
 
-void Logger::message(const std::string &msg, int lvl) const{
+void Logger::message(const std::string &msg, log_level_t lvl) const{
 	if(log_level_ >= lvl){
 		switch(output_){
 			case STD:
@@ -79,11 +79,18 @@ void Logger::error(const std::string &msg) const{
 	}
 }
 
-void Logger::set_level(int log_level){
+void Logger::set_level(log_level_t log_level){
 	log_level_ = log_level;
 }
 
 void Logger::set_output(output_t output){
+	if (output_ == output)
+		return;
+	if (output == Logger::output_t::SYSLOG) {
+		openlog("autotier", LOG_USER, LOG_USER);
+	} else if (output == Logger::output_t::STD) {
+		closelog();
+	}
 	output_ = output;
 }
 
