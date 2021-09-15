@@ -24,3 +24,7 @@ TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &confi
     , TierEngineBase(config_path, config_overrides) {
     
 }
+
+TierEngine::~TierEngine() {
+    
+}
