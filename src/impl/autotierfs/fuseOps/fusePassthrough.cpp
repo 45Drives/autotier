@@ -33,6 +33,7 @@ FusePassthrough::FusePassthrough(const fs::path &config_path, const ConfigOverri
 
 // methods
 int FusePassthrough::mount_fs(fs::path mountpoint, char *fuse_opts){
+	// TODO: Replace fuse_main() call with lower level fuse loop
 	fuse_ops::autotier_ptr->mount_point(mountpoint);
 	Logging::log.message("Mounting filesystem", Logger::log_level_t::DEBUG);
 	static const struct fuse_operations at_oper = {
