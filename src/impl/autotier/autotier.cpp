@@ -21,7 +21,6 @@
 #include "alert.hpp"
 #include "version.hpp"
 #include "config.hpp"
-#include "stripWhitespace.hpp"
 #include <sstream>
 #include <thread>
 #include <45d/config/ConfigParser.hpp>

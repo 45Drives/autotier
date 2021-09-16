@@ -20,12 +20,10 @@
 #include "config.hpp"
 #include "alert.hpp"
 #include "tier.hpp"
-#include "stripWhitespace.hpp"
 #include <45d/config/ConfigSubsectionGuard.hpp>
 #include <45d/Quota.hpp>
 #include <sstream>
 #include <regex>
-#include <cmath>
 
 extern "C" {
 	#include <sys/statvfs.h>
