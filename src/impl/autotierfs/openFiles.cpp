@@ -19,8 +19,6 @@
 
 #include "openFiles.hpp"
 #include <mutex>
-#include <unordered_set>
-#include <string>
 
 namespace OpenFiles{
 	std::mutex open_files_mt_;
