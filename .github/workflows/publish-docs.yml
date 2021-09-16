@@ -16,6 +16,7 @@ jobs:
     - name: Create clean gh-pages branch
       run:  git checkout -b gh-pages
     - name: Generate autodocs
+      run:  make clean-docs
       run:  make docs
     - name: Copy homepage
       run:  cp doc/index.md index.md
