@@ -19,17 +19,29 @@
 
 #pragma once
 
-#include <unordered_set>
-#include <string>
-
+/**
+ * @brief Keeping track of open files
+ * 
+ */
 namespace OpenFiles{
+	/**
+	 * @brief Insert path into OpenFiles::open_files_.
+	 * 
+	 * @param path 
+	 */
 	void register_open_file(const std::string &path);
-	/* Insert path into open_files_.
-	*/
+	/**
+	 * @brief Erase path from OpenFiles::open_files_.
+	 * 
+	 * @param path 
+	 */
 	void release_open_file(const std::string &path);
-	/* Erase path from open_files_.
-	*/
+	/**
+	 * @brief Return true if path is contained in OpenFiles::open_files_.
+	 * 
+	 * @param path 
+	 * @return true 
+	 * @return false 
+	 */
 	bool is_open(const std::string &path);
-	/* Return true if path is contained in open_files_.
-	*/
 }
