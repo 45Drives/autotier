@@ -16,10 +16,12 @@ jobs:
       run:  git checkout -b gh-pages
     - name: Generate autodocs
       run:  make docs
+    - name: Copy homepage
+      run:  cp docs/index.md index.md
     - name: Add generated autodocs to Git repo in the gh-pages branch
       run:  |
         export HOME=/root
-        git add dev-doc -f
+        git add dev-doc index.md -f
         git commit -am "Generated API doc"
         git push -f origin gh-pages:gh-pages
     - name: Result URLs
