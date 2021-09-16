@@ -1,5 +1,10 @@
-/*
- *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+/**
+ * @file popularityCalc.hpp
+ * @author Josh Boudreau (jboudreau@45drives.com)
+ * @brief Macro defines for popularity calculation tweaking
+ * @date 2021-09-15
+ * 
+ * @copyright Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
  *    
  *    This file is part of autotier.
  * 

@@ -1,5 +1,10 @@
-/*
- *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
+/**
+ * @file version.hpp
+ * @author Josh Boudreau (jboudreau@45drives.com)
+ * @brief Keep the version of autotier up to date in this file for reporting
+ * in help message and in output of -V.
+ * 
+ * @copyright Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
  *    
  *    This file is part of autotier.
  * 
@@ -19,4 +24,8 @@
 
 #pragma once
 
+/**
+ * @brief Version of autotier
+ * 
+ */
 #define VERS "1.2.0"

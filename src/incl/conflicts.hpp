@@ -19,11 +19,21 @@
 
 #pragma once
 
-bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_path);
-/* Check if there were any conflicts while tiering. Returns true if there were
+/**
+ * @brief Check if there were any conflicts while tiering. Returns true if there were
  * conflicts. Conflicting files are placed in the string vector.
+ * 
+ * @param conflicts List of conflicting files returned by reference
+ * @param run_path Location to place conflict log file
+ * @return true There are existing conflicting files
+ * @return false There are no existing conflicting files
  */
+bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_path);
 
-void add_conflict(const std::string &path, const fs::path &run_path);
-/* Add an entry into the conflicting files log.
+/**
+ * @brief Add entry to conflicts log file.
+ * 
+ * @param path Path to file conflict relative to mount point
+ * @param run_path Location to place conflict log file
  */
+void add_conflict(const std::string &path, const fs::path &run_path);

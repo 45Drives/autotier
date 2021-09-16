@@ -24,10 +24,17 @@
 #include <string>
 #include <mutex>
 
+/**
+ * @brief Local namespace
+ * 
+ */
 namespace l{
+	/**
+	 * @brief Used to make rocksdb lookups faster, groups keys by first dir in path
+	 * 
+	 */
 	class PathSliceTransform : public ::rocksdb::SliceTransform{
 	public:
-		~PathSliceTransform() = default;
 		const char *Name() const{
 			return "Path Slice Transform";
 		}
@@ -43,9 +50,22 @@ namespace l{
 		virtual bool SameResultWhenAppended(const ::rocksdb::Slice& /*prefix*/) const {return false;}
 	};
 	
+	/**
+	 * @brief Construct new PathSliceTransform on heap and return pointer
+	 * 
+	 * @return const PathSliceTransform* 
+	 */
 	extern const PathSliceTransform *NewPathSliceTransform();
 	
+	/**
+	 * @brief rocksdb namespace inside l:: namespace to hold mutex
+	 * 
+	 */
 	namespace rocksdb{
+		/**
+		 * @brief Mutex lock to synchronize updating of RocksDB database
+		 * 
+		 */
 		extern std::mutex global_lock_;
 	}
 }

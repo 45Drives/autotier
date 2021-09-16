@@ -24,10 +24,16 @@
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
-#define NUM_COMMANDS 9
-enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER};
+/**
+ * @brief enum for table lookup and to switch on for which ad hoc command to run
+ * 
+ */
+enum command_enum {ONESHOT, PIN, UNPIN, STATUS, CONFIG, HELP, LPIN, LPOP, WHICHTIER, NUM_COMMANDS};
 
-//enum FIFO_WHO {SERVER, CLIENT};
+/**
+ * @brief exception to throw when there is a FIFO issue
+ * 
+ */
 class fifo_exception : public std::exception{
 private:
 	std::string what_;
@@ -39,33 +45,53 @@ public:
 	}
 };
 
-int get_command_index(const char *cmd);
-/* return switchable index determined by regex match of cmd against
+/**
+ * @brief return switchable index determined by regex match of cmd against
  * each entry in command_list
+ * 
+ * @param cmd String to check
+ * @return int command_enum or -1 if error
  */
+int get_command_index(const char *cmd);
 
+/**
+ * @brief Make sure file exists and is in the autotier filesystem.
+ * 
+ * @param paths Paths to check
+ */
 void sanitize_paths(std::list<std::string> &paths);
-/* Make sure file exists and is in the autotier filesystem.
- */
 
+/**
+ * @brief Open FIFO non-blocking and try to send a payload to the ad hoc server.
+ * 
+ * @param payload Command and arguments to send
+ * @param run_path Path to pipe
+ */
 void send_fifo_payload(const std::vector<std::string> &payload, const fs::path &run_path);
-/* Open FIFO non-blocking and try to send a payload to the ad hoc server.
- */
 
+
+/**
+ * @brief Open FIFO with blocking IO and wait for a command to be sent.
+ * 
+ * @param payload Command and arguments returned by reference
+ * @param run_path Path to pipe
+ */
 void get_fifo_payload(std::vector<std::string> &payload, const fs::path &run_path);
-/* Open FIFO with blocking IO and wait for a command to be sent.
- */
 
+/**
+ * @brief Representation of an ad hoc command with the command index and
+ * arguments.
+ * 
+ */
 class AdHoc{
-	/* Representation of an ad hoc command with the command index and
-	 * arguments.
-	 */
 public:
-	int cmd_;
-	/* Index of command in comman_enum.
-	 */
-	std::vector<std::string> args_;
-	/* Arguments passed to command
+	int cmd_; ///< Index of command in comman_enum.
+	std::vector<std::string> args_; ///< Arguments passed to command
+	/**
+	 * @brief Construct a new Ad Hoc object from command_enum and list of args
+	 * 
+	 * @param cmd command_enum from get_command_index()
+	 * @param args list of args to command
 	 */
 	AdHoc(int cmd, const std::vector<std::string> &args){
 		cmd_ = cmd;
@@ -73,47 +99,85 @@ public:
 			args_.emplace_back(s);
 		}
 	}
+	/**
+	 * @brief Construct a new Ad Hoc object from list of strings
+	 * 
+	 * @param work_req command (work_req[0]) and args (work_req[1:])
+	 */
 	AdHoc(const std::vector<std::string> &work_req){
 		cmd_ = get_command_index(work_req.front().c_str());
 		for(std::vector<std::string>::const_iterator itr = std::next(work_req.begin()); itr != work_req.end(); ++itr){
 			args_.emplace_back(*itr);
 		}
 	}
+	/**
+	 * @brief Destroy the Ad Hoc object
+	 * 
+	 */
 	~AdHoc(void) = default;
 };
 
-
-class WorkPipe{
-	/* Object to represent the named FIFO through which
+/**
+ * @brief Object to represent the named FIFO through which
 	 * ad hoc work is passed.
-	 */
+ * 
+ */
+class WorkPipe{
 private:
-	int fd_;
-	/* File descriptor of the FIFO.
-	 */
+	int fd_; ///< File descriptor of the FIFO.
 public:
-	WorkPipe(fs::path pipe_path, int flags);
-	/* Create the FIFO with mkfifo(), then open it
+	/**
+	 * @brief Construct a new Work Pipe object.
+	 * Create the FIFO with mkfifo(), then open it
 	 * with the provided flags.
+	 * 
+	 * @param pipe_path Path to create FIFO in
+	 * @param flags Flags to open FIFO with
+	 */
+	WorkPipe(fs::path pipe_path, int flags);
+	/**
+	 * @brief Destroy the Work Pipe object, closing the fd_
+	 * 
 	 */
 	~WorkPipe(void);
-	/* Close fd_.
+	/**
+	 * @brief Get work payload.
+	 * 
+	 * @param payload Payload returned by reference
+	 * @return int 0 if okay, -1 if error
 	 */
 	int get(std::vector<std::string> &payload) const;
-	/* Get work payload.
+	/**
+	 * @brief Put work payload.
+	 * 
+	 * @param payload Payload to send
+	 * @return int 0 if okay, -1 if error
 	 */
 	int put(const std::vector<std::string> &payload) const;
-	/* Put work payload.
+	/**
+	 * @brief Use fcntl to set flags to curr_flags | flags.
+	 * 
+	 * @param flags Flags to set
+	 * @return int Result of fcntl()
 	 */
 	int set_flags(int flags) const;
-	/* Use fcntl to set flags to curr_flags | flags.
+	/**
+	 * @brief Use fcntl to set flags to curr_flags & ~flags.
+	 * 
+	 * @param flags Flags to clear
+	 * @return int Result of fcntl()
 	 */
 	int clear_flags(int flags) const;
-	/* Use fcntl to set flags to curr_flags & ~flags.
-	 */
 };
 
-void fs_usage(void);
-void cli_usage(void);
-/* print usage message to std::cout
+/**
+ * @brief Print usage help message for autotierfs to stdout
+ * 
  */
+void fs_usage(void);
+
+/**
+ * @brief Print usage help message for autotier to stdout
+ * 
+ */
+void cli_usage(void);

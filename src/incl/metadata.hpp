@@ -26,90 +26,154 @@
 
 class Tier;
 
+/**
+ * @brief File metadata to be stored in and
+ * retrieved from the RocksDB database.
+ * 
+ */
 class Metadata{
-	/* File metadata to be stored in and
-	 * retrieved from the RocksDB database.
-	 */
 	friend class boost::serialization::access;
 	friend class File;
 	friend class MetadataViewer;
-private:
-	uintmax_t access_count_ = 0;
-	/* Number of times the file was accessed since last tiering.
-	 * Resets to 0 after each popularity calculation.
+public:
+	/**
+	 * @brief Construct a new empty Metadata object
+	 * 
 	 */
-	double popularity_ = MULTIPLIER*AVG_USAGE;
-	/* Moving average of file usage frequency in accesses per hour.
+	Metadata(void);
+	/**
+	 * @brief Construct a new Metadata object from serialized string
+	 * 
+	 * @param serialized Serialized string representing Metadata object
+	 */
+	Metadata(const std::string &serialized);
+	/**
+	 * @brief Copy construct a new Metadata object
+	 * 
+	 * @param other 
+	 */
+	Metadata(const Metadata &other);
+	/**
+	 * @brief Destroy the Metadata object
+	 * 
+	 */
+	~Metadata(void) = default;
+#ifndef BAREBONES_METADATA
+	/**
+	 * @brief Construct a new Metadata object.
+	 * Try to retrieve data from db. If not found and tptr != nullptr,
+	 * new metadata object is initialized and put into the database.
+	 * If not found and tptr == nullptr, metadata is left undefined and
+	 * not_found_ is set to true.
+	 * 
+	 * @param path 
+	 * @param db 
+	 * @param tptr 
+	 */
+	Metadata(std::string path, rocksdb::DB *db, Tier *tptr = nullptr);
+	/**
+	 * @brief Put metadata into database with relative_path as the key.
+	 * 
+	 * @param relative_path Database key
+	 * @param db Pointer to RocksDB database
+	 * @param old_key string pointer to old key to remove if not nullptr
+	 */
+	void update(std::string relative_path, rocksdb::DB *db, std::string *old_key = nullptr);
+	/**
+	 * @brief Increment access_count_.
+	 * 
+	 */
+	void touch(void);
+	/**
+	 * @brief Get path to tier root.
+	 * 
+	 * @return std::string 
+	 */
+	std::string tier_path(void) const;
+	/**
+	 * @brief Set path to tier root.
+	 * 
+	 * @param path 
+	 */
+	void tier_path(const std::string &path);
+	/**
+	 * @brief Test if metadata has pinned flag set.
+	 * 
+	 * @return true File corresponding to metadata is pinned
+	 * @return false File corresponding to metadata is not pinned
+	 */
+	bool pinned(void) const;
+	/**
+	 * @brief Set pinned flag.
+	 * 
+	 * @param val 
+	 */
+	void pinned(bool val);
+	/**
+	 * @brief Get popularity.
+	 * 
+	 * @return double Popularity of file
+	 */
+	double popularity(void) const;
+	/**
+	 * @brief Test if metadata was found in database.
+	 * 
+	 * @return true metadata was not found
+	 * @return false metadata was found
+	 */
+	bool not_found(void) const;
+	/**
+	 * @brief Return metadata as formatted string.
+	 * 
+	 * @return std::string 
+	 */
+	std::string dump_stats(void) const;
+#endif
+private:
+	/**
+	 * @brief Number of times the file was accessed since last tiering.
+	 * Resets to 0 after each popularity calculation.
+	 * 
+	 */
+	uintmax_t access_count_ = 0;
+	/**
+	 * @brief Moving average of file usage frequency in accesses per hour.
 	 * Used to sort list of files to determine which tiers
 	 * they belong in.
+	 * 
+	 */
+	double popularity_ = MULTIPLIER*AVG_USAGE;
+	/**
+	 * @brief Set to true when the file metadata could not be
+	 * retrieved from the database.
+	 * 
 	 */
 	bool not_found_ = false;
-	/* Set to true when the file metadata could not be
-	 * retrieved from the database.
+	/**
+	 * @brief Flag to determine whether to ignore file while tiering.
+	 * When true, the file stays in the tier it is in.
+	 * 
 	 */
 	bool pinned_ = false;
-	/* Flag to determine whether to ignore file while tiering.
-	 * When true, the file stays in the tier it is in.
+	/**
+	 * @brief The backend path of the tier. This + relative path
+	 * is the real location of the file.
+	 * 
 	 */
 	std::string tier_path_;
-	/* The backend path of the tier. This + relative path
-	 * is the real location of the file.
+	/**
+	 * @brief Serialize method for boost::serialize
+	 * 
+	 * @tparam Archive Template type
+	 * @param ar Internal boost::serialize object
+	 * @param version boost::serialize version (unused)
 	 */
 	template<class Archive>
 	void serialize(Archive & ar, const unsigned int version){
 		(void) version;
 		ar & tier_path_;
 		ar & access_count_;
-// 		ar & last_popularity_calc_;
 		ar & popularity_;
 		ar & pinned_;
 	}
-public:
-	Metadata(void);
-	/* Empty constructor.
-	 */
-	~Metadata(void) = default;
-	/* Default destructor.
-	 */
-	Metadata(const std::string &serialized);
-	/* Construct from slice.
-	 */
-	Metadata(const Metadata &other);
-	/* Copy constructor.
-	 */
-#ifndef BAREBONES_METADATA
-	Metadata(std::string path, rocksdb::DB *db, Tier *tptr = nullptr);
-	/* Try to retrieve data from db. If not found and tptr != nullptr,
-	 * new metadata object is initialized and put into the database.
-	 * If not found and tptr == nullptr, metadata is left undefined and
-	 * not_found_ is set to true.
-	 */
-	void update(std::string relative_path, rocksdb::DB *db, std::string *old_key = nullptr);
-	/* Put metadata into database with relative_path as the key.
-	 */
-	void touch(void);
-	/* Increment access_count_.
-	 */
-	std::string tier_path(void) const;
-	/* Get path to tier root.
-	 */
-	void tier_path(const std::string &path);
-	/* Set path to tier root.
-	 */
-	bool pinned(void) const;
-	/* Test if metadata has pinned flag set.
-	 */
-	void pinned(bool val);
-	/* Set pinned flag.
-	 */
-	double popularity(void) const;
-	/* Return popularity.
-	 */
-	bool not_found(void) const;
-	/* Test if metadata was found in database.
-	 */
-	std::string dump_stats(void) const;
-	/* Return metadata as formatted string.
-	 */
-#endif
 };

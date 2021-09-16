@@ -36,14 +36,32 @@ namespace Global{
 	extern ConfigOverrides config_overrides_;
 }
 
+/**
+ * @brief Class to mount filesystem
+ * 
+ */
 class FusePassthrough{
-private:
 public:
+	/**
+	 * @brief Construct a new Fuse Passthrough object.
+	 * Calls open_db and saves pointers to each tier of tiers_.
+	 * 
+	 * @param config_path Path to config file for constructing TierEngine/Config
+	 * @param config_overrides Config overrides from cli args
+	 */
 	FusePassthrough(const fs::path &config_path, const ConfigOverrides &config_overrides);
-	/* calls open_db and saves pointers to each tier of tiers_
+	/**
+	 * @brief Destroy the Fuse Passthrough object
+	 * 
 	 */
 	~FusePassthrough(void) = default;
-	int mount_fs(fs::path mountpoint, char *fuse_opts);
-	/* creates struct of FUSE function pointers and calls fuse_main()
+	/**
+	 * @brief Mount the fuse filesystem.
+	 * Creates struct of FUSE function pointers and calls fuse_main().
+	 * 
+	 * @param mountpoint Path to mountpoint
+	 * @param fuse_opts Comma separated options to pass to fuse_main()
+	 * @return int Return value of fuse_main()
 	 */
+	int mount_fs(fs::path mountpoint, char *fuse_opts);
 };

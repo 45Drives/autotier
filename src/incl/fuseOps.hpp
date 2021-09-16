@@ -34,24 +34,35 @@ extern "C" {
 class Tier;
 class TierEngine;
 
+/**
+ * @brief Fuse Private data class grabbed from fuse_get_context()->private_data (void*)
+ * in fuse filesystem functions
+ * 
+ */
 class FusePriv{
-private:
-	std::mutex fd_to_path_mt_;
-	std::unordered_map<int, char *> fd_to_path_;
-	std::mutex size_at_open_mt_;
-	std::unordered_map<int, uintmax_t> size_at_open_;
 public:
-	fs::path config_path_;
-	fs::path mount_point_;
-	TierEngine *autotier_;
-	rocksdb::DB *db_;
-	std::vector<Tier *> tiers_;
-	std::thread tier_worker_;
-	std::thread adhoc_server_;
+	fs::path config_path_; ///< Path to configuration file TODO: see if this is used anywhere
+	fs::path mount_point_; ///< Path to autotierfs mount point
+	TierEngine *autotier_; ///< Pointer to TierEngine
+	rocksdb::DB *db_; ///< RocksDB database holding file metadata
+	std::vector<Tier *> tiers_; ///< List of pointers to tiers from TierEngine
+	std::thread tier_worker_; ///< Thread running TierEngineTiering::begin()
+	std::thread adhoc_server_; ///< Thread running TierEngineAdhoc::process_adhoc_requests()
+	/**
+	 * @brief Destroy the Fuse Priv object,
+	 * freeing all cstrings in fd_to_path_
+	 * 
+	 */
 	~FusePriv(){
 		for(std::unordered_map<int, char *>::iterator itr = fd_to_path_.begin(); itr != fd_to_path_.end(); ++itr)
 			free(itr->second);
 	}
+	/**
+	 * @brief Insert fd : path pair into fd_to_path_ map
+	 * 
+	 * @param fd File descriptor
+	 * @param path Path to file
+	 */
 	void insert_fd_to_path(int fd, char *path){
 		std::lock_guard<std::mutex> lk(fd_to_path_mt_);
 		try{
@@ -64,36 +75,123 @@ public:
 			fd_to_path_[fd] = strdup(path);
 		}
 	}
+	/**
+	 * @brief Remove fd : path pair from fd_to_path_ map
+	 * 
+	 * @param fd File descriptor to remove
+	 */
 	void remove_fd_to_path(int fd){
 		std::lock_guard<std::mutex> lk(fd_to_path_mt_);
+		try {
+			char *val = fd_to_path_.at(fd);
+			free(val);
+		} catch (const std::out_of_range &) { /* do nothing */ }
 		fd_to_path_.erase(fd);
 	}
+	/**
+	 * @brief Return path corresponding to file descriptor
+	 * 
+	 * @param fd File descriptor
+	 * @return char* Path to file
+	 */
 	char *fd_to_path(int fd) const{
 		return fd_to_path_.at(fd);
 	}
+	/**
+	 * @brief Insert fd : size at open pair into size_at_open_ map
+	 * 
+	 * @param fd File descriptor
+	 * @param size Size of file at open
+	 */
 	void insert_size_at_open(int fd, uintmax_t size){
 		std::lock_guard<std::mutex> lk(size_at_open_mt_);
 		size_at_open_[fd] = size;
 	}
+	/**
+	 * @brief Remove fd : size at open pair from size_at_open_ map
+	 * 
+	 * @param fd File descriptor to remove
+	 */
 	void remove_size_at_open(int fd){
 		std::lock_guard<std::mutex> lk(size_at_open_mt_);
 		size_at_open_.erase(fd);
 	}
+	/**
+	 * @brief Return file size at open corresponding to fd
+	 * to determine size delta at close
+	 * 
+	 * @param fd File descriptor
+	 * @return uintmax_t Size of file at open
+	 */
 	uintmax_t size_at_open(int fd) const{
 		return size_at_open_.at(fd);
 	}
+private:
+	/**
+	 * @brief Mutex to synchronize insertion and deletion from fd_to_path_ map
+	 * 
+	 */
+	std::mutex fd_to_path_mt_;
+	/**
+	 * @brief Map relating file descriptor to file path
+	 * 
+	 */
+	std::unordered_map<int, char *> fd_to_path_;
+	/**
+	 * @brief Mutex to synchronize insertion and deletion from size_at_open_ map
+	 * 
+	 */
+	std::mutex size_at_open_mt_;
+	/**
+	 * @brief Map relating file descriptor to file size at open
+	 * 
+	 */
+	std::unordered_map<int, uintmax_t> size_at_open_;
 };
 
 // definitions in helpers.cpp:
+/**
+ * @brief Local namespace
+ * 
+ */
 namespace l{
+	/**
+	 * @brief Test if path is a directory
+	 * 
+	 * @param relative_path Relative path to test
+	 * @return int 0 (false) if not a directory, 1 (true) if a directory, -1 if error
+	 */
 	int is_directory(const fs::path &relative_path);
-	
+	/**
+	 * @brief Find tier containing full path
+	 * 
+	 * @param fullpath Full path to test
+	 * @return Tier* Pointer to tier containing path or nullptr if not found
+	 */
 	Tier *fullpath_to_tier(fs::path fullpath);
-	
+	/**
+	 * @brief Get size of file from file descriptor
+	 * 
+	 * @param fd File descriptor to check
+	 * @return intmax_t Size of file or -1 if error
+	 */
 	intmax_t file_size(int fd);
-	
+	/**
+	 * @brief Get size of file from path
+	 * 
+	 * @param path File path to check
+	 * @return intmax_t Size of file or -1 if error
+	 */
 	intmax_t file_size(const fs::path &path);
-	
+	/**
+	 * @brief Iterate through RocksDB database, updating all
+	 * paths after old_directory to new_directory for when a directory
+	 * is moved
+	 * 
+	 * @param old_directory Old path name
+	 * @param new_directory New path name
+	 * @param db RocksDB database to modify
+	 */
 	void update_keys_in_directory(
 		std::string old_directory,
 		std::string new_directory,
@@ -101,6 +199,11 @@ namespace l{
 	);
 }
 
+/**
+ * @brief Namespace to hold fuse operations.
+ * See fuse3/fuse.h documentation for descriptions of each function.
+ * 
+ */
 namespace fuse_ops{
 	extern TierEngine *autotier_ptr;
 	
