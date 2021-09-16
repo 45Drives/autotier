@@ -18,7 +18,7 @@ jobs:
     - name: Generate autodocs
       run:  make docs
     - name: Copy homepage
-      run:  cp doc/index.md README.md -f
+      run:  cp doc/index.md index.md
     - name: Add generated autodocs to Git repo in the gh-pages branch
       run:  |
         export HOME=/root
