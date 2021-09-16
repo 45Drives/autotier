@@ -120,3 +120,11 @@ endif
 rm-scripts:
 	-rm -f $(DESTDIR)$(PREFIX)/autotier-init-dirs
 	-rm -f $(DESTDIR)/usr/bin/autotier-init-dirs
+
+docs: doc/dev-doc.doxyfile $(HEADER_FILES) doc/main-page.dox
+	-rm -rf dev-doc
+	doxygen doc/dev-doc.doxyfile
+	mv doc/html dev-doc
+
+clean-docs:
+	-rm -rf dev-doc
