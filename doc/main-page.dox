@@ -1,0 +1,21 @@
+/**
+@mainpage autotier Automatic Tiering Fuse Filesystem
+@section doc_sections Documentation for specific parts:
+    - @ref TierEngine
+    - @ref Config
+    - @ref Logger
+    - @ref Tier
+    - @ref Metadata
+    - @ref File
+    - @ref AdHoc
+    - @ref WorkPipe
+    - @ref FusePriv
+    - @ref popularityCalc.hpp
+    - @ref version.hpp
+*/
+
+/**
+ * @brief lib45d documentation (not included in this repo, see [lib45d source](https://github.com/45drives/lib45d))
+ * 
+ */
+namespace ffd {}
