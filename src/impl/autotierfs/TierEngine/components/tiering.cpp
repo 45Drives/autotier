@@ -199,6 +199,7 @@ void TierEngineTiering::stop(void) {
 	std::lock_guard<std::mutex> lk(sleep_mt_);
 	stop_flag_ = true;
 	sleep_cv_.notify_one();
+	shutdown_socket_server();
 }
 
 bool TierEngineTiering::currently_tiering(void) const {
