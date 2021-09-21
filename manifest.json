@@ -55,11 +55,12 @@
         "version": "1.2.0",
         "buildVersion": "1",
         "ignore": [],
-        "date": "2021-09-14T14:18:17.353644",
+        "date": "2021-09-21T16:27:37.256096",
         "packager": "Joshua Boudreau <jboudreau@45drives.com>",
         "changes": [
             "Switch from unique config parser class to lib45d ConfigParser.",
-            "Use lib45d Bytes and Quota classes to clean up math while tiering."
+            "Use lib45d Bytes and Quota classes to clean up math while tiering.",
+            "Make CLI commands more reliable with lib45d Unix domain socket classes in place of FIFOs."
         ]
     }
 }
