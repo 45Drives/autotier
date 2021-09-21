@@ -24,6 +24,7 @@
 #include <sstream>
 #include <thread>
 #include <45d/config/ConfigParser.hpp>
+#include <45d/socket/UnixSocketClient.hpp>
 
 extern "C" {
 	#include <getopt.h>
@@ -47,15 +48,6 @@ fs::path get_run_path(const fs::path &config_path){
 			fs::path run_path = ffd::ConfigParser(config_path.string()).get<fs::path>("Run Path", "/var/lib/autotier");
 			return run_path / std::to_string(std::hash<std::string>{}(config_path.string()));
 		}
-	}
-}
-
-static void get_response(std::vector<std::string> &payload, const fs::path &run_path){
-	try{
-		get_fifo_payload(payload, run_path / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.error(err.what());
-		exit(EXIT_FAILURE);
 	}
 }
 
@@ -168,11 +160,11 @@ int main(int argc, char *argv[]){
 				exit(EXIT_FAILURE);
 			}
 			for(const std::string &path : paths)
-				payload.emplace_back(path);
+				payload.push_back(path);
 		}else if(cmd == STATUS){
 			std::stringstream ss;
 			ss << std::boolalpha << json << std::endl;
-			payload.emplace_back(ss.str());
+			payload.push_back(ss.str());
 		}
 		
 		fs::path run_path = get_run_path(config_path);
@@ -180,20 +172,37 @@ int main(int argc, char *argv[]){
 			Logging::log.error("Could not find metadata path.");
 			exit(EXIT_FAILURE);
 		}
-		
+
 		std::vector<std::string> response;
-		std::thread response_listener(get_response, std::ref(response), run_path);
-		
-		try{
-			send_fifo_payload(payload, run_path / "request.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.error(err.what());
-			exit(126);
+		try {
+			ffd::UnixSocketClient socket_client((run_path / "adhoc.socket").string());
+			socket_client.connect();
+			socket_client.send_data(payload);
+			socket_client.receive_data(response);
+			socket_client.close_connection();
+		} catch (const ffd::SocketWriteException &e) {
+			Logging::log.error(std::string("Socket request error: ") + e.what());
+			exit(EXIT_FAILURE);
+		} catch (const ffd::SocketReadException &e) {
+			Logging::log.error(std::string("Socket reply error: ") + e.what());
+			exit(EXIT_FAILURE);
+		} catch (const ffd::SocketConnectException &e) {
+			switch (e.get_errno()) {
+				case ECONNREFUSED:
+					Logging::log.error("Socket connection refused. Is autotier mounted?");
+					break;
+				case EACCES:
+					Logging::log.error("Permission denied. Run as root or a member of group `autotier`.");
+					break;
+				default:
+					Logging::log.error(std::string("Socket connect error: ") + e.what());
+					break;
+			}
+			exit(EXIT_FAILURE);
+		} catch (const ffd::SocketException &e) {
+			Logging::log.error(std::string("Socket error: ") + e.what());
+			exit(EXIT_FAILURE);
 		}
-		
-		Logging::log.message("Waiting for filesystem response...", Logger::log_level_t::DEBUG);
-		
-		response_listener.join();
 		
 		if(response.front() == "OK"){
 			Logging::log.message("Response OK.", Logger::log_level_t::DEBUG);
