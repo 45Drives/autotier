@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <45d/socket/UnixSocketServer.hpp>
+
 #include "base.hpp"
 #include "concurrentQueue.hpp"
 #include "tools.hpp"
@@ -107,5 +109,11 @@ public:
 	 * @param args List of file paths to unpin.
 	 */
 	void unpin_files(const std::vector<std::string> &args);
+	/**
+	 * @brief Call socket_server.shutdown() to wake adhoc server thread from wait_for_connection()
+	 * 
+	 */
+	void shutdown_socket_server(void);
 private:
+	ffd::UnixSocketServer socket_server_; ///< IPC server
 };

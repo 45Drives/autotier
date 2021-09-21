@@ -26,36 +26,18 @@
 #include "TierEngine/TierEngine.hpp"
 #include "alert.hpp"
 
-extern "C" {
-	#include <signal.h>
-}
-
 namespace fuse_ops{
 	void destroy(void *private_data){
 		FusePriv *priv = (FusePriv *)private_data;
-		
+
 		priv->autotier_->stop();
 		priv->tier_worker_.join();
-		
-		if(pthread_kill(priv->adhoc_server_.native_handle(), SIGUSR1) == -1){
-			switch(errno){
-				case EINVAL:
-					Logging::log.warning("Invalid signal sent to adhoc_server_ thread. `killall -9 autotier` before remounting.");
-					break;
-				case ESRCH:
-					Logging::log.warning("No thread with given ID while trying to kill adhoc_server_");
-					break;
-				default:
-					Logging::log.warning("Could not kill adhoc_server_ thread. `killall -9 autotier` before remounting.");
-					break;
-			}
-			return;
-		}
-		
 		priv->adhoc_server_.join();
-		
+
+		Logging::log.message("All threads joined.", Logger::DEBUG);
+
 		delete priv->autotier_;
-		
+
 		delete priv;
 	}
 }

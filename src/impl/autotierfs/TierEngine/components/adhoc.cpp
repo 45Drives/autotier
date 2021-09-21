@@ -29,11 +29,29 @@
 extern "C" {
 	#include <sys/stat.h>
 	#include <sys/time.h>
+	#include <grp.h>
 }
 
 TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path, const ConfigOverrides &config_overrides)
-    : TierEngineBase(config_path, config_overrides) {
+try	: TierEngineBase(config_path, config_overrides)
+	, socket_server_((run_path_ / "adhoc.socket").string()) {
+	struct group *at_grp = getgrnam("autotier");
+	if (at_grp != nullptr) {
+		if (chown((run_path_ / "adhoc.socket").c_str(), -1, at_grp->gr_gid) == -1) {
+			int error = errno;
+			Logging::log.warning(std::string("Failed to chown adhoc.socket: ") + strerror(error));
+		}
+		if (chmod((run_path_ / "adhoc.socket").c_str(), 0775) == -1) {
+			int error = errno;
+			Logging::log.warning(std::string("Failed to chmod adhoc.socket: ") + strerror(error));
+		}
+	} else {
+		Logging::log.warning("`autotier` group not found, ad hoc commands must be run as root.");
+	}
 	
+} catch (const ffd::SocketCreateException &e) {
+	Logging::log.error(std::string("Error while constructing socket server: ") + e.what());
+	exit(EXIT_FAILURE);
 }
 
 TierEngineAdhoc::~TierEngineAdhoc() {
@@ -43,52 +61,62 @@ TierEngineAdhoc::~TierEngineAdhoc() {
 void TierEngineAdhoc::process_adhoc_requests(void) {
     std::vector<std::string> payload;
     while(!stop_flag_){
-		try{
-			get_fifo_payload(payload, run_path_ / "request.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.warning(err.what());
+		try {
+			socket_server_.wait_for_connection();
+			socket_server_.receive_data(payload);
+		} catch (const ffd::SocketAcceptException &err) {
+			if (err.get_errno() == EINVAL && stop_flag_) {
+				Logging::log.message("Adhoc server exiting after shutting down socket.", Logger::DEBUG);
+				return;
+			}
+			Logging::log.warning(std::string("Socket accept error: ") + err.what());
+			continue;
+		} catch (const ffd::SocketReadException &err) {
+			Logging::log.warning(std::string("Socket receive error: ") + err.what());
 			continue;
 		}
-		if(stop_flag_)
-			return;
 		AdHoc work(payload);
-		payload.clear();
-		switch(work.cmd_){
-			case ONESHOT:
-				process_oneshot(work);
-				break;
-			case PIN:
-			case UNPIN:
-				process_pin_unpin(work);
-				break;
-			case STATUS:
-				process_status(work);
-				break;
-			case CONFIG:
-				process_config();
-				break;
-			case LPIN:
-				process_list_pins();
-				break;
-			case LPOP:
-				process_list_popularity();
-				break;
-			case WHICHTIER:
-				process_which_tier(work);
-				break;
-			default:
-				Logging::log.warning("Received bad ad hoc command.");
-				payload.clear();
-				payload.emplace_back("ERR");
-				payload.emplace_back("Not a command.");
-				try{
-					send_fifo_payload(payload, run_path_ / "response.pipe");
-				}catch(const fifo_exception &err){
-					Logging::log.warning(err.what());
-					// let it notify main tier thread
-				}
-				break;
+		try {
+			switch(work.cmd_){
+				case ONESHOT:
+					process_oneshot(work);
+					break;
+				case PIN:
+				case UNPIN:
+					process_pin_unpin(work);
+					break;
+				case STATUS:
+					process_status(work);
+					break;
+				case CONFIG:
+					process_config();
+					break;
+				case LPIN:
+					process_list_pins();
+					break;
+				case LPOP:
+					process_list_popularity();
+					break;
+				case WHICHTIER:
+					process_which_tier(work);
+					break;
+				default:
+					Logging::log.warning("Received bad ad hoc command.");
+					payload.clear();
+					payload.push_back("ERR");
+					payload.push_back("Not a command.");
+					try{
+						socket_server_.send_data(payload);
+					}catch(const ffd::SocketException &err){
+						Logging::log.warning(std::string("Socket reply error: ") + err.what());
+						// let it notify main tier thread
+					}
+					break;
+			}
+		}catch(const ffd::SocketException &err){
+			Logging::log.warning(std::string("Socket reply error: ") + err.what());
 		}
+		socket_server_.close_connection();
 		sleep_cv_.notify_one();
 	}
 }
@@ -96,26 +124,18 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
 void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
     std::vector<std::string> payload;
 	if(!work.args_.empty()){
-		payload.emplace_back("ERR");
+		payload.push_back("ERR");
 		std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
 		for(const std::string &str : work.args_)
 			err_msg += " " + str;
-		payload.emplace_back(err_msg);
-		try{
-			send_fifo_payload(payload, run_path_ / "response.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.warning(err.what());
-		}
+		payload.push_back(err_msg);
+		socket_server_.send_data(payload);
 		return;
 	}
 	adhoc_work_.push(work);
-	payload.emplace_back("OK");
-	payload.emplace_back("Work queued.");
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back("OK");
+	payload.push_back("Work queued.");
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
@@ -124,13 +144,9 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 	if(work.cmd_ == PIN){
 		std::string tier_id = work.args_.front();
 		if(tier_lookup(tier_id) == nullptr){
-			payload.emplace_back("ERR");
-			payload.emplace_back("Tier does not exist: \"" + tier_id + "\"");
-			try{
-				send_fifo_payload(payload, run_path_ / "response.pipe");
-			}catch(const fifo_exception &err){
-				Logging::log.warning(err.what());
-			}
+			payload.push_back("ERR");
+			payload.push_back("Tier does not exist: \"" + tier_id + "\"");
+			socket_server_.send_data(payload);
 			return;
 		}
 		++itr;
@@ -142,27 +158,18 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 		}
 	}
 	if(!not_in_fs.empty()){
-		payload.emplace_back("ERR");
+		payload.push_back("ERR\n");
 		std::string err_msg = "Files are not in autotier filesystem:";
 		for(const std::string &str : not_in_fs)
 			err_msg += " " + str;
-		payload.emplace_back(err_msg);
-		try{
-			send_fifo_payload(payload, run_path_ / "response.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.warning(err.what());
-		}
+		payload.push_back(err_msg);
+		socket_server_.send_data(payload);
 		return;
 	}
 	adhoc_work_.push(work);
-	payload.clear();
-	payload.emplace_back("OK");
-	payload.emplace_back("Work queued.");
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back("OK");
+	payload.push_back("Work queued.");
+	socket_server_.send_data(payload);
 }
 
 #define TABLE_HEADER_LINE
@@ -187,7 +194,7 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
     ffd::Bytes total_capacity = 0;
 	ffd::Bytes total_quota_capacity = 0;
 	ffd::Bytes total_usage = 0;
-	std::vector<std::string> payload;
+    std::vector<std::string> payload;
 	
 	bool json;
 	std::stringstream json_ss(work.args_.front());
@@ -196,17 +203,13 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 		json_ss >> std::boolalpha >> json;
 	}catch (const std::ios_base::failure &){
 		Logging::log.error("Could not extract boolean from string.");
-		payload.emplace_back("ERR");
-		payload.emplace_back("Could not determine whether to use table or JSON output.");
-		try{
-			send_fifo_payload(payload, run_path_ / "response.pipe");
-		}catch(const fifo_exception &err){
-			Logging::log.warning(err.what());
-		}
+		payload.push_back("ERR");
+		payload.push_back("Could not determine whether to use table or JSON output.");
+		socket_server_.send_data(payload);
 		return;
 	}
 	
-	payload.emplace_back("OK");
+	payload.push_back("OK");
 	
 	std::string unit("");
 	for(const Tier &t : tiers_){
@@ -352,33 +355,22 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 			}
 		}
 	}
-	std::string line;
-	while(getline(ss, line)){
-		payload.emplace_back(line);
-	}
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back(ss.str());
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::process_config(void) {
     std::vector<std::string> payload;
-	payload.emplace_back("OK");
+	payload.push_back("OK");
 	std::stringstream ss;
 	config_.dump(tiers_, ss);
-	payload.emplace_back(ss.str());
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back(ss.str());
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::process_list_pins(void) {
     std::vector<std::string> payload;
-	payload.emplace_back("OK");
+	payload.push_back("OK");
 	std::stringstream ss;
 	ss << "File : Tier Path" << std::endl;
 	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
@@ -387,17 +379,13 @@ void TierEngineAdhoc::process_list_pins(void) {
 		if(f.pinned())
 			ss << it->key().ToString() << " : " << f.tier_path() << std::endl;
 	}
-	payload.emplace_back(ss.str());
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back(ss.str());
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::process_list_popularity(void) {
     std::vector<std::string> payload;
-	payload.emplace_back("OK");
+	payload.push_back("OK");
 	std::stringstream ss;
 	ss << "File : Popularity (accesses per hour)" << std::endl;
 	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
@@ -405,17 +393,13 @@ void TierEngineAdhoc::process_list_popularity(void) {
 		Metadata f(it->value().ToString());
 		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
 	}
-	payload.emplace_back(ss.str());
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back(ss.str());
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::process_which_tier(AdHoc &work) {
     std::vector<std::string> payload;
-	payload.emplace_back("OK");
+	payload.push_back("OK");
 	int namew = 0;
 	int tierw = 0;
 	for(std::string &arg : work.args_){
@@ -434,38 +418,34 @@ void TierEngineAdhoc::process_which_tier(AdHoc &work) {
 		if(len > tierw)
 			tierw = len;
 	}
-	std::stringstream header;
-	header << std::setw(namew) << std::left << "File" << "  ";
-	header << std::setw(tierw) << std::left << "Tier" << "  ";
-	header << std::left << "Backend Path";
+	std::stringstream ss;
+	ss << std::setw(namew) << std::left << "File" << "  ";
+	ss << std::setw(tierw) << std::left << "Tier" << "  ";
+	ss << std::left << "Backend Path";
 #ifdef TABLE_HEADER_LINE
-	header << std::endl;
-	auto fill = header.fill();
-	header << std::setw(80) << std::setfill('-') << "";
-	header.fill(fill);
+	ss << std::endl;
+	auto fill = ss.fill();
+	ss << std::setw(80) << std::setfill('-') << "";
+	ss.fill(fill);
 #endif
-	payload.emplace_back(header.str());
+	ss << std::endl;
 	for(const std::string &arg : work.args_){
-		std::stringstream record;
-		record << std::setw(namew) << std::left << arg << "  ";
+		ss << std::setw(namew) << std::left << arg << "  ";
 		Metadata f(arg.c_str(), db_);
 		if(f.not_found()){
-				record << "not found.";
+				ss << "not found.";
 		}else{
 			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
 			if(tptr == nullptr)
-				record << std::setw(tierw) << std::left << "UNK" << "  ";
+				ss << std::setw(tierw) << std::left << "UNK" << "  ";
 			else
-				record << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
-			record << std::left << (fs::path(f.tier_path()) / arg).string();
+				ss << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
+			ss << std::left << (fs::path(f.tier_path()) / arg).string();
 		}
-		payload.emplace_back(record.str());
+		ss << std::endl;
 	}
-	try{
-		send_fifo_payload(payload, run_path_ / "response.pipe");
-	}catch(const fifo_exception &err){
-		Logging::log.warning(err.what());
-	}
+	payload.push_back(ss.str());
+	socket_server_.send_data(payload);
 }
 
 void TierEngineAdhoc::execute_queued_work(void) {
@@ -536,5 +516,14 @@ void TierEngineAdhoc::unpin_files(const std::vector<std::string> &args) {
 		}
 		f.pinned(false);
 		f.update(relative_path.c_str(), db_);
+	}
+}
+
+void TierEngineAdhoc::shutdown_socket_server(void) {
+	Logging::log.message("Shutting down socket.", Logger::log_level_t::DEBUG);
+	try {
+		socket_server_.shutdown();
+	} catch (ffd::SocketException &e) {
+		Logging::log.error(std::string("Socket shutdown error: ") + e.what());
 	}
 }
