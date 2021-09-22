@@ -433,7 +433,7 @@ void TierEngineAdhoc::process_which_tier(AdHoc &work) {
 		ss << std::setw(namew) << std::left << arg << "  ";
 		Metadata f(arg.c_str(), db_);
 		if(f.not_found()){
-				ss << "not found.";
+				ss << "not found";
 		}else{
 			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
 			if(tptr == nullptr)
