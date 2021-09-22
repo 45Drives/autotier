@@ -1,39 +1,41 @@
 /*
  *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
- *    
+ *
  *    This file is part of autotier.
- * 
+ *
  *    autotier is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
  *    the Free Software Foundation, either version 3 of the License, or
  *    (at your option) any later version.
- * 
+ *
  *    autotier is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- * 
+ *
  *    You should have received a copy of the GNU General Public License
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "TierEngine/components/adhoc.hpp"
+
 #include "alert.hpp"
 #include "conflicts.hpp"
-#include "version.hpp"
 #include "metadata.hpp"
+#include "version.hpp"
 
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 
 extern "C" {
-	#include <sys/stat.h>
-	#include <sys/time.h>
-	#include <grp.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <grp.h>
 }
 
-TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path, const ConfigOverrides &config_overrides)
-try	: TierEngineBase(config_path, config_overrides)
+TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
+								 const ConfigOverrides &config_overrides) try
+	: TierEngineBase(config_path, config_overrides)
 	, socket_server_((run_path_ / "adhoc.socket").string()) {
 	struct group *at_grp = getgrnam("autotier");
 	if (at_grp != nullptr) {
@@ -48,25 +50,24 @@ try	: TierEngineBase(config_path, config_overrides)
 	} else {
 		Logging::log.warning("`autotier` group not found, ad hoc commands must be run as root.");
 	}
-	
+
 } catch (const ffd::SocketCreateException &e) {
 	Logging::log.error(std::string("Error while constructing socket server: ") + e.what());
 	exit(EXIT_FAILURE);
 }
 
-TierEngineAdhoc::~TierEngineAdhoc() {
-
-}
+TierEngineAdhoc::~TierEngineAdhoc() {}
 
 void TierEngineAdhoc::process_adhoc_requests(void) {
-    std::vector<std::string> payload;
-    while(!stop_flag_){
+	std::vector<std::string> payload;
+	while (!stop_flag_) {
 		try {
 			socket_server_.wait_for_connection();
 			socket_server_.receive_data_async(payload);
 		} catch (const ffd::SocketAcceptException &err) {
 			if (err.get_errno() == EINVAL && stop_flag_) {
-				Logging::log.message("Adhoc server exiting after shutting down socket.", Logger::DEBUG);
+				Logging::log.message("Adhoc server exiting after shutting down socket.",
+									 Logger::DEBUG);
 				return;
 			}
 			Logging::log.warning(std::string("Socket accept error: ") + err.what());
@@ -77,7 +78,7 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
 		}
 		AdHoc work(payload);
 		try {
-			switch(work.cmd_){
+			switch (work.cmd_) {
 				case ONESHOT:
 					process_oneshot(work);
 					break;
@@ -105,15 +106,15 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
 					payload.clear();
 					payload.push_back("ERR");
 					payload.push_back("Not a command.");
-					try{
+					try {
 						socket_server_.send_data_async(payload);
-					}catch(const ffd::SocketException &err){
+					} catch (const ffd::SocketException &err) {
 						Logging::log.warning(std::string("Socket reply error: ") + err.what());
 						// let it notify main tier thread
 					}
 					break;
 			}
-		}catch(const ffd::SocketException &err){
+		} catch (const ffd::SocketException &err) {
 			Logging::log.warning(std::string("Socket reply error: ") + err.what());
 		}
 		socket_server_.close_connection();
@@ -122,11 +123,11 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
 }
 
 void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
-    std::vector<std::string> payload;
-	if(!work.args_.empty()){
+	std::vector<std::string> payload;
+	if (!work.args_.empty()) {
 		payload.push_back("ERR");
 		std::string err_msg = "autotier oneshot takes no arguments. Offender(s):";
-		for(const std::string &str : work.args_)
+		for (const std::string &str : work.args_)
 			err_msg += " " + str;
 		payload.push_back(err_msg);
 		socket_server_.send_data_async(payload);
@@ -139,11 +140,11 @@ void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
 }
 
 void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
-    std::vector<std::string> payload;
+	std::vector<std::string> payload;
 	std::vector<std::string>::const_iterator itr = work.args_.begin();
-	if(work.cmd_ == PIN){
+	if (work.cmd_ == PIN) {
 		std::string tier_id = work.args_.front();
-		if(tier_lookup(tier_id) == nullptr){
+		if (tier_lookup(tier_id) == nullptr) {
 			payload.push_back("ERR");
 			payload.push_back("Tier does not exist: \"" + tier_id + "\"");
 			socket_server_.send_data_async(payload);
@@ -152,15 +153,15 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 		++itr;
 	}
 	std::vector<std::string> not_in_fs;
-	for( ; itr != work.args_.end(); ++itr){
-		if(!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())){
+	for (; itr != work.args_.end(); ++itr) {
+		if (!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())) {
 			not_in_fs.push_back(*itr);
 		}
 	}
-	if(!not_in_fs.empty()){
+	if (!not_in_fs.empty()) {
 		payload.push_back("ERR\n");
 		std::string err_msg = "Files are not in autotier filesystem:";
-		for(const std::string &str : not_in_fs)
+		for (const std::string &str : not_in_fs)
 			err_msg += " " + str;
 		payload.push_back(err_msg);
 		socket_server_.send_data_async(payload);
@@ -179,52 +180,53 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 #define PERCENTW 6
 #define PERCENTU 1 + UNIT_GAP
 
-namespace l{
-	inline int find_max_width(const std::vector<std::string> &names){
+namespace l {
+	inline int find_max_width(const std::vector<std::string> &names) {
 		int res = -1;
-		for(const std::string &name : names){
+		for (const std::string &name : names) {
 			int length = name.length();
-			if(length > res) res = length;
+			if (length > res)
+				res = length;
 		}
 		return res;
 	}
-}
+} // namespace l
 
 void TierEngineAdhoc::process_status(const AdHoc &work) {
-    ffd::Bytes total_capacity = 0;
+	ffd::Bytes total_capacity = 0;
 	ffd::Bytes total_quota_capacity = 0;
 	ffd::Bytes total_usage = 0;
-    std::vector<std::string> payload;
-	
+	std::vector<std::string> payload;
+
 	bool json;
 	std::stringstream json_ss(work.args_.front());
-	
-	try{
+
+	try {
 		json_ss >> std::boolalpha >> json;
-	}catch (const std::ios_base::failure &){
+	} catch (const std::ios_base::failure &) {
 		Logging::log.error("Could not extract boolean from string.");
 		payload.push_back("ERR");
 		payload.push_back("Could not determine whether to use table or JSON output.");
 		socket_server_.send_data_async(payload);
 		return;
 	}
-	
+
 	payload.push_back("OK");
-	
+
 	std::string unit("");
-	for(const Tier &t : tiers_){
+	for (const Tier &t : tiers_) {
 		total_capacity += t.capacity();
 		total_quota_capacity += t.quota();
 		total_usage += t.usage_bytes();
 	}
 	double overall_quota = total_quota_capacity / total_capacity * 100.0;
 	double total_percent_usage = total_usage / total_capacity * 100.0;
-	
+
 	std::vector<std::string> conflicts;
 	bool has_conflicts = check_conflicts(conflicts, run_path_);
-	
+
 	std::stringstream ss;
-	if(json){
+	if (json) {
 		ss << 
 		"{"
 			"\"version\":\"" VERS "\","
@@ -238,7 +240,7 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 				"\"path\":\"" + mount_point_.string() + "\""
 			"},"
 			"\"tiers\":[";
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+		for (std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr) {
 			ss <<
 				"{"
 					"\"name\":\"" + tptr->id() + "\","
@@ -250,28 +252,28 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 					"\"usage_pretty\":\"" + tptr->usage_bytes().get_str() + "\","
 					"\"path\":\"" + tptr->path().string() + "\""
 				"}";
-			if(std::next(tptr) != tiers_.end())
+			if (std::next(tptr) != tiers_.end())
 				ss << ",";
 		}
-		ss <<
-			"],"
-			"\"conflicts\":{"
-				"\"has_conflicts\":" << std::boolalpha << has_conflicts << std::noboolalpha << ","
-				"\"paths\":[";
-		for(std::vector<std::string>::iterator itr = conflicts.begin(); itr != conflicts.end(); ++itr){
-			ss << 
-						"\"" + *itr + "\"";
-			if(std::next(itr) != conflicts.end())
+		ss << "],"
+			  "\"conflicts\":{"
+			  "\"has_conflicts\":"
+		   << std::boolalpha << has_conflicts << std::noboolalpha
+		   << ","
+			  "\"paths\":[";
+		for (std::vector<std::string>::iterator itr = conflicts.begin(); itr != conflicts.end();
+			 ++itr) {
+			ss << "\"" + *itr + "\"";
+			if (std::next(itr) != conflicts.end())
 				ss << ",";
 		}
-		ss <<
-				"]"
-			"}"
-		"}";
-	}else{
+		ss << "]"
+			  "}"
+			  "}";
+	} else {
 		std::vector<std::string> names;
 		names.push_back("combined");
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+		for (std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr) {
 			names.push_back(tptr->id());
 		}
 		int namew = l::find_max_width(names);
@@ -295,62 +297,72 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
 			ss << std::left << "Path";
-	#ifdef TABLE_HEADER_LINE
+#ifdef TABLE_HEADER_LINE
 			ss << std::endl;
 			auto fill = ss.fill();
 			ss << std::setw(80) << std::setfill('-') << "";
 			ss.fill(fill);
-	#endif
+#endif
 			ss << std::endl;
 		}
 		{
 			// Combined
 			ss << std::setw(namew) << std::left << "combined"; // tier
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_capacity.get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(total_capacity.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_quota_capacity.get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(total_quota_capacity.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << overall_quota;
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right
+			   << overall_quota;
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(total_usage.get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(total_usage.get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << total_percent_usage;
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right
+			   << total_percent_usage;
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
 			ss << std::left << mount_point_.string();
 			ss << std::endl;
 		}
-		for(std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr){
+		for (std::list<Tier>::iterator tptr = tiers_.begin(); tptr != tiers_.end(); ++tptr) {
 			// Tiers
 			ss << std::setw(namew) << std::left << tptr->id(); // tier
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->capacity().get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(tptr->capacity().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->quota().get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(tptr->quota().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->quota_percent();
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right
+			   << tptr->quota_percent();
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right << Logging::log.format_bytes(tptr->usage_bytes().get(), unit);
+			ss << std::fixed << std::setprecision(2) << std::setw(ABSW) << std::right
+			   << Logging::log.format_bytes(tptr->usage_bytes().get(), unit);
 			ss << std::setw(ABSU) << unit; // unit
 			ss << " ";
-			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right << tptr->usage_percent();
+			ss << std::fixed << std::setprecision(2) << std::setw(PERCENTW) << std::right
+			   << tptr->usage_percent();
 			ss << std::setw(PERCENTU) << "%"; // unit
 			ss << " ";
 			ss << std::left << tptr->path().string();
 			ss << std::endl;
 		}
-		if(has_conflicts){
+		if (has_conflicts) {
 			ss << "\n" << std::endl;
 			ss << "autotier encountered conflicting file paths between tiers:" << std::endl;
-			for(const std::string &conflict : conflicts){
+			for (const std::string &conflict : conflicts) {
 				ss << conflict + "(.autotier_conflict)" << std::endl;
 			}
 		}
@@ -360,7 +372,7 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 }
 
 void TierEngineAdhoc::process_config(void) {
-    std::vector<std::string> payload;
+	std::vector<std::string> payload;
 	payload.push_back("OK");
 	std::stringstream ss;
 	config_.dump(tiers_, ss);
@@ -369,14 +381,14 @@ void TierEngineAdhoc::process_config(void) {
 }
 
 void TierEngineAdhoc::process_list_pins(void) {
-    std::vector<std::string> payload;
+	std::vector<std::string> payload;
 	payload.push_back("OK");
 	std::stringstream ss;
 	ss << "File : Tier Path" << std::endl;
 	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
-	for(it->SeekToFirst(); it->Valid(); it->Next()){
+	for (it->SeekToFirst(); it->Valid(); it->Next()) {
 		Metadata f(it->value().ToString());
-		if(f.pinned())
+		if (f.pinned())
 			ss << it->key().ToString() << " : " << f.tier_path() << std::endl;
 	}
 	payload.push_back(ss.str());
@@ -384,12 +396,12 @@ void TierEngineAdhoc::process_list_pins(void) {
 }
 
 void TierEngineAdhoc::process_list_popularity(void) {
-    std::vector<std::string> payload;
+	std::vector<std::string> payload;
 	payload.push_back("OK");
 	std::stringstream ss;
 	ss << "File : Popularity (accesses per hour)" << std::endl;
 	rocksdb::Iterator *it = db_->NewIterator(rocksdb::ReadOptions());
-	for(it->SeekToFirst(); it->Valid(); it->Next()){
+	for (it->SeekToFirst(); it->Valid(); it->Next()) {
 		Metadata f(it->value().ToString());
 		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
 	}
@@ -398,29 +410,31 @@ void TierEngineAdhoc::process_list_popularity(void) {
 }
 
 void TierEngineAdhoc::process_which_tier(AdHoc &work) {
-    std::vector<std::string> payload;
+	std::vector<std::string> payload;
 	payload.push_back("OK");
 	int namew = 0;
 	int tierw = 0;
-	for(std::string &arg : work.args_){
-		if(std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())){
+	for (std::string &arg : work.args_) {
+		if (std::equal(mount_point_.string().begin(), mount_point_.string().end(), arg.begin())) {
 			arg = fs::relative(arg, mount_point_).string();
 		}
 		int len = arg.length();
-		if(len > namew)
+		if (len > namew)
 			namew = len;
 	}
 	int file_header_len = std::string("File").length();
-	if(file_header_len > namew)
+	if (file_header_len > namew)
 		namew = file_header_len;
-	for(const Tier &tier : tiers_){
+	for (const Tier &tier : tiers_) {
 		int len = tier.id().length() + 2; // 2 quotes
-		if(len > tierw)
+		if (len > tierw)
 			tierw = len;
 	}
 	std::stringstream ss;
-	ss << std::setw(namew) << std::left << "File" << "  ";
-	ss << std::setw(tierw) << std::left << "Tier" << "  ";
+	ss << std::setw(namew) << std::left << "File"
+	   << "  ";
+	ss << std::setw(tierw) << std::left << "Tier"
+	   << "  ";
 	ss << std::left << "Backend Path";
 #ifdef TABLE_HEADER_LINE
 	ss << std::endl;
@@ -429,17 +443,19 @@ void TierEngineAdhoc::process_which_tier(AdHoc &work) {
 	ss.fill(fill);
 #endif
 	ss << std::endl;
-	for(const std::string &arg : work.args_){
+	for (const std::string &arg : work.args_) {
 		ss << std::setw(namew) << std::left << arg << "  ";
 		Metadata f(arg.c_str(), db_);
-		if(f.not_found()){
-				ss << "not found";
-		}else{
+		if (f.not_found()) {
+			ss << "not found";
+		} else {
 			Tier *tptr = tier_lookup(fs::path(f.tier_path()));
-			if(tptr == nullptr)
-				ss << std::setw(tierw) << std::left << "UNK" << "  ";
+			if (tptr == nullptr)
+				ss << std::setw(tierw) << std::left << "UNK"
+				   << "  ";
 			else
-				ss << std::setw(tierw) << std::left << "\"" + tptr->id() + "\"" << "  ";
+				ss << std::setw(tierw) << std::left << "\"" + tptr->id() + "\""
+				   << "  ";
 			ss << std::left << (fs::path(f.tier_path()) / arg).string();
 		}
 		ss << std::endl;
@@ -449,9 +465,9 @@ void TierEngineAdhoc::process_which_tier(AdHoc &work) {
 }
 
 void TierEngineAdhoc::execute_queued_work(void) {
-    while(!adhoc_work_.empty()){
+	while (!adhoc_work_.empty()) {
 		AdHoc work = adhoc_work_.pop();
-		switch(work.cmd_){
+		switch (work.cmd_) {
 			case ONESHOT:
 				tier();
 				break;
@@ -469,24 +485,26 @@ void TierEngineAdhoc::execute_queued_work(void) {
 }
 
 void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
-    Tier *tptr;
+	Tier *tptr;
 	std::string tier_id = args.front();
-	if((tptr = tier_lookup(tier_id)) == nullptr){
+	if ((tptr = tier_lookup(tier_id)) == nullptr) {
 		Logging::log.warning("Tier does not exist, cannot pin files. Tier name given: " + tier_id);
 		return;
 	}
-	for(std::vector<std::string>::const_iterator fptr = std::next(args.begin()); fptr != args.end(); ++fptr){
+	for (std::vector<std::string>::const_iterator fptr = std::next(args.begin());
+		 fptr != args.end();
+		 ++fptr) {
 		fs::path mounted_path = *fptr;
 		fs::path relative_path = fs::relative(mounted_path, mount_point_);
 		Metadata f(relative_path.string(), db_);
-		if(f.not_found()){
+		if (f.not_found()) {
 			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
 			continue;
 		}
-		fs::path old_path = f.tier_path()/relative_path;
-		fs::path new_path = tptr->path()/relative_path;
+		fs::path old_path = f.tier_path() / relative_path;
+		fs::path new_path = tptr->path() / relative_path;
 		struct stat st;
-		if(stat(old_path.c_str(), &st) == -1){
+		if (stat(old_path.c_str(), &st) == -1) {
 			Logging::log.warning("stat failed on " + old_path.string() + ": " + strerror(errno));
 			continue;
 		}
@@ -495,22 +513,22 @@ void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
 		times[0].tv_usec = st.st_atim.tv_nsec / 1000;
 		times[1].tv_sec = st.st_mtim.tv_sec;
 		times[1].tv_usec = st.st_mtim.tv_nsec / 1000;
-		if(tptr->move_file(old_path, new_path, config_.copy_buff_sz())){
+		if (tptr->move_file(old_path, new_path, config_.copy_buff_sz())) {
 			utimes(new_path.c_str(), times);
 			f.pinned(true);
 			f.tier_path(tptr->path().string());
 			f.update(relative_path.string(), db_);
 		}
 	}
-	if(!config_.strict_period())
+	if (!config_.strict_period())
 		tier();
 }
 
 void TierEngineAdhoc::unpin_files(const std::vector<std::string> &args) {
-    for(const std::string &mounted_path : args){
+	for (const std::string &mounted_path : args) {
 		fs::path relative_path = fs::relative(mounted_path, mount_point_);
 		Metadata f(relative_path.c_str(), db_);
-		if(f.not_found()){
+		if (f.not_found()) {
 			Logging::log.warning("File to be unpinned was not in database: " + mounted_path);
 			continue;
 		}

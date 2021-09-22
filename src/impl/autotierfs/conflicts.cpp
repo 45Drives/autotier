@@ -1,67 +1,70 @@
 /*
  *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
- *    
+ *
  *    This file is part of autotier.
- * 
+ *
  *    autotier is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
  *    the Free Software Foundation, either version 3 of the License, or
  *    (at your option) any later version.
- * 
+ *
  *    autotier is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- * 
+ *
  *    You should have received a copy of the GNU General Public License
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "alert.hpp"
+
+#include <boost/filesystem.hpp>
 #include <fstream>
 #include <mutex>
-#include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
 #define CONFLICT_LOG_FILE "conflicts.log"
 
 static std::mutex conflict_lock;
 
-static inline void read_conflicts(std::vector<std::string> &conflicts, const std::string &path){
+static inline void read_conflicts(std::vector<std::string> &conflicts, const std::string &path) {
 	std::ifstream f(path);
-	if(!f)
+	if (!f)
 		return;
 	std::string entry;
-	while(std::getline(f, entry))
-		if(entry.size() > 0 && fs::exists(entry)){
+	while (std::getline(f, entry))
+		if (entry.size() > 0 && fs::exists(entry)) {
 			bool still_conflicted = false;
 			std::string test_string = entry + ".autotier_conflict";
 			fs::path parent_path = fs::path(entry).parent_path();
-			for(fs::directory_iterator itr(parent_path); itr != fs::directory_iterator(); ++itr){
-				if(std::equal(test_string.begin(), test_string.end(), itr->path().string().begin())){
+			for (fs::directory_iterator itr(parent_path); itr != fs::directory_iterator(); ++itr) {
+				if (std::equal(
+						test_string.begin(), test_string.end(), itr->path().string().begin())) {
 					still_conflicted = true;
 					break;
 				}
 			}
-			if(still_conflicted)
+			if (still_conflicted)
 				conflicts.push_back(entry);
 		}
 	f.close();
 }
 
-static inline void write_conflicts(const std::vector<std::string> &conflicts, const std::string &path){
+static inline void write_conflicts(const std::vector<std::string> &conflicts,
+								   const std::string &path) {
 	std::ofstream f(path, std::ofstream::out | std::ofstream::trunc);
-	if(!f){
+	if (!f) {
 		Logging::log.error("Unable to open conflict log file for writing.");
 		return;
 	}
-	for(const std::string &entry : conflicts){
+	for (const std::string &entry : conflicts) {
 		f << entry << std::endl;
 	}
 	f.close();
 }
 
-bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_path){
+bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_path) {
 	fs::path log_file = run_path / CONFLICT_LOG_FILE;
 	{
 		std::lock_guard<std::mutex> lk(conflict_lock);
@@ -71,7 +74,7 @@ bool check_conflicts(std::vector<std::string> &conflicts, const fs::path &run_pa
 	return conflicts.size() > 0;
 }
 
-void add_conflict(const std::string &path, const fs::path &run_path){
+void add_conflict(const std::string &path, const fs::path &run_path) {
 	fs::path log_file = run_path / CONFLICT_LOG_FILE;
 	std::vector<std::string> conflicts;
 	{

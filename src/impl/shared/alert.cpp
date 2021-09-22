@@ -1,52 +1,53 @@
 /*
  *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
- * 
+ *
  *    This file is part of autotier.
- * 
+ *
  *    autotier is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
  *    the Free Software Foundation, either version 3 of the License, or
  *    (at your option) any later version.
- * 
+ *
  *    autotier is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- * 
+ *
  *    You should have received a copy of the GNU General Public License
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "alert.hpp"
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <cmath>
 
-extern "C"{
-	#include <syslog.h>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+
+extern "C" {
+#include <syslog.h>
 }
 
-namespace Logging{
+namespace Logging {
 	Logger log(Logger::log_level_t::NORMAL);
 }
 
-Logger::Logger(log_level_t log_level, output_t output){
+Logger::Logger(log_level_t log_level, output_t output) {
 	log_level_ = log_level;
 	output_ = output;
-	if(output_ == SYSLOG){
+	if (output_ == SYSLOG) {
 		openlog("autotier", LOG_USER, LOG_USER);
 	}
 }
 
-Logger::~Logger(void){
-	if(output_ == SYSLOG)
+Logger::~Logger(void) {
+	if (output_ == SYSLOG)
 		closelog();
 }
 
-void Logger::message(const std::string &msg, log_level_t lvl) const{
-	if(log_level_ >= lvl){
-		switch(output_){
+void Logger::message(const std::string &msg, log_level_t lvl) const {
+	if (log_level_ >= lvl) {
+		switch (output_) {
 			case STD:
 				std::cout << msg << std::endl;
 				break;
@@ -57,8 +58,8 @@ void Logger::message(const std::string &msg, log_level_t lvl) const{
 	}
 }
 
-void Logger::warning(const std::string &msg) const{
-	switch(output_){
+void Logger::warning(const std::string &msg) const {
+	switch (output_) {
 		case STD:
 			std::cerr << "Warning: " << msg << std::endl;
 			break;
@@ -68,8 +69,8 @@ void Logger::warning(const std::string &msg) const{
 	}
 }
 
-void Logger::error(const std::string &msg) const{
-	switch(output_){
+void Logger::error(const std::string &msg) const {
+	switch (output_) {
 		case STD:
 			std::cerr << "Error: " << msg << std::endl;
 			break;
@@ -79,11 +80,11 @@ void Logger::error(const std::string &msg) const{
 	}
 }
 
-void Logger::set_level(log_level_t log_level){
+void Logger::set_level(log_level_t log_level) {
 	log_level_ = log_level;
 }
 
-void Logger::set_output(output_t output){
+void Logger::set_output(output_t output) {
 	if (output_ == output)
 		return;
 	if (output == Logger::output_t::SYSLOG) {
@@ -95,10 +96,11 @@ void Logger::set_output(output_t output){
 }
 
 #define N_INDEX 9
-const char *units[N_INDEX] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"};
+const char *units[N_INDEX] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB" };
 
-std::string Logger::format_bytes(uintmax_t bytes) const{
-	if(bytes == 0) return "0 B";
+std::string Logger::format_bytes(uintmax_t bytes) const {
+	if (bytes == 0)
+		return "0 B";
 	std::stringstream formatted_ss;
 	int i = std::min(int(log(bytes) / log(1024.0)), N_INDEX - 1);
 	double p = pow(1024.0, i);
@@ -107,8 +109,8 @@ std::string Logger::format_bytes(uintmax_t bytes) const{
 	return formatted_ss.str();
 }
 
-double Logger::format_bytes(uintmax_t bytes, std::string &unit) const{
-	if(bytes == 0){
+double Logger::format_bytes(uintmax_t bytes, std::string &unit) const {
+	if (bytes == 0) {
 		unit = units[0];
 		return 0.0;
 	}
