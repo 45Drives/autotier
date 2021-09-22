@@ -177,8 +177,8 @@ int main(int argc, char *argv[]){
 		try {
 			ffd::UnixSocketClient socket_client((run_path / "adhoc.socket").string());
 			socket_client.connect();
-			socket_client.send_data(payload);
-			socket_client.receive_data(response);
+			socket_client.send_data_async(payload);
+			socket_client.receive_data_async(response);
 			socket_client.close_connection();
 		} catch (const ffd::SocketWriteException &e) {
 			Logging::log.error(std::string("Socket request error: ") + e.what());

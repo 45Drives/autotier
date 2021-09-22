@@ -63,7 +63,7 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
     while(!stop_flag_){
 		try {
 			socket_server_.wait_for_connection();
-			socket_server_.receive_data(payload);
+			socket_server_.receive_data_async(payload);
 		} catch (const ffd::SocketAcceptException &err) {
 			if (err.get_errno() == EINVAL && stop_flag_) {
 				Logging::log.message("Adhoc server exiting after shutting down socket.", Logger::DEBUG);
@@ -106,7 +106,7 @@ void TierEngineAdhoc::process_adhoc_requests(void) {
 					payload.push_back("ERR");
 					payload.push_back("Not a command.");
 					try{
-						socket_server_.send_data(payload);
+						socket_server_.send_data_async(payload);
 					}catch(const ffd::SocketException &err){
 						Logging::log.warning(std::string("Socket reply error: ") + err.what());
 						// let it notify main tier thread
@@ -129,13 +129,13 @@ void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
 		for(const std::string &str : work.args_)
 			err_msg += " " + str;
 		payload.push_back(err_msg);
-		socket_server_.send_data(payload);
+		socket_server_.send_data_async(payload);
 		return;
 	}
 	adhoc_work_.push(work);
 	payload.push_back("OK");
 	payload.push_back("Work queued.");
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
@@ -146,7 +146,7 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 		if(tier_lookup(tier_id) == nullptr){
 			payload.push_back("ERR");
 			payload.push_back("Tier does not exist: \"" + tier_id + "\"");
-			socket_server_.send_data(payload);
+			socket_server_.send_data_async(payload);
 			return;
 		}
 		++itr;
@@ -163,13 +163,13 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 		for(const std::string &str : not_in_fs)
 			err_msg += " " + str;
 		payload.push_back(err_msg);
-		socket_server_.send_data(payload);
+		socket_server_.send_data_async(payload);
 		return;
 	}
 	adhoc_work_.push(work);
 	payload.push_back("OK");
 	payload.push_back("Work queued.");
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 #define TABLE_HEADER_LINE
@@ -205,7 +205,7 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 		Logging::log.error("Could not extract boolean from string.");
 		payload.push_back("ERR");
 		payload.push_back("Could not determine whether to use table or JSON output.");
-		socket_server_.send_data(payload);
+		socket_server_.send_data_async(payload);
 		return;
 	}
 	
@@ -356,7 +356,7 @@ void TierEngineAdhoc::process_status(const AdHoc &work) {
 		}
 	}
 	payload.push_back(ss.str());
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::process_config(void) {
@@ -365,7 +365,7 @@ void TierEngineAdhoc::process_config(void) {
 	std::stringstream ss;
 	config_.dump(tiers_, ss);
 	payload.push_back(ss.str());
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::process_list_pins(void) {
@@ -380,7 +380,7 @@ void TierEngineAdhoc::process_list_pins(void) {
 			ss << it->key().ToString() << " : " << f.tier_path() << std::endl;
 	}
 	payload.push_back(ss.str());
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::process_list_popularity(void) {
@@ -394,7 +394,7 @@ void TierEngineAdhoc::process_list_popularity(void) {
 		ss << it->key().ToString() << " : " << f.popularity() << std::endl;
 	}
 	payload.push_back(ss.str());
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::process_which_tier(AdHoc &work) {
@@ -445,7 +445,7 @@ void TierEngineAdhoc::process_which_tier(AdHoc &work) {
 		ss << std::endl;
 	}
 	payload.push_back(ss.str());
-	socket_server_.send_data(payload);
+	socket_server_.send_data_async(payload);
 }
 
 void TierEngineAdhoc::execute_queued_work(void) {
