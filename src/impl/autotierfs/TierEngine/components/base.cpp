@@ -22,8 +22,8 @@
 #include "alert.hpp"
 
 extern "C" {
-#include <sys/stat.h>
 #include <grp.h>
+#include <sys/stat.h>
 }
 
 TierEngineBase::TierEngineBase(const fs::path &config_path, const ConfigOverrides &config_overrides)

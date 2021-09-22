@@ -28,9 +28,9 @@
 #include <thread>
 
 extern "C" {
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <fcntl.h>
 }
 
 void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const {

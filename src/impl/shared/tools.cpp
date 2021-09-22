@@ -29,11 +29,11 @@
 namespace fs = boost::filesystem;
 
 extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <grp.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 }
 
 int get_command_index(const std::string &cmd) {

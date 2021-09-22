@@ -28,9 +28,9 @@
 #include <sstream>
 
 extern "C" {
+#include <grp.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <grp.h>
 }
 
 TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
