@@ -170,6 +170,11 @@ void TierEngineTiering::simulate_tier(void) {
 	std::list<Tier>::iterator tptr = tiers_.begin();
 	while (fptr != files_.end()) {
 		if (tptr->full_test(*fptr)) {
+			/*
+			If fptr makes tptr full, it shouldn't immediately move
+			on to next tier. Some files after fptr could still fit in tptr.
+			Not sure on how to implement this yet.
+			*/
 			if (std::next(tptr) != tiers_.end()) {
 				// move to next tier
 				++tptr;
