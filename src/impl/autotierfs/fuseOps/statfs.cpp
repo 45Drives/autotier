@@ -58,15 +58,16 @@ namespace fuse_ops {
 				stbuf->f_bsize = fs_stats_temp.f_bsize;
 			if (stbuf->f_frsize == 0)
 				stbuf->f_frsize = fs_stats_temp.f_frsize;
-			stbuf->f_blocks += fs_stats_temp.f_blocks;
-			stbuf->f_bfree += fs_stats_temp.f_bfree;
-			stbuf->f_bavail += fs_stats_temp.f_bavail;
+			stbuf->f_blocks += tptr->quota().get() / fs_stats_temp.f_bsize;
+			stbuf->f_bfree -= tptr->usage_bytes().get() / fs_stats_temp.f_bsize;
 			stbuf->f_files += fs_stats_temp.f_files;
 			if (stbuf->f_ffree == 0)
 				stbuf->f_ffree = fs_stats_temp.f_ffree;
 			if (stbuf->f_favail == 0)
 				stbuf->f_favail = fs_stats_temp.f_favail;
 		}
+		stbuf->f_bfree += stbuf->f_blocks;
+		stbuf->f_bavail = stbuf->f_bfree;
 
 		return res;
 	}
