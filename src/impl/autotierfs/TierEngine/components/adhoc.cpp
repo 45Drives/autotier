@@ -50,7 +50,6 @@ TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
 	} else {
 		Logging::log.warning("`autotier` group not found, ad hoc commands must be run as root.");
 	}
-
 } catch (const ffd::SocketCreateException &e) {
 	Logging::log.error(std::string("Error while constructing socket server: ") + e.what());
 	exit(EXIT_FAILURE);
