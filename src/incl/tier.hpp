@@ -147,7 +147,7 @@ public:
 	 * @return true file would make tier overfilled
 	 * @return false file would fit in tier
 	 */
-	bool full_test(const File &file) const;
+	bool full_test(const ffd::Bytes &file_size) const;
 	/**
 	 * @brief Get path to root of tier
 	 *
