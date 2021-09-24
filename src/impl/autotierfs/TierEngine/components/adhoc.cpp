@@ -37,6 +37,15 @@ TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
 								 const ConfigOverrides &config_overrides) try
 	: TierEngineBase(config_path, config_overrides)
 	, socket_server_((run_path_ / "adhoc.socket").string()) {
+	set_socket_permissions();
+} catch (const ffd::SocketException &e) {
+	Logging::log.error(std::string("Error while constructing socket server: ") + e.what());
+	exit(EXIT_FAILURE);
+}
+
+TierEngineAdhoc::~TierEngineAdhoc() {}
+
+void TierEngineAdhoc::set_socket_permissions(void) {
 	struct group *at_grp = getgrnam("autotier");
 	if (at_grp != nullptr) {
 		if (chown((run_path_ / "adhoc.socket").c_str(), -1, at_grp->gr_gid) == -1) {
@@ -50,12 +59,7 @@ TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
 	} else {
 		Logging::log.warning("`autotier` group not found, ad hoc commands must be run as root.");
 	}
-} catch (const ffd::SocketCreateException &e) {
-	Logging::log.error(std::string("Error while constructing socket server: ") + e.what());
-	exit(EXIT_FAILURE);
 }
-
-TierEngineAdhoc::~TierEngineAdhoc() {}
 
 void TierEngineAdhoc::process_adhoc_requests(void) {
 	std::vector<std::string> payload;
