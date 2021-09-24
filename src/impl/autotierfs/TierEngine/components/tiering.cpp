@@ -166,24 +166,22 @@ void TierEngineTiering::simulate_tier(void) {
 	Logging::log.message("Finding files' tiers.", Logger::log_level_t::DEBUG);
 	for (Tier &t : tiers_)
 		t.reset_sim();
-	std::vector<File>::iterator fptr = files_.begin();
-	std::list<Tier>::iterator tptr = tiers_.begin();
-	while (fptr != files_.end()) {
-		if (tptr->full_test(*fptr)) {
-			/*
-			If fptr makes tptr full, it shouldn't immediately move
-			on to next tier. Some files after fptr could still fit in tptr.
-			Not sure on how to implement this yet.
-			*/
-			if (std::next(tptr) != tiers_.end()) {
-				// move to next tier
-				++tptr;
-			} // else: out of space!
+	for (std::vector<File>::iterator fitr = files_.begin(); fitr != files_.end(); ++fitr) {
+		ffd::Bytes file_size = fitr->size();
+		std::list<Tier>::iterator titr = tiers_.begin();
+		for (; titr != tiers_.end(); ++titr) {
+			if (!titr->full_test(file_size)) {
+				// file fits
+				titr->add_file_size_sim(fitr->size());
+				if (fitr->tier_ptr() != &(*titr))
+					titr->enqueue_file_ptr(&(*fitr));
+				break;
+			}
 		}
-		tptr->add_file_size_sim(fptr->size());
-		if (fptr->tier_ptr() != &(*tptr))
-			tptr->enqueue_file_ptr(&(*fptr));
-		++fptr;
+		if (titr == tiers_.end()) {
+			// could not find place for file
+			Logging::log.error("Could not fit file in any tiers!");
+		}
 	}
 }
 
