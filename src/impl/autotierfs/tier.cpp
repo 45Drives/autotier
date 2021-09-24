@@ -86,8 +86,8 @@ ffd::Quota Tier::quota(void) const {
 	return quota_;
 }
 
-bool Tier::full_test(const File &file) const {
-	return (sim_usage_ + file.size()) > quota_;
+bool Tier::full_test(const ffd::Bytes &file_size) const {
+	return (sim_usage_ + file_size) > quota_;
 }
 
 const fs::path &Tier::path(void) const {
