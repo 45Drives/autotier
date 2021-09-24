@@ -74,7 +74,7 @@ public:
 			val = strdup(path);
 		} catch (const std::out_of_range &) {
 			// insert new
-			fd_to_path_[fd] = strdup(path);
+			fd_to_path_.insert({fd, strdup(path)});
 		}
 	}
 	/**
