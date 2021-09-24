@@ -44,6 +44,12 @@ public:
 	 */
 	~TierEngineAdhoc();
 	/**
+	 * @brief Get the gid for group `autotier` and set the owner
+	 * of the socket to root:autotier.
+	 * 
+	 */
+	void set_socket_permissions(void);
+	/**
 	 * @brief Function for ad hoc server thread. Listens to named FIFO
 	 * in run_path_ to receive ad hoc commands from running
 	 * autotier while mounted. Grabs command and queues work as
