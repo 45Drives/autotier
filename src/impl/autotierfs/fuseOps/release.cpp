@@ -80,7 +80,6 @@ namespace fuse_ops {
 				Logging::log.warning("release: Could not find fd in size map.");
 			}
 			OpenFiles::release_open_file(fullpath);
-			free(fullpath);
 			priv->remove_fd_to_path(fi->fh);
 			priv->remove_size_at_open(fi->fh);
 		} catch (const std::out_of_range &) {
