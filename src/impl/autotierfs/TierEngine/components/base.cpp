@@ -99,7 +99,12 @@ bool TierEngineBase::tier(void) {
 	exit(EXIT_FAILURE);
 }
 
-void TierEngineBase::exit(int status) {
+bool TierEngineBase::currently_tiering(void) const {
+	Logging::log.error("Virtual TierEngineBase::currently_tiering() called!");
+	exit(EXIT_FAILURE);
+}
+
+void TierEngineBase::exit(int status) const {
 	Logging::log.message("Base virtual exit() called. No cleanup was done.",
 						 Logger::log_level_t::DEBUG);
 	::exit(status);

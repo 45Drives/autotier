@@ -88,6 +88,7 @@ public:
 	 * @return false Tiering failed
 	 */
 	virtual bool tier(void);
+	virtual bool currently_tiering(void) const;
 protected:
 	/**
 	 * @brief Set to false to make thread exit. Used to continue
@@ -119,5 +120,5 @@ protected:
 	 *
 	 * @param status Exit code of process
 	 */
-	virtual void exit(int status);
+	virtual void exit(int status) const;
 };

@@ -136,6 +136,12 @@ void TierEngineAdhoc::process_oneshot(const AdHoc &work) {
 		socket_server_.send_data_async(payload);
 		return;
 	}
+	if (currently_tiering()) {
+		payload.push_back("ERR");
+		payload.push_back("autotier already tiering.");
+		socket_server_.send_data_async(payload);
+		return;
+	}
 	adhoc_work_.push(work);
 	payload.push_back("OK");
 	payload.push_back("Work queued.");
