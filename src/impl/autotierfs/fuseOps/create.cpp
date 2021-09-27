@@ -52,7 +52,7 @@ namespace fuse_ops {
 
 		char *fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
 		OpenFiles::register_open_file(fullpath);
-		res = ::open(fullpath, fi->flags, mode);
+		res = ::creat(fullpath, mode);
 
 #ifdef LOG_METHODS
 		{
