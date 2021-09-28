@@ -55,13 +55,17 @@
         "version": "1.2.0",
         "buildVersion": "1",
         "ignore": [],
-        "date": "2021-09-22T16:53:52.345967",
+        "date": "2021-09-28T16:00:44.835059",
         "packager": "Joshua Boudreau <jboudreau@45drives.com>",
         "changes": [
             "Switch from unique config parser class to lib45d ConfigParser.",
             "Use lib45d Bytes and Quota classes to clean up math while tiering.",
             "Make CLI commands more reliable with lib45d Unix domain socket classes in place of FIFOs.",
-            "Fixed bug where statfs() improperly reported fs size and usage."
+            "Fixed bug where statfs() improperly reported fs size and usage.",
+            "Fix deadlock issue while tiering files.",
+            "Overhauled tiering algorithm to better fill high priority tiers.",
+            "Fixed reporting in statfs() and df.",
+            "Made file creation and opening more reliable."
         ]
     }
 }
