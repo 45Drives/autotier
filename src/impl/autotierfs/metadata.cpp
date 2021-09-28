@@ -57,7 +57,6 @@ Metadata::Metadata(std::string path, rocksdb::DB *db, Tier *tptr) {
 		this->serialize(ia, 0);
 	} else if (tptr) {
 		tier_path_ = tptr->path().string();
-		update(path, db);
 	} else {
 		not_found_ = true;
 	}
@@ -71,15 +70,15 @@ void Metadata::update(std::string relative_path, rocksdb::DB *db, std::string *o
 		boost::archive::text_oarchive oa(ss);
 		this->serialize(oa, 0);
 	}
+	rocksdb::WriteBatch batch;
+	if (old_key) {
+		if (old_key->front() == '/')
+			*old_key = old_key->substr(1, std::string::npos);
+		batch.Delete(*old_key);
+	}
+	batch.Put(relative_path, ss.str());
 	{
 		std::lock_guard<std::mutex> lk(l::rocksdb::global_lock_);
-		rocksdb::WriteBatch batch;
-		if (old_key) {
-			if (old_key->front() == '/')
-				*old_key = old_key->substr(1, std::string::npos);
-			batch.Delete(*old_key);
-		}
-		batch.Put(relative_path, ss.str());
 		db->Write(rocksdb::WriteOptions(), &batch);
 	}
 }
