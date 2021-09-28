@@ -41,6 +41,7 @@ TierEngineTiering::~TierEngineTiering() {}
 
 void TierEngineTiering::begin(bool daemon_mode) {
 	Logging::log.message("autotier started.", Logger::log_level_t::NORMAL);
+	bool tier_result;
 	if (config_.tier_period_s() < std::chrono::seconds(0)) {
 		last_tier_time_ = std::chrono::steady_clock::now();
 		while (daemon_mode && !stop_flag_) {
@@ -51,7 +52,9 @@ void TierEngineTiering::begin(bool daemon_mode) {
 		last_tier_time_ = std::chrono::steady_clock::now() - config_.tier_period_s();
 		do {
 			auto wake_time = std::chrono::steady_clock::now() + config_.tier_period_s();
-			tier();
+			tier_result = tier();
+			if (!tier_result)
+				Logging::log.message("autotier already moving files.", Logger::DEBUG);
 			while (daemon_mode && std::chrono::steady_clock::now() < wake_time && !stop_flag_) {
 				execute_queued_work();
 				sleep_until(wake_time);
@@ -63,8 +66,7 @@ void TierEngineTiering::begin(bool daemon_mode) {
 bool TierEngineTiering::tier(void) {
 	{
 		std::unique_lock<std::mutex> lk(lock_file_mt_, std::try_to_lock);
-		if (!lk.owns_lock() || lock_mutex() == -1) {
-			Logging::log.warning("autotier already moving files.");
+		if (!lk.owns_lock()) {
 			return false;
 		}
 		currently_tiering_ = true;
