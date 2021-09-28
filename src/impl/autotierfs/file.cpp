@@ -68,7 +68,9 @@ File::File(const File &other)
 	, db_(other.db_)
 	, metadata_(other.metadata_) {}
 
-File::~File() {
+File::~File() {}
+
+void File::update_db() {
 	metadata_.update(relative_path_.string(), db_);
 }
 

@@ -75,6 +75,7 @@ bool TierEngineTiering::tier(void) {
 		sort();
 		simulate_tier();
 		move_files();
+		update_db();
 		Logging::log.message("Tiering complete.", Logger::log_level_t::DEBUG);
 		files_.clear();
 		currently_tiering_ = false;
@@ -193,6 +194,12 @@ void TierEngineTiering::move_files(void) {
 	}
 	for (auto &thread : threads) {
 		thread.join();
+	}
+}
+
+void TierEngineTiering::update_db(void) {
+	for (File &f : files_) {
+		f.update_db();
 	}
 }
 

@@ -133,6 +133,11 @@ public:
 	 */
 	void move_files(void);
 	/**
+	 * @brief Iterate over file list and call File::update_db().
+	 * 
+	 */
+	void update_db(void);
+	/**
 	 * @brief Obtain sleep_mt_, set stop_flag_ to true,
 	 * wake sleeping tier thread with sleep_cv_.notify_one().
 	 * Causes sleeping tiering thread to join.

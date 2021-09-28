@@ -61,6 +61,11 @@ public:
 	 */
 	~File();
 	/**
+	 * @brief Call Metadata::update()
+	 *
+	 */
+	void update_db(void);
+	/**
 	 * @brief Calculate new popularity value of file.
 	 * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
 	 * where x is file usage frequency
