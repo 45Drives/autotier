@@ -26,6 +26,10 @@
 #include "openFiles.hpp"
 #include "tier.hpp"
 
+extern "C" {
+#include <sys/fsuid.h>
+}
+
 #ifdef LOG_METHODS
 #	include "alert.hpp"
 
@@ -44,39 +48,52 @@ namespace fuse_ops {
 		}
 #endif
 		int res;
+		char *fullpath = nullptr;
 
 		fuse_context *ctx = fuse_get_context();
 		FusePriv *priv = (FusePriv *)ctx->private_data;
 		if (!priv)
 			return -ECHILD;
 
-		char *fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
-		OpenFiles::register_open_file(fullpath);
+		Tier *top_tier = priv->tiers_.front();
+
+		if (::setfsuid(ctx->uid) == -1)
+			goto error_out;
+		if (::setfsgid(ctx->gid) == -1)
+			goto error_out;
+
+		fullpath = strdup((top_tier->path() / path).c_str());
+		if (fullpath == nullptr)
+			goto error_out;
+
+		OpenFiles::register_open_file(fullpath); // must register before open to avoid tiering race
+
 		res = ::creat(fullpath, mode);
-
-#ifdef LOG_METHODS
-		{
-			std::stringstream ss;
-			ss << "fullpath: " << fullpath << " res: " << res;
-			Logging::log.message(std::string(ss.str()), Logger::log_level_t::NONE);
-		}
-#endif
-
 		if (res == -1)
-			return -errno;
+			goto registered_error_out;
 
 		fi->fh = res;
 
-		res = ::fchown(res, ctx->uid, ctx->gid);
-
-		if (res == -1)
-			return -errno;
-
-		Metadata(path, priv->db_, priv->tiers_.front()).update(path, priv->db_);
+		Metadata(path, priv->db_, top_tier).update(path, priv->db_);
 
 		priv->insert_fd_to_path(fi->fh, fullpath);
 		priv->insert_size_at_open(fi->fh, 0);
 
+		if (::setfsuid(getuid()) == -1)
+			goto registered_error_out;
+		if (::setfsgid(getgid()) == -1)
+			goto registered_error_out;
+
+		free(fullpath);
+
 		return 0;
+	registered_error_out:
+		OpenFiles::release_open_file(fullpath);
+	error_out:
+		res = -errno;
+		::setfsuid(getuid());
+		::setfsgid(getgid());
+		free(fullpath);
+		return res;
 	}
 } // namespace fuse_ops

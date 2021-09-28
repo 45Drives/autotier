@@ -26,6 +26,10 @@
 #include "openFiles.hpp"
 #include "tier.hpp"
 
+extern "C" {
+#include <sys/fsuid.h>
+}
+
 #ifdef LOG_METHODS
 #	include "alert.hpp"
 
@@ -36,7 +40,7 @@
 namespace fuse_ops {
 	int open(const char *path, struct fuse_file_info *fi) {
 		int res;
-		char *fullpath;
+		char *fullpath = nullptr;
 
 		fuse_context *ctx = fuse_get_context();
 		FusePriv *priv = (FusePriv *)ctx->private_data;
@@ -52,34 +56,42 @@ namespace fuse_ops {
 		int is_directory = l::is_directory(path);
 		if (is_directory == -1)
 			return -errno;
+		if (::setfsuid(ctx->uid) == -1)
+			goto error_out;
+		if (::setfsgid(ctx->gid) == -1)
+			goto error_out;
 		if (is_directory) {
 			fullpath = strdup((priv->tiers_.front()->path() / path).c_str());
 			res = ::open(fullpath, fi->flags, 0777);
 			if (res == -1)
-				return -errno;
-		} else {
+				goto error_out;
+		} else { // is file
 			Metadata f(path, priv->db_);
-			if (f.not_found())
-				return -ENOENT;
+			if (f.not_found()) {
+				errno = ENOENT;
+				goto error_out;
+			}
 			fs::path tier_path = f.tier_path();
 			fullpath = strdup((tier_path / path).c_str());
+			if (fullpath == nullptr)
+				goto error_out;
 			// get size before open() in case called with truncate
 			intmax_t file_size = l::file_size(fs::path(fullpath));
 			if (file_size == -1) {
 				if (errno == ENOENT && fi->flags & O_CREAT)
 					file_size = 0;
 				else
-					return -errno;
+					goto error_out;
 			}
 			OpenFiles::register_open_file(fullpath);
 			res = ::open(fullpath, fi->flags, 0777);
+			if (res == -1)
+				goto registered_error_out;
+			if (::setfsuid(getuid()) == -1)
+				goto registered_error_out;
+			if (::setfsgid(getgid()) == -1)
+				goto registered_error_out;
 			priv->insert_size_at_open(res, file_size);
-			if (fi->flags & O_CREAT) {
-				struct fuse_context *ctx = fuse_get_context();
-				int chown_res = ::fchown(res, ctx->uid, ctx->gid);
-				if (chown_res == -1)
-					return -errno;
-			}
 			f.touch();
 			f.update(path, priv->db_);
 #ifdef LOG_METHODS
@@ -92,13 +104,25 @@ namespace fuse_ops {
 #endif
 		}
 
-		if (res == -1)
-			return -errno;
 		fi->fh = res;
 
 		priv->insert_fd_to_path(res, fullpath);
-		// 	l::insert_key(res, fullpath, priv->fd_to_path_);
+
+		if (::setfsuid(getuid()) == -1)
+			goto registered_error_out;
+		if (::setfsgid(getgid()) == -1)
+			goto registered_error_out;
+		
+		free(fullpath);
 
 		return 0;
+registered_error_out:
+		OpenFiles::release_open_file(fullpath);
+error_out:
+		res = -errno;
+		free(fullpath);
+		::setfsuid(getuid());
+		::setfsgid(getgid());
+		return res;
 	}
 } // namespace fuse_ops
