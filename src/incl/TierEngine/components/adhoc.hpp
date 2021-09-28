@@ -98,6 +98,20 @@ public:
 	 */
 	void process_which_tier(AdHoc &work);
 	/**
+	 * @brief Emplace an AdHoc job into the work queue.
+	 * 
+	 * @param work Job to execute.
+	 */
+	template<typename... Args>
+	void enqueue_work(Args &&...args) {
+		if ([](int job, const std::vector<std::string> &) {return job;} (args...) == ONESHOT) {
+			if (oneshot_in_queue_)
+				return;
+			oneshot_in_queue_ = true;
+		}
+		adhoc_work_.emplace(args...);
+	}
+	/**
 	 * @brief Process each Adhoc job enqueued in adhoc_queue_, popping them.
 	 * Called by the tiering thread as part of the main tier loop in begin().
 	 */
@@ -121,5 +135,6 @@ public:
 	 */
 	void shutdown_socket_server(void);
 private:
+	bool oneshot_in_queue_;
 	ffd::UnixSocketServer socket_server_; ///< IPC server
 };

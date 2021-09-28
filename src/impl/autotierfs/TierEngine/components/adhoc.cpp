@@ -36,6 +36,7 @@ extern "C" {
 TierEngineAdhoc::TierEngineAdhoc(const fs::path &config_path,
 								 const ConfigOverrides &config_overrides) try
 	: TierEngineBase(config_path, config_overrides)
+	, oneshot_in_queue_(false)
 	, socket_server_((run_path_ / "adhoc.socket").string()) {
 	set_socket_permissions();
 } catch (const ffd::SocketException &e) {
@@ -479,6 +480,7 @@ void TierEngineAdhoc::execute_queued_work(void) {
 		switch (work.cmd_) {
 			case ONESHOT:
 				tier();
+				oneshot_in_queue_ = false;
 				break;
 			case PIN:
 				pin_files(work.args_);
