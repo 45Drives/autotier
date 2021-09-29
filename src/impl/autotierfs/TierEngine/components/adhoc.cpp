@@ -479,8 +479,8 @@ void TierEngineAdhoc::execute_queued_work(void) {
 		AdHoc work = adhoc_work_.pop();
 		switch (work.cmd_) {
 			case ONESHOT:
-				tier();
 				oneshot_in_queue_ = false;
+				tier();
 				break;
 			case PIN:
 				pin_files(work.args_);
@@ -532,7 +532,7 @@ void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
 		}
 	}
 	if (!config_.strict_period())
-		tier();
+		enqueue_work(ONESHOT, std::vector<std::string>{});
 }
 
 void TierEngineAdhoc::unpin_files(const std::vector<std::string> &args) {
