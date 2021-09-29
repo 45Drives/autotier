@@ -88,7 +88,7 @@ namespace fuse_ops {
 		if (old_size != -1 && new_size != -1 && tptr) {
 			tptr->size_delta(old_size, new_size);
 			TierEngine *at = priv->autotier_;
-			if (!at->strict_period() && !at->currently_tiering() && tptr->usage_bytes() > tptr->quota())
+			if (!at->strict_period() && tptr->usage_bytes() > tptr->quota())
 				at->enqueue_work(ONESHOT, std::vector<std::string>{});
 		}
 		res = ::close(fi->fh);
