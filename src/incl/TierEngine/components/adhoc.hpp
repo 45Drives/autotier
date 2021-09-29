@@ -110,6 +110,7 @@ public:
 			oneshot_in_queue_ = true;
 		}
 		adhoc_work_.emplace(args...);
+		sleep_cv_.notify_one();
 	}
 	/**
 	 * @brief Process each Adhoc job enqueued in adhoc_queue_, popping them.
