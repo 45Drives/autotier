@@ -124,8 +124,6 @@ void TierEngineTiering::emplace_file(fs::directory_entry &file,
 	usage += size.get();
 	if (files_.back().is_pinned()) {
 		files_.pop_back();
-	} else {
-		tptr->subtract_file_size_sim(size); // remove file size from current usage
 	}
 }
 
