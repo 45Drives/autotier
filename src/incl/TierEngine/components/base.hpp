@@ -114,7 +114,7 @@ protected:
 	 *
 	 */
 	std::condition_variable sleep_cv_;
-	rocksdb::DB *db_; ///< Nosql database holding file metadata.
+	std::shared_ptr<rocksdb::DB> db_; ///< Nosql database holding file metadata.
 	/**
 	 * @brief Virtual exit function that can be overridden by other components for cleanup
 	 *

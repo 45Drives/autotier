@@ -45,9 +45,9 @@ public:
 	 * @brief Get the database pointer.
 	 * Used in fusePassthrough.cpp for getting file.
 	 *
-	 * @return rocksdb::DB* Pointer to database
+	 * @return std::shared_ptr<rocksdb::DB> Pointer to database
 	 */
-	rocksdb::DB *get_db(void);
+	std::shared_ptr<rocksdb::DB> get_db(void);
 private:
 	/**
 	 * @brief Opens RocksDB database.

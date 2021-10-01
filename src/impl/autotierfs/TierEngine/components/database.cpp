@@ -22,17 +22,20 @@
 #include "alert.hpp"
 #include "rocksDbHelpers.hpp"
 
+auto rocksdb_deleter = [](rocksdb::DB *db) {
+	Logging::log.message("Deleting db", Logger::DEBUG);
+	delete db;
+};
+
 TierEngineDatabase::TierEngineDatabase(const fs::path &config_path,
 									   const ConfigOverrides &config_overrides)
 	: TierEngineBase(config_path, config_overrides) {
 	open_db();
 }
 
-TierEngineDatabase::~TierEngineDatabase() {
-	delete db_;
-}
+TierEngineDatabase::~TierEngineDatabase() {}
 
-rocksdb::DB *TierEngineDatabase::get_db(void) {
+std::shared_ptr<rocksdb::DB> TierEngineDatabase::get_db(void) {
 	return db_;
 }
 
@@ -42,7 +45,9 @@ void TierEngineDatabase::open_db(void) {
 	options.create_if_missing = true;
 	options.prefix_extractor.reset(l::NewPathSliceTransform());
 	rocksdb::Status status;
-	status = rocksdb::DB::Open(options, db_path, &db_);
+	rocksdb::DB *db_ptr;
+	status = rocksdb::DB::Open(options, db_path, &db_ptr);
+	db_ = std::shared_ptr<rocksdb::DB>{ db_ptr, rocksdb_deleter };
 	if (!status.ok()) {
 		Logging::log.error("Failed to open RocksDB database: " + db_path);
 		exit(EXIT_FAILURE);

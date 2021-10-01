@@ -68,7 +68,7 @@ namespace l {
 
 	void update_keys_in_directory(std::string old_directory,
 								  std::string new_directory,
-								  ::rocksdb::DB *db) {
+								  std::shared_ptr<::rocksdb::DB> db) {
 		// Remove leading /.
 		if (old_directory.front() == '/')
 			old_directory = old_directory.substr(1, std::string::npos);

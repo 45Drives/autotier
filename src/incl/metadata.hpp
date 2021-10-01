@@ -71,7 +71,7 @@ public:
 	 * @param db
 	 * @param tptr
 	 */
-	Metadata(std::string path, rocksdb::DB *db, Tier *tptr = nullptr);
+	Metadata(std::string path, std::shared_ptr<rocksdb::DB> db, Tier *tptr = nullptr);
 	/**
 	 * @brief Put metadata into database with relative_path as the key.
 	 *
@@ -79,7 +79,7 @@ public:
 	 * @param db Pointer to RocksDB database
 	 * @param old_key string pointer to old key to remove if not nullptr
 	 */
-	void update(std::string relative_path, rocksdb::DB *db, std::string *old_key = nullptr);
+	void update(std::string relative_path, std::shared_ptr<rocksdb::DB> db, std::string *old_key = nullptr);
 	/**
 	 * @brief Increment access_count_.
 	 *

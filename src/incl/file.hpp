@@ -46,7 +46,7 @@ public:
 	 * @param db Rocksdb database pointer
 	 * @param tptr Pointer to tier in which file was found
 	 */
-	File(fs::path full_path, rocksdb::DB *db, Tier *tptr);
+	File(fs::path full_path, std::shared_ptr<rocksdb::DB> db, Tier *tptr);
 	/**
 	 * @brief Copy construct a new File object
 	 *
@@ -152,6 +152,6 @@ private:
 	time_t ctime_; ///< Just the ctime of the file.
 	fs::path
 		relative_path_; ///< Location of file relative to the tier and the filesystem mountpoint.
-	rocksdb::DB *db_;   ///< Database storing metadata.
+	std::shared_ptr<rocksdb::DB> db_;   ///< Database storing metadata.
 	Metadata metadata_; ///< Metadata of object retrieved from database.
 };

@@ -44,7 +44,7 @@ public:
 	fs::path config_path_;      ///< Path to configuration file TODO: see if this is used anywhere
 	fs::path mount_point_;      ///< Path to autotierfs mount point
 	TierEngine *autotier_;      ///< Pointer to TierEngine
-	rocksdb::DB *db_;           ///< RocksDB database holding file metadata
+	std::shared_ptr<rocksdb::DB> db_;           ///< RocksDB database holding file metadata
 	std::vector<Tier *> tiers_; ///< List of pointers to tiers from TierEngine
 	std::thread tier_worker_;   ///< Thread running TierEngineTiering::begin()
 	std::thread adhoc_server_;  ///< Thread running TierEngineAdhoc::process_adhoc_requests()
@@ -197,7 +197,7 @@ namespace l {
 	 */
 	void update_keys_in_directory(std::string old_directory,
 								  std::string new_directory,
-								  ::rocksdb::DB *db);
+								  std::shared_ptr<::rocksdb::DB> db);
 } // namespace l
 
 /**

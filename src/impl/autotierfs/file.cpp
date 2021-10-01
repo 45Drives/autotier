@@ -42,7 +42,7 @@ File::File(void)
 	, db_(nullptr)
 	, metadata_() {}
 
-File::File(fs::path full_path, rocksdb::DB *db, Tier *tptr)
+File::File(fs::path full_path, std::shared_ptr<rocksdb::DB> db, Tier *tptr)
 	: relative_path_(fs::relative(full_path, tptr->path()))
 	, metadata_(relative_path_.c_str(), db, tptr) {
 	tier_ptr_ = tptr;
