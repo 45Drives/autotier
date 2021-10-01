@@ -525,7 +525,10 @@ void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
 		times[1].tv_sec = st.st_mtim.tv_sec;
 		times[1].tv_usec = st.st_mtim.tv_nsec / 1000;
 		if (tptr->move_file(old_path, new_path, config_.copy_buff_sz())) {
-			utimes(new_path.c_str(), times);
+			if (utimes(new_path.c_str(), times) == -1) {
+				int error = errno;
+				Logging::log.error("Failed to set utimes of " + new_path.string() + ": " + strerror(error));
+			}
 			f.pinned(true);
 			f.tier_path(tptr->path().string());
 			f.update(relative_path.string(), db_);
