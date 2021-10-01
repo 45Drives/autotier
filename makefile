@@ -29,7 +29,7 @@ default: FS_LIBS := -ltbb $(FS_LIBS)
 default: $(FS_TARGET) $(CLI_TARGET)
 all: default
 
-debug: CFLAGS := -std=c++17 -g -DLOG_METHODS $(CFLAGS)
+debug: CFLAGS := -std=c++17 -g -DLOG_METHODS -O2 $(CFLAGS)
 debug: FS_LIBS := -ltbb $(FS_LIBS)
 debug: $(FS_TARGET) $(CLI_TARGET)
 
