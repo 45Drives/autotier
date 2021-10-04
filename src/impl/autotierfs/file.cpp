@@ -35,7 +35,7 @@ extern "C" {
 File::File(void)
 	: size_(0)
 	, tier_ptr_(nullptr)
-	, times_{ { 0 }, { 0 } }
+	, times_{ { 0, 0 }, { 0, 0 } }
 	, atime_(0)
 	, ctime_(0)
 	, relative_path_("")
