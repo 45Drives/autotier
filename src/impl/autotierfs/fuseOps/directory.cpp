@@ -55,8 +55,6 @@ namespace fuse_ops {
 	};
 
 	int opendir(const char *path, struct fuse_file_info *fi) {
-		int res;
-
 		fuse_context *ctx = fuse_get_context();
 		FusePriv *priv = (FusePriv *)ctx->private_data;
 		if (!priv)
@@ -74,6 +72,9 @@ namespace fuse_ops {
 				d->backends.push_back(strdup(backend_path.c_str()));
 			} // else ignore
 		}
+
+		if (d->dps.empty())
+			return -ENOENT;
 
 		d->offset = 0;
 		d->entry = NULL;
@@ -96,6 +97,7 @@ namespace fuse_ops {
 		std::vector<DIR *>::iterator cur_dir = d->dps.begin();
 
 		(void)path;
+		(void)flags;
 
 		std::regex temp_file_re("^\\..*\\.autotier\\.hide$");
 
