@@ -44,6 +44,31 @@ Metadata::Metadata(const Metadata &other)
 	, pinned_(other.pinned_)
 	, tier_path_(other.tier_path_) {}
 
+Metadata &Metadata::operator=(const Metadata &other) {
+	access_count_ = other.access_count_;
+	popularity_ = other.popularity_;
+	not_found_ = other.not_found_;
+	pinned_ = other.pinned_;
+	tier_path_ = other.tier_path_;
+	return *this;
+}
+
+Metadata::Metadata(Metadata &&other)
+	: access_count_(std::move(other.access_count_))
+	, popularity_(std::move(other.popularity_))
+	, not_found_(std::move(other.not_found_))
+	, pinned_(std::move(other.pinned_))
+	, tier_path_(std::move(other.tier_path_)) {}
+
+Metadata &Metadata::operator=(Metadata &&other) {
+	access_count_ = std::move(other.access_count_);
+	popularity_ = std::move(other.popularity_);
+	not_found_ = std::move(other.not_found_);
+	pinned_ = std::move(other.pinned_);
+	tier_path_ = std::move(other.tier_path_);
+	return *this;
+}
+
 #ifndef BAREBONES_METADATA
 
 Metadata::Metadata(std::string path, std::shared_ptr<rocksdb::DB> db, Tier *tptr) {

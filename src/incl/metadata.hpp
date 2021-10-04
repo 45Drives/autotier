@@ -55,6 +55,26 @@ public:
 	 */
 	Metadata(const Metadata &other);
 	/**
+	 * @brief Copy assign a new Metadata object
+	 * 
+	 * @param other 
+	 * @return Metadata& 
+	 */
+	Metadata &operator=(const Metadata &other);
+	/**
+	 * @brief Move construct a new Metadata object
+	 * 
+	 * @param other 
+	 */
+	Metadata(Metadata &&other);
+	/**
+	 * @brief Move assign a new Metadata object
+	 * 
+	 * @param other 
+	 * @return Metadata& 
+	 */
+	Metadata &operator=(Metadata &&other);
+	/**
 	 * @brief Destroy the Metadata object
 	 *
 	 */
