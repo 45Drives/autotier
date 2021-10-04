@@ -97,11 +97,15 @@ void TierEngineBase::mount_point(const fs::path &mount_point) {
 bool TierEngineBase::tier(void) {
 	Logging::log.error("Virtual TierEngineBase::tier() called!");
 	exit(EXIT_FAILURE);
+	/*NOTREACHED*/
+	return false; // silence compiler warning
 }
 
 bool TierEngineBase::currently_tiering(void) const {
 	Logging::log.error("Virtual TierEngineBase::currently_tiering() called!");
 	exit(EXIT_FAILURE);
+	/*NOTREACHED*/
+	return false; // silence compiler warning
 }
 
 void TierEngineBase::exit(int status) const {
