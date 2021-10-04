@@ -47,7 +47,7 @@ public:
 	 * @brief Destroy the Tier Engine Base object
 	 *
 	 */
-	~TierEngineBase(void);
+	virtual ~TierEngineBase(void);
 	/**
 	 * @brief Creates path for FIFOs and database, chowning to root:autotier
 	 *
