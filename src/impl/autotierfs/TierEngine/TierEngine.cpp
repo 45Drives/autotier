@@ -20,7 +20,7 @@
 #include "TierEngine/TierEngine.hpp"
 
 TierEngine::TierEngine(const fs::path &config_path, const ConfigOverrides &config_overrides)
-	: TierEngineTiering(config_path, config_overrides)
-	, TierEngineBase(config_path, config_overrides) {}
+	: TierEngineBase(config_path, config_overrides)
+	, TierEngineTiering(config_path, config_overrides) {}
 
 TierEngine::~TierEngine() {}

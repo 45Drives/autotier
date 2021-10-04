@@ -31,11 +31,11 @@
 
 TierEngineTiering::TierEngineTiering(const fs::path &config_path,
 									 const ConfigOverrides &config_overrides)
-	: TierEngineDatabase(config_path, config_overrides)
+	: TierEngineBase(config_path, config_overrides)
+	, TierEngineDatabase(config_path, config_overrides)
 	, TierEngineSleep(config_path, config_overrides)
 	, TierEngineAdhoc(config_path, config_overrides)
-	, TierEngineMutex(config_path, config_overrides)
-	, TierEngineBase(config_path, config_overrides) {}
+	, TierEngineMutex(config_path, config_overrides) {}
 
 TierEngineTiering::~TierEngineTiering() {}
 
