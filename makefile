@@ -39,16 +39,19 @@ no-par-sort: $(FS_TARGET) $(CLI_TARGET)
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(FS_OBJECT_FILES) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES): build/%.o : src/impl/%.cpp
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
+	@mkdir -p $(dir $@)
+	@echo "  CC $@"
+	@$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
 $(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES)
-	mkdir -p dist/from_source
-	$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(FS_LIBS) -o $@
+	@mkdir -p dist/from_source
+	@echo "  LD $@"
+	@$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(FS_LIBS) -o $@
 
 $(CLI_TARGET): $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES)
-	mkdir -p dist/from_source
-	$(CC) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(CLI_LIBS) -o $@
+	@mkdir -p dist/from_source
+	@echo "  LD $@"
+	@$(CC) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(CLI_LIBS) -o $@
 
 clean: clean-build clean-target
 
