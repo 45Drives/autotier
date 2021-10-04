@@ -55,7 +55,7 @@
         "version": "1.2.0",
         "buildVersion": "1",
         "ignore": [],
-        "date": "2021-09-29T16:13:04.315045",
+        "date": "2021-10-04T17:14:36.853174",
         "packager": "Joshua Boudreau <jboudreau@45drives.com>",
         "changes": [
             "Switch from unique config parser class to lib45d ConfigParser.",
@@ -66,7 +66,8 @@
             "Overhauled tiering algorithm to better fill high priority tiers.",
             "Fixed reporting in statfs() and df.",
             "Made file creation and opening more reliable.",
-            "Tiering triggered by being over quota in release() now happens asynchronously."
+            "Tiering triggered by being over quota in release() now happens asynchronously.",
+            "Accounts for files being opened by more than one process while preventing movement across tiers."
         ]
     }
 }
