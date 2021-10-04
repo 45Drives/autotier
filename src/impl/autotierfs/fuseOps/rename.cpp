@@ -52,6 +52,7 @@ namespace fuse_ops {
 			return -EINVAL;
 
 		if (l::is_directory(from)) {
+			res = -ENOENT;
 			for (const Tier *tptr : priv->tiers_) {
 				res = ::rename((tptr->path() / from).c_str(), (tptr->path() / to).c_str());
 				if (res == -1)

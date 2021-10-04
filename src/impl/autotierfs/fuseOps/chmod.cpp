@@ -61,6 +61,7 @@ namespace fuse_ops {
 			if (is_directory == -1)
 				return -errno;
 			if (is_directory) {
+				res = -ENOENT;
 				for (Tier *tptr : priv->tiers_) {
 					res = ::chmod((tptr->path() / path).c_str(), mode);
 					if (res == -1)

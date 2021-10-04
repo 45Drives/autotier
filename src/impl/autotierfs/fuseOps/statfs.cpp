@@ -50,6 +50,7 @@ namespace fuse_ops {
 		struct statvfs fs_stats_temp;
 		memset(stbuf, 0, sizeof(struct statvfs));
 
+		res = -ENOENT;
 		for (Tier *tptr : priv->tiers_) {
 			res = ::statvfs((tptr->path() / path).c_str(), &fs_stats_temp);
 			if (res == -1)

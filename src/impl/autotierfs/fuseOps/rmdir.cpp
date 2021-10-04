@@ -47,6 +47,7 @@ namespace fuse_ops {
 		}
 #endif
 
+		res = -ENONET;
 		for (Tier *tptr : priv->tiers_) {
 			res = ::rmdir((tptr->path() / path).c_str());
 			if (res == -1)

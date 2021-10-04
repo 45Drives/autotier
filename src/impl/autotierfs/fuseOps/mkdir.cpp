@@ -47,6 +47,7 @@ namespace fuse_ops {
 		}
 #endif
 
+		res = -ENOENT;
 		for (Tier *tptr : priv->tiers_) {
 			res = ::mkdir((tptr->path() / fs::path(path)).c_str(), mode);
 			if (res == -1)
