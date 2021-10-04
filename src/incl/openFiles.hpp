@@ -20,7 +20,6 @@
 #pragma once
 
 #include <string>
-#include <unordered_set>
 
 /**
  * @brief Keeping track of open files

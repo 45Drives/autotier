@@ -20,22 +20,31 @@
 #include "openFiles.hpp"
 
 #include <mutex>
+#include <unordered_map>
 
 namespace OpenFiles {
 	std::mutex open_files_mt_;
-	std::unordered_set<std::string> open_files_;
-	/* Holds paths to all currently open files.
-	 */
+	std::unordered_map<std::string, int> open_files_; ///< Holds paths to all currently open files.
 } // namespace OpenFiles
 
 void OpenFiles::register_open_file(const std::string &path) {
 	std::lock_guard<std::mutex> lk(open_files_mt_);
-	open_files_.emplace(path);
+	std::unordered_map<std::string, int>::iterator open_count = open_files_.find(path);
+	if (open_count == open_files_.end()) {
+		open_files_.insert({path, 1});
+	} else {
+		++(open_count->second);
+	}
 }
 
 void OpenFiles::release_open_file(const std::string &path) {
 	std::lock_guard<std::mutex> lk(open_files_mt_);
-	open_files_.erase(path);
+	std::unordered_map<std::string, int>::iterator open_count = open_files_.find(path);
+	if (open_count == open_files_.end())
+		return;
+	if (--(open_count->second) <= 0) {
+		open_files_.erase(path);
+	}
 }
 
 bool OpenFiles::is_open(const std::string &path) {
