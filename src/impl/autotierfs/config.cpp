@@ -205,6 +205,7 @@ void Config::dump(const std::list<Tier> &tiers, std::stringstream &ss) const {
 	ss << "Tier Period = " << tier_period_s_.count() << std::endl;
 	ss << "Strict Period = " << (strict_period_ == 1 ? "true" : "false") << std::endl;
 	ss << "Copy Buffer Size = " << Logging::log.format_bytes(copy_buff_sz_) << std::endl;
+	ss << "Crawler Threads = " << crawler_threads_ << std::endl;
 	ss << " " << std::endl;
 	for (const Tier &t : tiers) {
 		ss << "[" << t.id() << "]" << std::endl;
