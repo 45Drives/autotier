@@ -127,6 +127,11 @@ private:
 	 */
 	bool strict_period_;
 	/**
+	 * @brief Number of worker threads to use while crawling through directory tree.
+	 * 
+	 */
+	int crawler_threads_;
+	/**
 	 * @brief Path to database and FIFOs. Default location: /var/lib/autotier
 	 *
 	 */
