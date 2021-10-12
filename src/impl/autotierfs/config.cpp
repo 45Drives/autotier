@@ -98,14 +98,21 @@ void Config::load_config(const fs::path &config_path,
 	std::vector<std::string>::iterator global_header_itr = valid_global_headers.begin();
 	while (global_header_itr != valid_global_headers.end()) {
 		try {
-			ffd::ConfigSubsectionGuard guard(*this, "Global");
+			ffd::ConfigSubsectionGuard guard(*this, *global_header_itr);
 			int log_level_tmp = get<int>("Log Level", LogLevel::NORMAL);
-			log_level_ = (Logger::log_level_t)(
-				log_level_tmp > 2 ? 2 : (log_level_tmp < 0 ? 0 : log_level_tmp));
+			log_level_ =
+				(Logger::log_level_t)(log_level_tmp > 2 ? 2
+														: (log_level_tmp < 0 ? 0 : log_level_tmp));
 			copy_buff_sz_ = get<ffd::Bytes>("Copy Buffer Size", ffd::Bytes(1024 * 1024)).get();
 			tier_period_s_ =
 				std::chrono::seconds(get<int64_t>("Tier Period", int64_t(TIER_PERIOD_DISBLED)));
 			strict_period_ = get<bool>("Strict Period", false);
+			crawler_threads_ = get<int>("Crawler Threads", 8);
+			if (crawler_threads_ <= 0) {
+				Logging::log.warning("Invalid number for Crawler Threads: "
+									 + std::to_string(crawler_threads_) + ". Defaulting to 8.");
+				crawler_threads_ = 8;
+			}
 			run_path_ = get<std::string>("Run Path", "/var/lib/autotier");
 			break;
 		} catch (const std::out_of_range &e) {
