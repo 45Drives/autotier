@@ -35,7 +35,14 @@ extern "C" {
 
 void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const {
 	struct stat info;
-	stat(old_path.c_str(), &info);
+	int res = stat(old_path.c_str(), &info);
+	if (res != 0) {
+		int error = errno;
+		Logging::log.warning(
+			std::string("Failed to get ownership and permissions of original file while tiering: ")
+			+ strerror(error));
+		return;
+	}
 	chown(new_path.c_str(), info.st_uid, info.st_gid);
 	chmod(new_path.c_str(), info.st_mode);
 }
