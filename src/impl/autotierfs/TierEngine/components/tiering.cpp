@@ -119,11 +119,10 @@ void TierEngineTiering::crawl(
 void TierEngineTiering::emplace_file(fs::directory_entry &file,
 									 Tier *tptr,
 									 std::atomic<ffd::Bytes::bytes_type> &usage) {
-	files_.emplace_back(file.path(), db_, tptr);
-	ffd::Bytes size = files_.back().size();
-	usage += size.get();
-	if (files_.back().is_pinned()) {
-		files_.pop_back();
+	File f(file.path(), db_, tptr);
+	usage += f.size().get();
+	if (!f.is_pinned()) {
+		files_.emplace_back(std::move(f));
 	}
 }
 
@@ -173,7 +172,7 @@ void TierEngineTiering::simulate_tier(void) {
 		for (; titr != tiers_.end(); ++titr) {
 			if (!titr->full_test(file_size)) {
 				// file fits
-				titr->add_file_size_sim(fitr->size());
+				titr->add_file_size_sim(file_size);
 				if (fitr->tier_ptr() != &(*titr))
 					titr->enqueue_file_ptr(&(*fitr));
 				break;
