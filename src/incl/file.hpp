@@ -54,11 +54,25 @@ public:
 	 */
 	File(const File &other);
 	/**
-	 * @brief Move cnstruct a new File object
+	 * @brief Move construct a new File object
 	 * 
 	 * @param other 
 	 */
 	File(File &&other);
+	/**
+	 * @brief Copy assignment operator
+	 * 
+	 * @param other 
+	 * @return File& 
+	 */
+	File &operator=(const File &other) = default;
+	/**
+	 * @brief Move assignment operator
+	 * 
+	 * @param other 
+	 * @return File& 
+	 */
+	File &operator=(File &&other) = default;
 	/**
 	 * @brief Destroy the File object
 	 * Calls metadata.update(relative_path_.c_str(), db_)
