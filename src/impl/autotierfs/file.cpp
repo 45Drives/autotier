@@ -68,6 +68,16 @@ File::File(const File &other)
 	, db_(other.db_)
 	, metadata_(other.metadata_) {}
 
+File::File(File &&other)
+	: size_(std::move(other.size_))
+	, tier_ptr_(std::move(other.tier_ptr_))
+	, times_{ std::move(other.times_[0]), std::move(other.times_[1]) }
+	, atime_(std::move(other.atime_))
+	, ctime_(std::move(other.ctime_))
+	, relative_path_(std::move(other.relative_path_))
+	, db_(std::move(other.db_))
+	, metadata_(std::move(other.metadata_)) {}
+
 File::~File() {}
 
 void File::update_db() {
@@ -137,4 +147,9 @@ void File::change_path(const fs::path &new_path) {
 	std::string old_path = relative_path_.string();
 	metadata_.update(new_path.string(), db_, &old_path);
 	relative_path_ = new_path;
+}
+
+
+const Metadata &File::metadata(void) const {
+	return metadata_;
 }

@@ -54,6 +54,12 @@ public:
 	 */
 	File(const File &other);
 	/**
+	 * @brief Move cnstruct a new File object
+	 * 
+	 * @param other 
+	 */
+	File(File &&other);
+	/**
 	 * @brief Destroy the File object
 	 * Calls metadata.update(relative_path_.c_str(), db_)
 	 * to store newly updated metadata in database after tiering.
@@ -143,6 +149,12 @@ public:
 	 * @param new_path
 	 */
 	void change_path(const fs::path &new_path);
+	/**
+	 * @brief Return const reference to metadata_
+	 * 
+	 * @return const Metadata& 
+	 */
+	const Metadata &metadata(void) const;
 private:
 	ffd::Bytes size_; ///< Size of file on disk
 	Tier *tier_ptr_;  ///< Pointer to Tier object representing the tier containing this file.
