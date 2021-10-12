@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - dev-josh
 
 jobs:
   api-doc:
