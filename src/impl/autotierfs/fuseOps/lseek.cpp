@@ -35,11 +35,6 @@ namespace fuse_ops {
 		int fd;
 		off_t res;
 
-		fuse_context *ctx = fuse_get_context();
-		FusePriv *priv = (FusePriv *)ctx->private_data;
-		if (!priv)
-			return -ECHILD;
-
 #ifdef LOG_METHODS
 		{
 			std::stringstream ss;
@@ -49,6 +44,10 @@ namespace fuse_ops {
 #endif
 
 		if (fi == NULL) {
+			fuse_context *ctx = fuse_get_context();
+			FusePriv *priv = (FusePriv *)ctx->private_data;
+			if (!priv)
+				return -ECHILD;
 			Metadata f(path, priv->db_);
 			if (f.not_found())
 				return -ENOENT;

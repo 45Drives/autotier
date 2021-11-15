@@ -35,11 +35,6 @@ namespace fuse_ops {
 	int utimens(const char *path, const struct timespec ts[2], struct fuse_file_info *fi) {
 		int res;
 
-		fuse_context *ctx = fuse_get_context();
-		FusePriv *priv = (FusePriv *)ctx->private_data;
-		if (!priv)
-			return -ECHILD;
-
 #ifdef LOG_METHODS
 		{
 			std::stringstream ss;
@@ -54,7 +49,12 @@ namespace fuse_ops {
 			int is_directory = l::is_directory(path);
 			if (is_directory == -1)
 				return -errno;
+			fuse_context *ctx = fuse_get_context();
+			FusePriv *priv = (FusePriv *)ctx->private_data;
+			if (!priv)
+				return -ECHILD;
 			if (is_directory) {
+				res = -ENOENT;
 				for (Tier *tptr : priv->tiers_) {
 					res = ::utimensat(0, (tptr->path() / path).c_str(), ts, AT_SYMLINK_NOFOLLOW);
 					if (res != 0)
