@@ -92,7 +92,7 @@ catch (const ffd::NoConfigException &) {
 void Config::load_config(const fs::path &config_path,
 						 std::list<Tier> &tiers,
 						 const ConfigOverrides &config_overrides) {
-	bool errors;
+	bool errors = false;
 
 	std::vector<std::string> valid_global_headers = { "Global", "global" };
 	std::vector<std::string>::iterator global_header_itr = valid_global_headers.begin();
@@ -146,8 +146,10 @@ void Config::load_config(const fs::path &config_path,
 		Logging::log.message("Checking config[" + tier_name + "]", Logger::log_level_t::DEBUG);
 		ffd::ConfigSubsectionGuard guard(*this, tier_name);
 		std::string tier_path = get<std::string>("Path", &errors);
-		if (errors)
+		if (errors) {
+			Logging::log.error("Failed to get path for " + tier_name);
 			continue;
+		}
 		struct statvfs fs_stats;
 		if ((statvfs(tier_path.c_str(), &fs_stats) == -1)) {
 			Logging::log.error("statvfs() failed on " + tier_path);
