@@ -38,6 +38,10 @@ namespace fuse_ops {
 
 		delete priv->autotier_;
 
+		Logging::log.message("Deleted TierEngine.", Logger::DEBUG);
+
 		delete priv;
+
+		Logging::log.message("Deleted FusePriv.", Logger::DEBUG);
 	}
 } // namespace fuse_ops
