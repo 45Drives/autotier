@@ -46,7 +46,7 @@ public:
 	 * @param db Rocksdb database pointer
 	 * @param tptr Pointer to tier in which file was found
 	 */
-	File(fs::path full_path, std::shared_ptr<rocksdb::DB> db, Tier *tptr);
+	File(fs::path full_path, std::shared_ptr<rocksdb::DB> &db, Tier *tptr);
 	/**
 	 * @brief Copy construct a new File object
 	 *
@@ -55,22 +55,22 @@ public:
 	File(const File &other);
 	/**
 	 * @brief Move construct a new File object
-	 * 
-	 * @param other 
+	 *
+	 * @param other
 	 */
 	File(File &&other);
 	/**
 	 * @brief Copy assignment operator
-	 * 
-	 * @param other 
-	 * @return File& 
+	 *
+	 * @param other
+	 * @return File&
 	 */
 	File &operator=(const File &other) = default;
 	/**
 	 * @brief Move assignment operator
-	 * 
-	 * @param other 
-	 * @return File& 
+	 *
+	 * @param other
+	 * @return File&
 	 */
 	File &operator=(File &&other) = default;
 	/**
@@ -83,8 +83,9 @@ public:
 	/**
 	 * @brief Call Metadata::update()
 	 *
+	 * @param db Rocksdb database pointer
 	 */
-	void update_db(void);
+	void update_db(std::shared_ptr<rocksdb::DB> &db);
 	/**
 	 * @brief Calculate new popularity value of file.
 	 * y[n] = MULTIPLIER * x / DAMPING + (1.0 - 1.0 / DAMPING) * y[n-1]
@@ -149,8 +150,9 @@ public:
 	 * tier, updates metadata.tier_path, then calls metadata.update() to update the db.
 	 *
 	 * @param tptr New tier.
+	 * @param db Rocksdb database pointer
 	 */
-	void transfer_to_tier(Tier *tptr);
+	void transfer_to_tier(Tier *tptr, std::shared_ptr<rocksdb::DB> &db);
 	/**
 	 * @brief Call utimes() on file path with the saved atime and mtime so
 	 * they stay the same as before tiering.
@@ -161,12 +163,13 @@ public:
 	 * @brief Update database with new path.
 	 *
 	 * @param new_path
+	 * @param db Rocksdb database pointer
 	 */
-	void change_path(const fs::path &new_path);
+	void change_path(const fs::path &new_path, std::shared_ptr<rocksdb::DB> &db);
 	/**
 	 * @brief Return const reference to metadata_
-	 * 
-	 * @return const Metadata& 
+	 *
+	 * @return const Metadata&
 	 */
 	const Metadata &metadata(void) const;
 private:
@@ -178,6 +181,5 @@ private:
 	time_t ctime_; ///< Just the ctime of the file.
 	fs::path
 		relative_path_; ///< Location of file relative to the tier and the filesystem mountpoint.
-	std::shared_ptr<rocksdb::DB> db_;   ///< Database storing metadata.
 	Metadata metadata_; ///< Metadata of object retrieved from database.
 };

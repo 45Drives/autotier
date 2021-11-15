@@ -39,10 +39,9 @@ File::File(void)
 	, atime_(0)
 	, ctime_(0)
 	, relative_path_("")
-	, db_(nullptr)
 	, metadata_() {}
 
-File::File(fs::path full_path, std::shared_ptr<rocksdb::DB> db, Tier *tptr)
+File::File(fs::path full_path, std::shared_ptr<rocksdb::DB> &db, Tier *tptr)
 	: relative_path_(fs::relative(full_path, tptr->path()))
 	, metadata_(relative_path_.c_str(), db, tptr) {
 	tier_ptr_ = tptr;
@@ -55,7 +54,6 @@ File::File(fs::path full_path, std::shared_ptr<rocksdb::DB> db, Tier *tptr)
 	times_[1].tv_usec = info.st_mtim.tv_nsec / 1000;
 	atime_ = times_[0].tv_sec;
 	ctime_ = info.st_ctim.tv_sec;
-	db_ = db;
 }
 
 File::File(const File &other)
@@ -65,7 +63,6 @@ File::File(const File &other)
 	, atime_(other.atime_)
 	, ctime_(other.ctime_)
 	, relative_path_(other.relative_path_)
-	, db_(other.db_)
 	, metadata_(other.metadata_) {}
 
 File::File(File &&other)
@@ -75,13 +72,12 @@ File::File(File &&other)
 	, atime_(std::move(other.atime_))
 	, ctime_(std::move(other.ctime_))
 	, relative_path_(std::move(other.relative_path_))
-	, db_(std::move(other.db_))
 	, metadata_(std::move(other.metadata_)) {}
 
 File::~File() {}
 
-void File::update_db() {
-	metadata_.update(relative_path_.string(), db_);
+void File::update_db(std::shared_ptr<rocksdb::DB> &db) {
+	metadata_.update(relative_path_.string(), db);
 }
 
 void File::calc_popularity(double period_seconds) {
@@ -131,21 +127,21 @@ bool File::is_pinned(void) const {
 	return metadata_.pinned_;
 }
 
-void File::transfer_to_tier(Tier *tptr) {
+void File::transfer_to_tier(Tier *tptr, std::shared_ptr<rocksdb::DB> &db) {
 	tier_ptr_->subtract_file_size(size_);
 	tier_ptr_ = tptr;
 	tier_ptr_->add_file_size(size_);
 	metadata_.tier_path_ = tptr->path().string();
-	metadata_.update(relative_path_.string(), db_);
+	metadata_.update(relative_path_.string(), db);
 }
 
 void File::overwrite_times(void) const {
 	utimes(full_path().c_str(), times_);
 }
 
-void File::change_path(const fs::path &new_path) {
+void File::change_path(const fs::path &new_path, std::shared_ptr<rocksdb::DB> &db) {
 	std::string old_path = relative_path_.string();
-	metadata_.update(new_path.string(), db_, &old_path);
+	metadata_.update(new_path.string(), db, &old_path);
 	relative_path_ = new_path;
 }
 

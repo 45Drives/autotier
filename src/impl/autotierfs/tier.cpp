@@ -109,7 +109,7 @@ void Tier::enqueue_file_ptr(File *fptr) {
 	incoming_files_.push_back(fptr);
 }
 
-void Tier::transfer_files(int buff_sz, const fs::path &run_path) {
+void Tier::transfer_files(int buff_sz, const fs::path &run_path, std::shared_ptr<rocksdb::DB> &db) {
 	for (File *fptr : incoming_files_) {
 		fs::path old_path = fptr->full_path();
 		if (OpenFiles::is_open(old_path.string())) {
@@ -121,11 +121,11 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path) {
 		std::string orig_tier = fptr->tier_ptr()->id_;
 		bool copy_success = Tier::move_file(old_path, new_path, buff_sz, &conflicted, orig_tier);
 		if (copy_success) {
-			fptr->transfer_to_tier(this);
+			fptr->transfer_to_tier(this, db);
 			fptr->overwrite_times();
 			if (conflicted) {
-				fptr->change_path(fptr->relative_path().string() + ".autotier_conflict."
-								  + orig_tier);
+				fptr->change_path(
+					fptr->relative_path().string() + ".autotier_conflict." + orig_tier, db);
 				add_conflict(new_path.string(), run_path);
 			}
 		}

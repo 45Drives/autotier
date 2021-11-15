@@ -189,7 +189,7 @@ void TierEngineTiering::move_files(void) {
 	std::vector<std::thread> threads;
 	Logging::log.message("Moving files.", Logger::log_level_t::DEBUG);
 	for (std::list<Tier>::iterator titr = tiers_.begin(); titr != tiers_.end(); ++titr) {
-		threads.emplace_back(&Tier::transfer_files, titr, config_.copy_buff_sz(), run_path_);
+		threads.emplace_back(&Tier::transfer_files, titr, config_.copy_buff_sz(), run_path_, std::ref(db_));
 	}
 	for (auto &thread : threads) {
 		thread.join();
@@ -198,7 +198,7 @@ void TierEngineTiering::move_files(void) {
 
 void TierEngineTiering::update_db(void) {
 	for (File &f : files_) {
-		f.update_db();
+		f.update_db(db_);
 	}
 }
 

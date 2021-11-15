@@ -172,8 +172,9 @@ public:
 	 *
 	 * @param buff_sz
 	 * @param run_path
+	 * @param db
 	 */
-	void transfer_files(int buff_sz, const fs::path &run_path);
+	void transfer_files(int buff_sz, const fs::path &run_path, std::shared_ptr<rocksdb::DB> &db);
 	/**
 	 * @brief Called in transfer_files() to actually copy the file and
 	 * remove the old one.

@@ -71,7 +71,7 @@ Metadata &Metadata::operator=(Metadata &&other) {
 
 #ifndef BAREBONES_METADATA
 
-Metadata::Metadata(std::string path, std::shared_ptr<rocksdb::DB> db, Tier *tptr) {
+Metadata::Metadata(std::string path, std::shared_ptr<rocksdb::DB> &db, Tier *tptr) {
 	std::string str;
 	if (path[0] == '/')
 		path = path.substr(1);
@@ -87,7 +87,7 @@ Metadata::Metadata(std::string path, std::shared_ptr<rocksdb::DB> db, Tier *tptr
 	}
 }
 
-void Metadata::update(std::string relative_path, std::shared_ptr<rocksdb::DB> db, std::string *old_key) {
+void Metadata::update(std::string relative_path, std::shared_ptr<rocksdb::DB> &db, std::string *old_key) {
 	if (relative_path.front() == '/')
 		relative_path = relative_path.substr(1, std::string::npos);
 	std::stringstream ss;
