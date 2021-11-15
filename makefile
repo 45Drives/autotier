@@ -3,7 +3,7 @@ CLI_TARGET = dist/from_source/autotier
 FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb -l:lib45d.a
 CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread -l:lib45d.a
 CC = g++
-CFLAGS = -g -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
+CFLAGS = -g -O2 -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
 FS_LIBS += $(EXTRA_LIBS)
 CFLAGS += $(EXTRA_CFLAGS)
@@ -24,16 +24,16 @@ endif
 
 .PHONY: default all clean clean-build clean-target install uninstall debug
 
-default: CFLAGS := -std=c++17 -O2 $(CFLAGS)
+default: CFLAGS := -std=c++17 $(CFLAGS)
 default: FS_LIBS := -ltbb $(FS_LIBS)
 default: $(FS_TARGET) $(CLI_TARGET)
 all: default
 
-debug: CFLAGS := -std=c++17 -g -DLOG_METHODS -O2 $(CFLAGS)
+debug: CFLAGS := -std=c++17 -DLOG_METHODS $(CFLAGS)
 debug: FS_LIBS := -ltbb $(FS_LIBS)
 debug: $(FS_TARGET) $(CLI_TARGET)
 
-no-par-sort: CFLAGS := -std=c++11 -O2 $(CFLAGS)
+no-par-sort: CFLAGS := -std=c++11 $(CFLAGS)
 no-par-sort: $(FS_TARGET) $(CLI_TARGET)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
