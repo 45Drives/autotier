@@ -22,6 +22,7 @@
 #include "alert.hpp"
 #include "conflicts.hpp"
 #include "metadata.hpp"
+#include "openFiles.hpp"
 #include "version.hpp"
 
 #include <iomanip>
@@ -162,18 +163,28 @@ void TierEngineAdhoc::process_pin_unpin(const AdHoc &work) {
 		}
 		++itr;
 	}
-	std::vector<std::string> not_in_fs;
+	std::vector<std::string> not_in_fs, open_files;
 	for (; itr != work.args_.end(); ++itr) {
 		if (!std::equal(mount_point_.string().begin(), mount_point_.string().end(), itr->begin())) {
 			not_in_fs.push_back(*itr);
+		} else if (OpenFiles::is_open(itr->substr(mount_point_.string().length() - 1))) {
+			open_files.push_back(*itr);
 		}
 	}
-	if (!not_in_fs.empty()) {
+	if (!not_in_fs.empty() || !open_files.empty()) {
 		payload.push_back("ERR\n");
-		std::string err_msg = "Files are not in autotier filesystem:";
-		for (const std::string &str : not_in_fs)
-			err_msg += " " + str;
-		payload.push_back(err_msg);
+		if (!not_in_fs.empty()) {
+			std::string err_msg = "Files are not in autotier filesystem:";
+			for (const std::string &str : not_in_fs)
+				err_msg += " " + str;
+			payload.push_back(err_msg);
+		}
+		if (!open_files.empty()) {
+			std::string err_msg = "Files are currently open by another process:";
+			for (const std::string &str : open_files)
+				err_msg += " " + str;
+			payload.push_back(err_msg);
+		}
 		socket_server_.send_data_async(payload);
 		return;
 	}
@@ -512,8 +523,13 @@ void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
 			Logging::log.warning("File to be pinned was not in database: " + mounted_path.string());
 			continue;
 		}
+		f.pinned(true);
 		fs::path old_path = f.tier_path() / relative_path;
 		fs::path new_path = tptr->path() / relative_path;
+		if (old_path == new_path) {
+			f.update(relative_path.string(), db_);
+			return;
+		}
 		struct stat st;
 		if (stat(old_path.c_str(), &st) == -1) {
 			Logging::log.warning("stat failed on " + old_path.string() + ": " + strerror(errno));
@@ -530,7 +546,6 @@ void TierEngineAdhoc::pin_files(const std::vector<std::string> &args) {
 				Logging::log.error("Failed to set utimes of " + new_path.string() + ": "
 								   + strerror(error));
 			}
-			f.pinned(true);
 			f.tier_path(tptr->path().string());
 			f.update(relative_path.string(), db_);
 		}
