@@ -1,6 +1,6 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
-FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb -l:lib45d.a
+FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -l:lib45d.a
 CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread -l:lib45d.a
 CC = g++
 CFLAGS = -g -O2 -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
@@ -16,6 +16,8 @@ CLI_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(CLI_SOURCE_FILES))
 
 SHARED_SOURCE_FILES := $(shell find src/impl/shared -name *.cpp)
 SHARED_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SHARED_SOURCE_FILES))
+
+ROCKSDB_STATIC := src/rocksdb/rocksdb.a
 
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
@@ -43,10 +45,13 @@ $(FS_OBJECT_FILES) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES): build/%.o : src/i
 	@echo "  CC $@"
 	@$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
-$(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES)
+$(ROCKSDB_STATIC):
+	$(MAKE) -C src/rocksdb static_lib
+
+$(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) $(ROCKSDB_STATIC)
 	@mkdir -p dist/from_source
 	@echo "  LD $@"
-	@$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(FS_LIBS) -o $@
+	@$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) $(ROCKSDB_STATIC) -Wall $(FS_LIBS) -o $@
 
 $(CLI_TARGET): $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES)
 	@mkdir -p dist/from_source
