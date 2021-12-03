@@ -58,6 +58,8 @@ namespace fuse_ops {
 			 ++tptr)
 			priv->tiers_.push_back(&(*tptr));
 
+		// must be called before anything that uses db_ in TierEngine, as get_db() initially
+		// opens the db
 		priv->db_ = priv->autotier_->get_db();
 
 		priv->tier_worker_ = std::thread(&TierEngine::begin, priv->autotier_, true);
