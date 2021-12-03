@@ -13,23 +13,23 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 
 ## Installation
 ### Ubuntu Focal
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-3focal_amd64.deb`
-1. Install deb: `# apt install ./autotier_1.1.6-3focal_amd64.deb`
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.2.0/autotier_1.2.0-1focal_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.2.0-1focal_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### Debian Bullseye
-1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier_1.1.6-3bullseye_amd64.deb`
-1. Install deb: `# apt install ./autotier_1.1.6-3bullseye_amd64.deb`
+1. Get deb: `$ wget https://github.com/45Drives/autotier/releases/download/v1.2.0/autotier_1.2.0-1bullseye_amd64.deb`
+1. Install deb: `# apt install ./autotier_1.2.0-1bullseye_amd64.deb`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
 	* `# usermod -aG autotier <user>` (takes effect on next login)
 
 ### EL8
-1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.1.6/autotier-1.1.6-3.el8.x86_64.rpm`
+1. Install rpm: `# dnf install https://github.com/45Drives/autotier/releases/download/v1.2.0/autotier-1.2.0-1.el8.x86_64.rpm`
 1. [Edit configuration file.](#configuration)
 1. [Mount filesystem.](#mounting)
 1. Optionally add user to `autotier` group to allow non-root users to run CLI commands:
@@ -40,7 +40,7 @@ A passthrough FUSE filesystem that intelligently moves files between storage tie
 	```# apt install libfuse3-dev libboost-system-dev libboost-filesystem-dev libboost-serialization-dev librocksdb-dev libtbb-dev```
 1. `$ git clone https://github.com/45drives/autotier`
 1. `$ cd autotier`
-1. `$ git checkout <version>` (v1.1.6 is the latest tag)
+1. `$ git checkout <version>` (v1.2.0 is the latest tag)
 1. `$ make -j8` (or `make -j8 no-par-sort` to use c++11 instead of c++17)
 1. `# make install`
 1. [Edit configuration file.](#configuration)
