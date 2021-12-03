@@ -11,6 +11,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Get Submodules
+        run: |
+          git submodule init
+          git submodule update
       - name: Package Binaries
         run: build-packages ${{github.repository}} ${{github.workspace}}
       - name: Set Variables
