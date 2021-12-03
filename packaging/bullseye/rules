@@ -14,6 +14,7 @@
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 export PACKAGING = 1
+export DEB = 1
 
 %:
 	dh $@

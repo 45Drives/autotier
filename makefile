@@ -1,6 +1,11 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
-FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -ldl -lbz2 -llz4 -luring -lzstd -lz -lsnappy -l:lib45d.a
+FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -ldl -lbz2 -llz4 -lzstd -lz -lsnappy -l:lib45d.a
+ifdef DEB
+FS_LIBS += -l:liburing.a
+else
+FS_LIBS += -luring
+endif
 CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread -l:lib45d.a
 CC = g++
 CFLAGS = -g -O2 -Wall -Wextra -Isrc/incl -Isrc/rocksdb/include -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64

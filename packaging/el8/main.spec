@@ -19,10 +19,10 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 %setup -q
 
 %build
-make EXTRA_CFLAGS="-DEL8" -j$(nproc)
+make EXTRA_CFLAGS="-DEL8" EL=1 -j$(nproc)
 
 %install
-make DESTDIR=%{buildroot} PACKAGING=1 install
+make DESTDIR=%{buildroot} PACKAGING=1 EL=1 install
 
 %clean
 make DESTDIR=%{buildroot} clean
