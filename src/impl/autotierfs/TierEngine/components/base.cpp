@@ -30,7 +30,8 @@ TierEngineBase::TierEngineBase(const fs::path &config_path, const ConfigOverride
 	: tiers_()
 	, config_(config_path, std::ref(tiers_), config_overrides)
 	, run_path_(config_.run_path())
-	, sleep_cv_() {}
+	, sleep_cv_()
+	, db_(nullptr) {}
 
 TierEngineBase::~TierEngineBase(void) {}
 

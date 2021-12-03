@@ -29,13 +29,13 @@ auto rocksdb_deleter = [](rocksdb::DB *db) {
 
 TierEngineDatabase::TierEngineDatabase(const fs::path &config_path,
 									   const ConfigOverrides &config_overrides)
-	: TierEngineBase(config_path, config_overrides) {
-	open_db();
-}
+	: TierEngineBase(config_path, config_overrides) {}
 
 TierEngineDatabase::~TierEngineDatabase() {}
 
 std::shared_ptr<rocksdb::DB> TierEngineDatabase::get_db(void) {
+	if (!db_)
+		open_db();
 	return db_;
 }
 
