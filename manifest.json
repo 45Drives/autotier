@@ -3,8 +3,8 @@
     "name": "autotier",
     "title": "Autotier",
     "prerelease": false,
-    "version": "1.1.6",
-    "buildVersion": "3",
+    "version": "1.2.0",
+    "buildVersion": "1",
     "author": "Joshua Boudreau <jboudreau@45drives.com>",
     "url": "https://github.com/45Drives/autotier",
     "category": "utils",
@@ -27,7 +27,6 @@
             "libboost-system1.71.0 | libboost-all-dev",
             "libboost-filesystem1.71.0 | libboost-all-dev",
             "libboost-serialization1.71.0 | libboost-all-dev",
-            "librocksdb-dev | librocksdb5.17",
             "libtbb2 | libtbb-dev",
             "fuse3"
         ],
@@ -55,19 +54,8 @@
         "version": "1.2.0",
         "buildVersion": "1",
         "ignore": [],
-        "date": "2021-10-04T17:14:36.853174",
+        "date": null,
         "packager": "Joshua Boudreau <jboudreau@45drives.com>",
-        "changes": [
-            "Switch from unique config parser class to lib45d ConfigParser.",
-            "Use lib45d Bytes and Quota classes to clean up math while tiering.",
-            "Make CLI commands more reliable with lib45d Unix domain socket classes in place of FIFOs.",
-            "Fixed bug where statfs() improperly reported fs size and usage.",
-            "Fix deadlock issue while tiering files.",
-            "Overhauled tiering algorithm to better fill high priority tiers.",
-            "Fixed reporting in statfs() and df.",
-            "Made file creation and opening more reliable.",
-            "Tiering triggered by being over quota in release() now happens asynchronously.",
-            "Accounts for files being opened by more than one process while preventing movement across tiers."
-        ]
+        "changes": []
     }
 }
