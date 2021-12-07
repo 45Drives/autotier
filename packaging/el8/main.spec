@@ -17,6 +17,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 %prep
 %setup -q
+make clean
 
 %build
 make EXTRA_CFLAGS="-DEL8" EL=1 -j$(nproc)

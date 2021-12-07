@@ -51,7 +51,7 @@ $(FS_OBJECT_FILES) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES): build/%.o : src/i
 	@$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
 $(ROCKSDB_STATIC):
-	cd src/rocksdb && $(MAKE) USE_RTTI=1 static_lib
+	cd src/rocksdb && $(MAKE) USE_RTTI=1 PORTABLE=1 static_lib
 
 $(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) $(ROCKSDB_STATIC)
 	@mkdir -p dist/from_source
