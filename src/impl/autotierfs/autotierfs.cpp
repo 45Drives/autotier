@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
 	 */
 	mountpoint = argv[optind];
 	if (!is_directory(mountpoint)) {
-		Logging::log.error("Invalid mountpoint or command: " + mountpoint.string());
+		Logging::log.error("Invalid mountpoint: " + mountpoint.string());
 		fs_usage();
 		exit(EXIT_FAILURE);
 	}
