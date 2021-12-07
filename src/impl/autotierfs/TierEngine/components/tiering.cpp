@@ -180,7 +180,7 @@ void TierEngineTiering::simulate_tier(void) {
 		}
 		if (titr == tiers_.end()) {
 			// could not find place for file
-			Logging::log.error("Could not fit file in any tiers!");
+			Logging::log.error("Could not fit file in any tiers: `" + fitr->full_path().string() + "`");
 		}
 	}
 }
