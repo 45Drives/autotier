@@ -1,9 +1,14 @@
 FS_TARGET = dist/from_source/autotierfs
 CLI_TARGET = dist/from_source/autotier
-FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -lrocksdb
-CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread
+FS_LIBS =  -lfuse3 -lpthread -lboost_system -lboost_filesystem -lboost_serialization -ldl -lbz2 -llz4 -lzstd -lz -lsnappy -l:lib45d.a
+ifdef DEB
+FS_LIBS += -l:liburing.a
+else
+FS_LIBS += -luring
+endif
+CLI_LIBS = -l:libboost_system.a -l:libboost_filesystem.a -lpthread -l:lib45d.a
 CC = g++
-CFLAGS = -Wall -Wextra -Isrc/incl -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
+CFLAGS = -g -O2 -Wall -Wextra -Isrc/incl -Isrc/rocksdb/include -I/usr/include/fuse3 -D_FILE_OFFSET_BITS=64
 
 FS_LIBS += $(EXTRA_LIBS)
 CFLAGS += $(EXTRA_CFLAGS)
@@ -17,6 +22,8 @@ CLI_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(CLI_SOURCE_FILES))
 SHARED_SOURCE_FILES := $(shell find src/impl/shared -name *.cpp)
 SHARED_OBJECT_FILES := $(patsubst src/impl/%.cpp, build/%.o, $(SHARED_SOURCE_FILES))
 
+ROCKSDB_STATIC := src/rocksdb/librocksdb.a
+
 ifeq ($(PREFIX),)
 	PREFIX := /opt/45drives/autotier
 	DEFAULT_PREFIX := 1
@@ -24,39 +31,48 @@ endif
 
 .PHONY: default all clean clean-build clean-target install uninstall debug
 
-default: CFLAGS := -std=c++17 -O2 $(CFLAGS)
+default: CFLAGS := -std=c++17 $(CFLAGS)
 default: FS_LIBS := -ltbb $(FS_LIBS)
 default: $(FS_TARGET) $(CLI_TARGET)
 all: default
 
-debug: CFLAGS := -std=c++17 -g -DLOG_METHODS $(CFLAGS)
+debug: CFLAGS := -std=c++17 -DLOG_METHODS $(CFLAGS)
 debug: FS_LIBS := -ltbb $(FS_LIBS)
 debug: $(FS_TARGET) $(CLI_TARGET)
 
-no-par-sort: CFLAGS := -std=c++11 -DNO_PAR_SORT -O2 $(CFLAGS)
+no-par-sort: CFLAGS := -std=c++11 $(CFLAGS)
 no-par-sort: $(FS_TARGET) $(CLI_TARGET)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(FS_OBJECT_FILES) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES): build/%.o : src/impl/%.cpp
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
+	@mkdir -p $(dir $@)
+	@echo "  CC $@"
+	@$(CC) $(CFLAGS) -c $(patsubst build/%.o, src/impl/%.cpp, $@) -o $@
 
-$(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES)
-	mkdir -p dist/from_source
-	$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(FS_LIBS) -o $@
+$(ROCKSDB_STATIC):
+	cd src/rocksdb && $(MAKE) USE_RTTI=1 static_lib
+
+$(FS_TARGET): $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) $(ROCKSDB_STATIC)
+	@mkdir -p dist/from_source
+	@echo "  LD $@"
+	@$(CC) $(FS_OBJECT_FILES) $(SHARED_OBJECT_FILES) $(ROCKSDB_STATIC) -Wall $(FS_LIBS) -o $@
 
 $(CLI_TARGET): $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES)
-	mkdir -p dist/from_source
-	$(CC) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(CLI_LIBS) -o $@
+	@mkdir -p dist/from_source
+	@echo "  LD $@"
+	@$(CC) $(CLI_OBJECT_FILES) $(SHARED_OBJECT_FILES) -Wall $(CLI_LIBS) -o $@
 
-clean: clean-build clean-target
+clean: clean-build clean-target clean-rocksdb
 
 clean-target:
 	-rm -rf dist/from_source
 
 clean-build:
 	-rm -rf build
+
+clean-rocksdb:
+	cd src/rocksdb && make clean
 
 clean-tests:
 	-rm -rf dist/tests
@@ -120,3 +136,11 @@ endif
 rm-scripts:
 	-rm -f $(DESTDIR)$(PREFIX)/autotier-init-dirs
 	-rm -f $(DESTDIR)/usr/bin/autotier-init-dirs
+
+docs: doc/dev-doc.doxyfile $(HEADER_FILES) doc/main-page.dox
+	-rm -rf dev-doc
+	doxygen doc/dev-doc.doxyfile
+	mv doc/html dev-doc
+
+clean-docs:
+	-rm -rf dev-doc

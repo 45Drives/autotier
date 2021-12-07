@@ -1,128 +1,118 @@
 /*
  *    Copyright (C) 2019-2021 Joshua Boudreau <jboudreau@45drives.com>
- *    
+ *
  *    This file is part of autotier.
- * 
+ *
  *    autotier is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
  *    the Free Software Foundation, either version 3 of the License, or
  *    (at your option) any later version.
- * 
+ *
  *    autotier is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- * 
+ *
  *    You should have received a copy of the GNU General Public License
  *    along with autotier.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "tier.hpp"
+
 #include "alert.hpp"
-#include "openFiles.hpp"
-#include "file.hpp"
 #include "conflicts.hpp"
-#include <thread>
+#include "file.hpp"
+#include "openFiles.hpp"
+
 #include <cstdlib>
+#include <thread>
 
 extern "C" {
-	#include <sys/stat.h>
-	#include <sys/statvfs.h>
-	#include <fcntl.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
 }
 
-void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const{
+void Tier::copy_ownership_and_perms(const fs::path &old_path, const fs::path &new_path) const {
 	struct stat info;
-	stat(old_path.c_str(), &info);
+	int res = stat(old_path.c_str(), &info);
+	if (res != 0) {
+		int error = errno;
+		Logging::log.warning(
+			std::string("Failed to get ownership and permissions of original file while tiering: ")
+			+ strerror(error));
+		return;
+	}
 	chown(new_path.c_str(), info.st_uid, info.st_gid);
 	chmod(new_path.c_str(), info.st_mode);
 }
 
-Tier::Tier(std::string id){
-	id_ = id;
-	usage_ = 0;
+Tier::Tier(std::string id, const fs::path &path, const ffd::Quota &quota)
+	: quota_(quota)
+	, usage_(0)
+	, sim_usage_(0)
+	, id_(id)
+	, path_(path)
+	, incoming_files_()
+	, usage_mt_() {
+	quota_.set_rounding_method(ffd::Quota::RoundingMethod::DOWN); // round down to not surpass quota
 }
 
-void Tier::add_file_size(uintmax_t size){
+void Tier::add_file_size(ffd::Bytes size) {
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ += size;
 }
 
-void Tier::subtract_file_size(uintmax_t size){
+void Tier::subtract_file_size(ffd::Bytes size) {
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ -= size;
 }
 
-void Tier::size_delta(intmax_t old_size, intmax_t new_size){
+void Tier::size_delta(ffd::Bytes old_size, ffd::Bytes new_size) {
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ += new_size - old_size;
 }
 
-void Tier::add_file_size_sim(uintmax_t size){
+void Tier::add_file_size_sim(ffd::Bytes size) {
 	sim_usage_ += size;
 }
 
-void Tier::subtract_file_size_sim(uintmax_t size){
+void Tier::subtract_file_size_sim(ffd::Bytes size) {
 	sim_usage_ -= size;
 }
 
-void Tier::quota_percent(double quota_percent){
-	quota_percent_ = quota_percent;
+void Tier::quota_percent(double quota_percent) {
+	quota_.set_fraction(quota_percent / 100.0);
 }
 
-double Tier::quota_percent(void) const{
-	return quota_percent_;
+double Tier::quota_percent(void) const {
+	return quota_.get_fraction() * 100.0;
 }
 
-void Tier::get_capacity_and_usage(void){
-	struct statvfs fs_stats;
-	if((statvfs(path_.c_str(), &fs_stats) == -1)){
-		Logging::log.error("statvfs() failed on " + path_.string());
-		exit(EXIT_FAILURE);
-	}
-	capacity_ = (fs_stats.f_blocks * fs_stats.f_frsize);
-	sim_usage_ = 0;
+ffd::Quota Tier::quota(void) const {
+	return quota_;
 }
 
-void Tier::calc_quota_bytes(void){
-	if(quota_bytes_ == (uintmax_t)-1)
-		quota_bytes_ = (double)capacity_ * quota_percent_ / 100.0;
-	else if(quota_percent_ == -1.0)
-		quota_percent_ = (double)quota_bytes_ * 100.0 / (double)capacity_;
+bool Tier::full_test(const ffd::Bytes &file_size) const {
+	return (sim_usage_ + file_size) > quota_;
 }
 
-void Tier::quota_bytes(uintmax_t quota_bytes){
-	quota_bytes_ = quota_bytes;
-}
-
-uintmax_t Tier::quota_bytes(void) const{
-	return quota_bytes_;
-}
-
-bool Tier::full_test(const File &file) const{
-	return sim_usage_ + file.size() > quota_bytes_;
-}
-
-void Tier::path(const fs::path &path){
-	path_ = path;
-}
-
-const fs::path &Tier::path(void) const{
+const fs::path &Tier::path(void) const {
 	return path_;
 }
 
-const std::string &Tier::id(void) const{
+const std::string &Tier::id(void) const {
 	return id_;
 }
 
-void Tier::enqueue_file_ptr(File *fptr){
+void Tier::enqueue_file_ptr(File *fptr) {
 	incoming_files_.push_back(fptr);
 }
 
-void Tier::transfer_files(int buff_sz, const fs::path &run_path){
-	for(File * fptr : incoming_files_){
+void Tier::transfer_files(int buff_sz, const fs::path &run_path, std::shared_ptr<rocksdb::DB> &db) {
+	for (File *fptr : incoming_files_) {
 		fs::path old_path = fptr->full_path();
-		if(OpenFiles::is_open(old_path.string())){
+		if (OpenFiles::is_open(old_path.string())) {
 			Logging::log.warning("File is open by another process: " + old_path.string());
 			continue;
 		}
@@ -130,11 +120,12 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 		bool conflicted = false;
 		std::string orig_tier = fptr->tier_ptr()->id_;
 		bool copy_success = Tier::move_file(old_path, new_path, buff_sz, &conflicted, orig_tier);
-		if(copy_success){
-			fptr->transfer_to_tier(this);
+		if (copy_success) {
+			fptr->transfer_to_tier(this, db);
 			fptr->overwrite_times();
-			if(conflicted){
-				fptr->change_path(fptr->relative_path().string() + ".autotier_conflict." + orig_tier);
+			if (conflicted) {
+				fptr->change_path(
+					fptr->relative_path().string() + ".autotier_conflict." + orig_tier, db);
 				add_conflict(new_path.string(), run_path);
 			}
 		}
@@ -143,12 +134,19 @@ void Tier::transfer_files(int buff_sz, const fs::path &run_path){
 	sim_usage_ = 0;
 }
 
-bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buff_sz, bool *conflicted, std::string orig_tier) const{
-	if(conflicted) *conflicted = false;
-	fs::path new_tmp_path = new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
-	if(!is_directory(new_path.parent_path()))
+bool Tier::move_file(const fs::path &old_path,
+					 const fs::path &new_path,
+					 int buff_sz,
+					 bool *conflicted,
+					 std::string orig_tier) const {
+	if (conflicted)
+		*conflicted = false;
+	fs::path new_tmp_path =
+		new_path.parent_path() / ("." + new_path.filename().string() + ".autotier.hide");
+	if (!is_directory(new_path.parent_path()))
 		create_directories(new_path.parent_path());
-	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(), 2);
+	Logging::log.message("Copying " + old_path.string() + " to " + new_path.string(),
+						 Logger::log_level_t::DEBUG);
 	bool copy_success = true;
 	bool out_of_space = false;
 	char *buff = new char[buff_sz];
@@ -157,81 +155,84 @@ bool Tier::move_file(const fs::path &old_path, const fs::path &new_path, int buf
 	int source_fd;
 	int dest_fd;
 	source_fd = open(old_path.c_str(), O_RDONLY, 0777);
-	if(source_fd == -1)
+	if (source_fd == -1)
 		goto copy_error_out;
 	dest_fd = open(new_tmp_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0777);
-	if(dest_fd == -1)
+	if (dest_fd == -1)
 		goto copy_error_out;
 	off_t bytes_read;
 	off_t bytes_written;
-	do{
-		while((bytes_read = read(source_fd, buff, buff_sz)) > 0){
+	do {
+		while ((bytes_read = read(source_fd, buff, buff_sz)) > 0) {
 			out_of_space = false;
 			bytes_written = write(dest_fd, buff, bytes_read);
-			if((bytes_written == (off_t)-1 && errno == ENOSPC) || bytes_written < bytes_read){
-				if(bytes_written != (off_t)-1)
+			if ((bytes_written == (off_t)-1 && errno == ENOSPC) || bytes_written < bytes_read) {
+				if (bytes_written != (off_t)-1)
 					offset += bytes_written; // seek to latest written byte
 				out_of_space = true;
 				res = lseek(source_fd, offset, SEEK_SET);
-				if(res == (off_t)-1)
+				if (res == (off_t)-1)
 					goto copy_error_out;
 				res = lseek(dest_fd, offset, SEEK_SET);
-				if(res == (off_t)-1)
+				if (res == (off_t)-1)
 					goto copy_error_out;
-				Logging::log.message("Tier ran out of space while moving files, trying again.", 2);
+				Logging::log.message("Tier ran out of space while moving files, trying again.",
+									 Logger::log_level_t::DEBUG);
 				std::this_thread::yield(); // let another thread run
-			}else if(bytes_written != bytes_read)
+			} else if (bytes_written != bytes_read)
 				goto copy_error_out;
 			else // copy okay
 				offset += bytes_written;
 		}
-		if(bytes_read == -1)
+		if (bytes_read == -1)
 			goto copy_error_out;
-	}while(out_of_space);
-	if(close(source_fd) == -1)
+	} while (out_of_space);
+	if (close(source_fd) == -1)
 		goto copy_error_out;
-	if(close(dest_fd) == -1)
+	if (close(dest_fd) == -1)
 		goto copy_error_out;
-	if(copy_success){
+	if (copy_success) {
 		copy_ownership_and_perms(old_path, new_tmp_path);
 		fs::remove(old_path);
-		if(fs::exists(new_path)){
-			if(conflicted) *conflicted = true;
+		if (fs::exists(new_path)) {
+			if (conflicted)
+				*conflicted = true;
 			fs::rename(new_tmp_path, new_path.string() + ".autotier_conflict." + orig_tier);
-			Logging::log.error(
-				"Encountered conflict while moving file between tiers: " 
-				+ new_path.string()
-				+ "(.autotier_conflict)"
-			);
-		}else{
+			Logging::log.error("Encountered conflict while moving file between tiers: "
+							   + new_path.string() + "(.autotier_conflict)");
+		} else {
 			fs::rename(new_tmp_path, new_path);
-			Logging::log.message("Copy succeeded.\n", 2);
+			Logging::log.message("Copy succeeded.\n", Logger::log_level_t::DEBUG);
 		}
 	}
-	
+
 	delete[] buff;
 	return copy_success;
-	
+
 copy_error_out:
-	delete[] buff;
 	char *why = strerror(errno);
+	delete[] buff;
 	Logging::log.error(std::string("Copy failed: ") + why);
 	return false;
 }
 
-void Tier::usage(uintmax_t usage){
+void Tier::usage(ffd::Bytes usage) {
 	std::lock_guard<std::mutex> lk(usage_mt_);
 	usage_ = usage;
 }
 
-double Tier::usage_percent(void) const{
-	return double(usage_) / double(capacity_) * 100.0;
+double Tier::usage_percent(void) const {
+	return usage_ / quota_ * 100.0;
 }
 
-uintmax_t Tier::usage_bytes(void) const{
+ffd::Bytes Tier::usage_bytes(void) const {
 	return usage_;
 }
 
-uintmax_t Tier::capacity(void) const{
-	return capacity_;
+void Tier::reset_sim(void) {
+	sim_usage_ = 0;
+}
+
+ffd::Bytes Tier::capacity(void) const {
+	return ffd::Bytes(quota_.get_max());
 }

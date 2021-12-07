@@ -9,8 +9,8 @@ Build-Depends: debhelper-compat (= 12),
                libboost-filesystem-dev,
                libboost-serialization-dev,
                g++ (>= 9.1),
-               librocksdb-dev,
-               libtbb-dev
+               libtbb-dev,
+			   lib45d-dev (>= 0.3.4)
 Standards-Version: 4.4.1
 Homepage: ::package_url::
 

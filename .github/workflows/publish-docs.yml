@@ -1,0 +1,35 @@
+name: Publish Docs
+
+# Trigger this when a pull request is merged (which implies pushing to master).
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  api-doc:
+    runs-on: self-hosted
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v2
+    - name: Create clean gh-pages branch
+      run:  git checkout -b gh-pages
+    - name: Generate autodocs
+      run:  |
+        make clean-docs
+        make docs
+    - name: Copy homepage
+      run:  cp doc/index.md index.md
+    - name: Add generated autodocs to Git repo in the gh-pages branch
+      run:  |
+        export HOME=/root
+        git add dev-doc index.md -f
+        git commit -am "Generated API doc"
+        git push -f origin gh-pages:gh-pages
+    - name: Result URLs
+      run:  |
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 2)
+        echo "Formatted dev docs:  https://$REPO_OWNER.github.io/$REPO_NAME/dev-doc"
+        echo ""
+        echo "GitHub pages branch: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/tree/gh-pages"
