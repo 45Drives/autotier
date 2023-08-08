@@ -1,0 +1,7 @@
+<map id="ffd::ConfigException" name="ffd::ConfigException">
+<area shape="rect" id="node1" title="General exception for all Config* related issues." alt="" coords="246,80,398,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1ConfigGuardException.html" title="Throw this exception when a ConfigGuard is constructed or get_from() is called when the config is alr..." alt="" coords="5,155,196,181"/>
+<area shape="rect" id="node4" href="$classffd_1_1MissingOptionException.html" title="Throw this exception when a config entry is missing." alt="" coords="220,155,424,181"/>
+<area shape="rect" id="node5" href="$classffd_1_1NoConfigException.html" title="Throw this exception when the config file fails to open." alt="" coords="449,155,619,181"/>
+<area shape="rect" id="node2" href="$classffd_1_1Exception.html" title="Exceptions thrown by this library." alt="" coords="267,5,377,32"/>
+</map>

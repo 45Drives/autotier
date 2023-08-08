@@ -1,0 +1,4 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classffd_1_1Bytes.html" title="Use this class for byte&#45;formatted values. e.g.: &quot;123 KiB&quot;." alt="" coords="5,5,89,32"/>
+<area shape="rect" id="node2" href="$classffd_1_1Quota.html" title="This class extends ffd::Bytes to specify percents of an amount of bytes." alt="" coords="137,5,224,32"/>
+</map>

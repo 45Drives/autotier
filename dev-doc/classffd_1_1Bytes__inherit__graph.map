@@ -1,0 +1,4 @@
+<map id="ffd::Bytes" name="ffd::Bytes">
+<area shape="rect" id="node1" title="Use this class for byte&#45;formatted values. e.g.: &quot;123 KiB&quot;." alt="" coords="7,5,91,32"/>
+<area shape="rect" id="node2" href="$classffd_1_1Quota.html" title="This class extends ffd::Bytes to specify percents of an amount of bytes." alt="" coords="5,80,92,107"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="ffd::SocketCloseException" name="ffd::SocketCloseException">
+<area shape="rect" id="node1" title="Thrown when close(fd_) returns &#45;1 with strerror(errno) as what." alt="" coords="5,155,196,181"/>
+<area shape="rect" id="node2" href="$classffd_1_1SocketException.html" title="General exception for all Socket* related issues." alt="" coords="23,80,178,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1Exception.html" title="Exceptions thrown by this library." alt="" coords="45,5,156,32"/>
+</map>

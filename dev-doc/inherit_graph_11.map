@@ -1,0 +1,5 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classffd_1_1SocketBase.html" title="Base Unix Socket Class for opening and closing the socket." alt="" coords="5,31,128,57"/>
+<area shape="rect" id="node2" href="$classffd_1_1UnixSocketClient.html" title="Unix Socket Client class. Used for IPC through a named socket inode." alt="" coords="178,5,337,32"/>
+<area shape="rect" id="node3" href="$classffd_1_1UnixSocketServer.html" title="Unix Socket Server class. Used for IPC through a named socket inode." alt="" coords="176,56,339,83"/>
+</map>

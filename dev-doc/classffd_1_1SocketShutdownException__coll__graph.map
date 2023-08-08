@@ -1,0 +1,5 @@
+<map id="ffd::SocketShutdownException" name="ffd::SocketShutdownException">
+<area shape="rect" id="node1" title="Thrown when shutdown() fails." alt="" coords="5,155,224,181"/>
+<area shape="rect" id="node2" href="$classffd_1_1SocketException.html" title="General exception for all Socket* related issues." alt="" coords="37,80,192,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1Exception.html" title="Exceptions thrown by this library." alt="" coords="59,5,170,32"/>
+</map>

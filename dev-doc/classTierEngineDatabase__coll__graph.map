@@ -1,0 +1,7 @@
+<map id="TierEngineDatabase" name="TierEngineDatabase">
+<area shape="rect" id="node1" title="TierEngine component for dealing with the rocksdb database." alt="" coords="110,247,263,273"/>
+<area shape="rect" id="node2" href="$classTierEngineBase.html" title="Base class of TierEngine. Deals with calling config_ constructor and holds onto some members used in ..." alt="" coords="125,171,248,197"/>
+<area shape="rect" id="node3" href="$classConfig.html" title="Configuration class." alt="" coords="38,81,101,108"/>
+<area shape="rect" id="node4" href="$classffd_1_1ConfigParser.html" title="Main configuration parser class to inherit from in your code." alt="" coords="5,5,133,32"/>
+<area shape="rect" id="node5" href="$classConcurrentQueue.html" title=" " alt="" coords="125,81,331,108"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="ffd::SocketWriteException" name="ffd::SocketWriteException">
+<area shape="rect" id="node1" title="Thrown when write() fails." alt="" coords="5,155,195,181"/>
+<area shape="rect" id="node2" href="$classffd_1_1SocketException.html" title="General exception for all Socket* related issues." alt="" coords="23,80,177,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1Exception.html" title="Exceptions thrown by this library." alt="" coords="45,5,155,32"/>
+</map>

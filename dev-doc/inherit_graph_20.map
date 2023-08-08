@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classTierEngineBase.html" title="Base class of TierEngine. Deals with calling config_ constructor and holds onto some members used in ..." alt="" coords="5,81,128,108"/>
+<area shape="rect" id="node2" href="$classTierEngineAdhoc.html" title="TierEngine component to handle ad hoc commands." alt="" coords="187,5,318,32"/>
+<area shape="rect" id="node5" href="$classTierEngineDatabase.html" title="TierEngine component for dealing with the rocksdb database." alt="" coords="176,56,329,83"/>
+<area shape="rect" id="node6" href="$classTierEngineMutex.html" title="TierEngine component for ensuring only one instance of autotier runs for a given run path." alt="" coords="187,107,319,133"/>
+<area shape="rect" id="node7" href="$classTierEngineSleep.html" title="TierEngine component for dealing with thread sleeping." alt="" coords="189,157,316,184"/>
+<area shape="rect" id="node3" href="$classTierEngineTiering.html" title="TierEngine component to deal with tiering, inherits all other components so this is essentially the e..." alt="" coords="377,81,513,108"/>
+<area shape="rect" id="node4" href="$classTierEngine.html" title="Main TierEngine object to construct for setting up autotier. See other components for functionality." alt="" coords="561,81,652,108"/>
+</map>

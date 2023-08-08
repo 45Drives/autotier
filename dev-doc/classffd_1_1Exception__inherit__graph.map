@@ -1,0 +1,20 @@
+<map id="ffd::Exception" name="ffd::Exception">
+<area shape="rect" id="node1" title="Exceptions thrown by this library." alt="" coords="5,107,116,133"/>
+<area shape="rect" id="node2" href="$classffd_1_1ByteParseException.html" title="Throw this exception when Bytes::set() fails to parse string." alt="" coords="169,31,345,57"/>
+<area shape="rect" id="node3" href="$classffd_1_1ConfigException.html" title="General exception for all Config* related issues." alt="" coords="181,81,333,108"/>
+<area shape="rect" id="node7" href="$classffd_1_1QuotaParseException.html" title="Throw this exception when Quota::parse_fraction() fails to parse string." alt="" coords="164,132,349,159"/>
+<area shape="rect" id="node8" href="$classffd_1_1SocketException.html" title="General exception for all Socket* related issues." alt="" coords="179,360,334,387"/>
+<area shape="rect" id="node4" href="$classffd_1_1ConfigGuardException.html" title="Throw this exception when a ConfigGuard is constructed or get_from() is called when the config is alr..." alt="" coords="411,5,602,32"/>
+<area shape="rect" id="node5" href="$classffd_1_1MissingOptionException.html" title="Throw this exception when a config entry is missing." alt="" coords="405,56,609,83"/>
+<area shape="rect" id="node6" href="$classffd_1_1NoConfigException.html" title="Throw this exception when the config file fails to open." alt="" coords="421,107,592,133"/>
+<area shape="rect" id="node9" href="$classffd_1_1SocketAcceptException.html" title="Thrown when accept() fails." alt="" coords="407,157,606,184"/>
+<area shape="rect" id="node10" href="$classffd_1_1SocketAddressException.html" title="Thrown when the socket address is too long." alt="" coords="403,208,610,235"/>
+<area shape="rect" id="node11" href="$classffd_1_1SocketBindException.html" title="Thrown when bind() fails." alt="" coords="415,259,598,285"/>
+<area shape="rect" id="node12" href="$classffd_1_1SocketCloseException.html" title="Thrown when close(fd_) returns &#45;1 with strerror(errno) as what." alt="" coords="411,309,602,336"/>
+<area shape="rect" id="node13" href="$classffd_1_1SocketConnectException.html" title="Thrown when connect() fails." alt="" coords="403,360,610,387"/>
+<area shape="rect" id="node14" href="$classffd_1_1SocketCreateException.html" title="Thrown when socket() returns &#45;1 with strerror(errno) as what." alt="" coords="408,411,605,437"/>
+<area shape="rect" id="node15" href="$classffd_1_1SocketListenException.html" title=" " alt="" coords="410,461,603,488"/>
+<area shape="rect" id="node16" href="$classffd_1_1SocketReadException.html" title="Thrown when read() fails." alt="" coords="413,512,600,539"/>
+<area shape="rect" id="node17" href="$classffd_1_1SocketShutdownException.html" title="Thrown when shutdown() fails." alt="" coords="397,563,616,589"/>
+<area shape="rect" id="node18" href="$classffd_1_1SocketWriteException.html" title="Thrown when write() fails." alt="" coords="412,613,601,640"/>
+</map>

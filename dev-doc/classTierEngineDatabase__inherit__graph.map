@@ -1,0 +1,6 @@
+<map id="TierEngineDatabase" name="TierEngineDatabase">
+<area shape="rect" id="node1" title="TierEngine component for dealing with the rocksdb database." alt="" coords="5,80,159,107"/>
+<area shape="rect" id="node3" href="$classTierEngineTiering.html" title="TierEngine component to deal with tiering, inherits all other components so this is essentially the e..." alt="" coords="14,155,150,181"/>
+<area shape="rect" id="node2" href="$classTierEngineBase.html" title="Base class of TierEngine. Deals with calling config_ constructor and holds onto some members used in ..." alt="" coords="21,5,143,32"/>
+<area shape="rect" id="node4" href="$classTierEngine.html" title="Main TierEngine object to construct for setting up autotier. See other components for functionality." alt="" coords="37,229,127,256"/>
+</map>

@@ -1,0 +1,13 @@
+<map id="TierEngineTiering" name="TierEngineTiering">
+<area shape="rect" id="node1" title="TierEngine component to deal with tiering, inherits all other components so this is essentially the e..." alt="" coords="233,336,369,363"/>
+<area shape="rect" id="node2" href="$classTierEngineDatabase.html" title="TierEngine component for dealing with the rocksdb database." alt="" coords="177,260,330,287"/>
+<area shape="rect" id="node3" href="$classTierEngineBase.html" title="Base class of TierEngine. Deals with calling config_ constructor and holds onto some members used in ..." alt="" coords="299,171,421,197"/>
+<area shape="rect" id="node7" href="$classTierEngineSleep.html" title="TierEngine component for dealing with thread sleeping." alt="" coords="354,260,481,287"/>
+<area shape="rect" id="node8" href="$classTierEngineAdhoc.html" title="TierEngine component to handle ad hoc commands." alt="" coords="21,260,152,287"/>
+<area shape="rect" id="node11" href="$classTierEngineMutex.html" title="TierEngine component for ensuring only one instance of autotier runs for a given run path." alt="" coords="505,260,637,287"/>
+<area shape="rect" id="node4" href="$classConfig.html" title="Configuration class." alt="" coords="199,81,262,108"/>
+<area shape="rect" id="node5" href="$classffd_1_1ConfigParser.html" title="Main configuration parser class to inherit from in your code." alt="" coords="167,5,295,32"/>
+<area shape="rect" id="node6" href="$classConcurrentQueue.html" title=" " alt="" coords="286,81,493,108"/>
+<area shape="rect" id="node9" href="$classffd_1_1UnixSocketServer.html" title="Unix Socket Server class. Used for IPC through a named socket inode." alt="" coords="5,171,168,197"/>
+<area shape="rect" id="node10" href="$classffd_1_1SocketBase.html" title="Base Unix Socket Class for opening and closing the socket." alt="" coords="25,81,148,108"/>
+</map>

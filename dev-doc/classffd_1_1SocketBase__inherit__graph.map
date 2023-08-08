@@ -1,0 +1,5 @@
+<map id="ffd::SocketBase" name="ffd::SocketBase">
+<area shape="rect" id="node1" title="Base Unix Socket Class for opening and closing the socket." alt="" coords="115,5,238,32"/>
+<area shape="rect" id="node2" href="$classffd_1_1UnixSocketClient.html" title="Unix Socket Client class. Used for IPC through a named socket inode." alt="" coords="5,80,164,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1UnixSocketServer.html" title="Unix Socket Server class. Used for IPC through a named socket inode." alt="" coords="189,80,351,107"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="ffd::SocketCreateException" name="ffd::SocketCreateException">
+<area shape="rect" id="node1" title="Thrown when socket() returns &#45;1 with strerror(errno) as what." alt="" coords="5,155,203,181"/>
+<area shape="rect" id="node2" href="$classffd_1_1SocketException.html" title="General exception for all Socket* related issues." alt="" coords="27,80,181,107"/>
+<area shape="rect" id="node3" href="$classffd_1_1Exception.html" title="Exceptions thrown by this library." alt="" coords="49,5,159,32"/>
+</map>
