@@ -163,8 +163,17 @@ Flags:
               - combine with -q to mute logo output
 ```
 #### Mounting
-* manually: `# autotierfs /path/to/mountpoint -o allow_other,default_permissions`
-* fstab: `/usr/bin/autotierfs	/path/to/mountpoint	fuse	allow_other,default_permissions 0 0`
+##### fstab
+1. Ensure a mount point exists, e.g. `sudo mkdir /mnt/autotier`
+2. Edit `/etc/fstab` as root and add the following line:
+   ```
+   /usr/bin/autotierfs	/mnt/autotier	fuse	allow_other,default_permissions 0 0
+   ```
+3. Apply with `sudo mount -a`
+##### Manually
+1. Ensure a mount point exists, e.g. `sudo mkdir /mnt/autotier`
+2. Mount filesystem with `sudo autotierfs /mnt/autotier -o allow_other,default_permissions`
+
 ### Using cron  
 To have `cron` schedule file tiering, first disable automatic tiering by setting `Tier Period = -1` in `/etc/autotier.conf`.
 Then in the cron entry, call `autotier oneshot`.  
