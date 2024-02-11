@@ -26,6 +26,7 @@
 #include <45d/config/ConfigSubsectionGuard.hpp>
 #include <regex>
 #include <sstream>
+#include <fstream>
 
 extern "C" {
 #include <sys/statvfs.h>
