@@ -20,6 +20,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 /**
  * @brief Class to print logs to either stdout/stderr or the syslog.
